@@ -1,0 +1,1282 @@
+---
+title: "Workshop 1 - Linear models"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    # code_fold: hide
+    toc: true
+    toc_depth: 4
+    toc_float:
+       collapsed: false
+    number_sections: true
+    theme: paper
+    highlight: textmate
+---
+<style>
+pre {
+  overflow-x: auto;
+}
+pre code {
+  word-wrap: normal;
+  white-space: pre;
+}
+</style>
+
+
+
+```{css, echo=FALSE}
+pre {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+pre[class] {
+  max-height: 600px;
+}
+```
+
+
+```{r setup, include=FALSE}
+options(width = 300)
+library(knitr)
+library(rstanarm)
+library(rstan)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+library(loo)
+library(performance)
+library(bayesplot)
+library(gridExtra)
+library(grid)
+library(ggplot2)
+library(tibble)
+library(cowplot)
+library(RColorBrewer)
+library(dplyr)
+library(rethinking)
+library(tidyr)
+library(ggthemes)
+library(kableExtra)
+knitr::opts_chunk$set(fig.width = 12,cache=TRUE)
+```
+
+Links:
+
+[Examples of Stan code for regression models](https://github.com/stan-dev/example-models/wiki/ARM-Models)
+
+[What is in the stan fit object?](https://cran.r-project.org/web/packages/rstan/vignettes/stanfit-objects.html)
+
+
+# Data set Howell
+
+Dataset Howell from the [rethinking](https://github.com/rmcelreath/rethinking) package.
+
+```{r load_data}
+data(Howell1)
+howell1 <- Howell1
+head(howell1)
+str(howell1)
+```
+
+```{r hist_howell1}
+ggplot(howell1, aes(height),bins=50) + geom_histogram(aes(y = ..count..), fill="darkgreen",binwidth = 1, alpha=0.4) + 
+  theme(axis.line = element_line(size=1, colour = "black"),
+              panel.grid.major = element_line(colour = "#d3d3d3"),
+              panel.grid.minor = element_blank())
+```
+
+Subset with only individuals over 18 years old:
+
+```{r setting_howell2}
+howell2 <- howell1[howell1$age >= 18 , ]
+```
+
+```{r hist_howell2}
+plot_grid(ggplot(howell2, aes(height),bins=50) + geom_histogram(aes(y = ..count..), fill="darkgreen",binwidth = 1, alpha=0.4) + 
+  theme(axis.line = element_line(size=1, colour = "black"),
+              panel.grid.major = element_line(colour = "#d3d3d3"),
+              panel.grid.minor = element_blank()),
+  ggplot(howell2, aes(weight),bins=50) + geom_histogram(aes(y = ..count..), fill="blue",binwidth = 1, alpha=0.4) + 
+  theme(axis.line = element_line(size=1, colour = "black"),
+              panel.grid.major = element_line(colour = "#d3d3d3"),
+              panel.grid.minor = element_blank()))
+```
+```{r}
+ggplot(howell2,aes(y=height,x=weight))+geom_point() + theme(axis.line = element_line(size=1, colour = "black"),
+              panel.grid.major = element_line(colour = "gray95"),
+              panel.grid.minor = element_blank())
+```
+
+# Without predictor
+
+## With large variance
+
+
+$$ h_{i} \sim \mathcal{N}(\mu \, , \,  \sigma^2)$$
+$$\mu \sim \mathcal{N}(178,20)$$
+
+Data in a list:
+
+```{r data_m1}
+m1.data <- list(N = nrow(howell2), height = howell2$height)
+```
+
+
+### Notation 1 (vectorized with target += notation)
+
+> explicitly incrementing the log probability function
+
+https://mc-stan.org/docs/2_18/reference-manual/increment-log-prob-section.html
+
+"The basis of Stan’s execution is the evaluation of a **log probability function** (specifically, a probability density function) for a given set of (real-valued) parameters; this function returns the **log density of the posterior up to an additive constant**. Data and transformed data are fixed before the log density is evaluated. The total log probability is initialized to zero. Next, any log Jacobian adjustments accrued by the variable constraints are added to the log density (the Jacobian adjustment may be skipped for optimization). Sampling and log probability increment statements may add to the log density in the model block. A log probability increment statement directly increments the log density with the value of an expression as follows."
+
+
+https://stackoverflow.com/questions/40289457/stan-using-target-syntax
+
+"The **target density** is the density from which the sampler samples and it needs to be equal to the joint density of all the parameters given the data up to a constant (which is usually achieved via Bayes's rule by coding as the joint density of parameters and modeled data up to a constant)."
+
+
+
+
+```{stan output.var="m1.1"}
+data {                                             // observed variables 
+  int<lower=1> N;                                  // number of observations
+  vector[N] height;                                // response variables
+}
+parameters {                                       // unobserved variables
+  real mu;                                      
+  real<lower=0,upper=50> sigma;
+}
+model {
+  target += normal_lpdf(height | mu, sigma);       // likelihood
+  target += normal_lpdf(mu | 178, 20);             // prior of the mean
+}
+```
+
+```{r print_m1.1}
+fit.m1.1 <- sampling(m1.1, data = m1.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.1, probs = c(0.10, 0.5, 0.9))
+```
+
+
+### Notation 2 (vectorized with Jags-like notation)
+
+>  using the sampling statement
+
+Difference with explicitly incrementing the log probability function:
+
+"The sampling statement drops all the terms in the log probability function that are constant, whereas the explicit call to `normal_lpdf` adds all of the terms in the definition of the log normal probability function, including all of the constant normalizing terms. Therefore, the explicit increment form can be used to recreate the exact log probability values for the model. Otherwise, the sampling statement form will be faster if any of the input expressions involve only constants, data variables, and transformed data variables."
+
+https://mc-stan.org/docs/2_18/reference-manual/sampling-statements-section.html
+
+**Bounding sigma in the parameter block:**
+
+```{stan output.var="m1.2.1"}
+data {                                             // observed variables 
+  int<lower=1> N;                                  // number of observations
+  vector[N] height;                                // response variables
+}
+parameters {                                       // unobserved variables
+  real mu;                                      
+  real<lower=0,upper=50> sigma;
+}
+model {
+  height ~ normal(mu,sigma);                       // likelihood
+  mu ~ normal(178, 20);                            // prior of the mean
+}
+```
+
+```{r print_m1.2}
+fit.m1.2.1 <- sampling(m1.2.1, data = m1.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.2.1, probs = c(0.10, 0.5, 0.9))
+```
+
+
+**Specifying the prior of sigma in the model block (**$\sigma \sim \mathcal{U}(0,50)$**):**
+
+```{stan output.var="m1.2.2"}
+data {                                             // observed variables 
+  int<lower=1> N;                                  // number of observations
+  vector[N] height;                                // response variables
+}
+parameters {                                       // unobserved variables
+  real mu;                                      
+  real sigma;
+}
+model {
+  height ~ normal(mu,sigma);                       // likelihood
+  mu ~ normal(178, 20);                            // prior of the mean
+  sigma ~ uniform(0,50);                           // prior of sigma          
+}
+```
+
+```{r print_m1.2.2}
+fit.m1.2.2 <- sampling(m1.2.2, data = m1.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.2.2, probs = c(0.10, 0.5, 0.9))
+```
+
+
+### Notation 3 (unvectorized)
+
+```{stan output.var="m1.3"}
+data {                                             // observed variables 
+  int<lower=1> N;                                  // number of observations
+  vector[N] height;                                // response variables
+}
+parameters {                                       // unobserved variables
+  real mu;                                      
+  real<lower=0,upper=50> sigma;
+}
+model {
+  for (n in 1:N)
+  height[n] ~ normal(mu,sigma);                    // likelihood
+  mu ~ normal(178, 20);                            // prior of the mean
+}
+```
+
+
+```{r print_m1.3}
+fit.m1.3 <- sampling(m1.3, data = m1.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.3, probs = c(0.10, 0.5, 0.9))
+```
+
+
+#### Comparing model runtime
+
+Vectorized with target += notation:
+```{r speed1}
+get_elapsed_time(fit.m1.1)
+```
+
+Vectorized with Jags-like notation:
+```{r speed2}
+# not specifying the prior of sigma
+get_elapsed_time(fit.m1.2.1)
+
+# Specifying the prior of sigma
+get_elapsed_time(fit.m1.2.2)
+```
+
+Unvectorized:
+```{r speed3}
+get_elapsed_time(fit.m1.3)
+```
+
+
+## With low variance
+
+
+$$ h_{i} \sim \mathcal{N}(\mu \, , \,  \sigma^2)$$
+$$\mu \sim \mathcal{N}(178,0.1)$$
+
+Data in a list:
+
+```{r data_m2}
+m2.data <- list(N = nrow(howell2), height = howell2$height)
+```
+
+
+```{stan output.var="m2"}
+data {                                             // observed variables 
+  int<lower=1> N;                                  // number of observations
+  vector[N] height;                                // response variables
+}
+parameters {                                       // unobserved variables
+  real mu;                                      
+  real<lower=0,upper=50> sigma;
+}
+model {
+  target += normal_lpdf(height | mu, sigma);       // likelihood
+  target += normal_lpdf(mu | 178, 0.1);             // prior of the mean
+}
+```
+
+```{r print_m2}
+fit.m2 <- sampling(m2 , data = m2.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m2, probs = c(0.10, 0.5, 0.9))
+```
+
+
+
+# With one continious predictor
+
+Model equation:
+
+\begin{align*}
+    h_{i} \sim & \, \mathcal{N}(\mu_{i} \, , \,  \sigma^2) \\[4pt]
+    \mu_{i} =  & \, \beta_{1} + \beta_{2} w_{i}\\[4pt]
+    \beta_{1} \sim & \, \mathcal{N}(178,100)\\[4pt]
+    \beta_{2} \sim & \, \mathcal{N}(0,10)\\[4pt]
+    \sigma \sim & \, \mathcal{U}(0,5)\\[4pt]
+\end{align*}
+
+
+Centering the predictor:
+```{r centering_m3}
+howell2$weight.c <- howell2$weight - mean(howell2$weight)
+```
+
+Data in a list:
+```{r data_m3}
+m3.data <- list(N = nrow(howell2), height = howell2$height, weight = howell2$weight.c)
+```
+
+
+```{stan output.var="m3.1"}
+data {                                                     // observed variables 
+  int<lower=1> N;                                          // number of observations
+  vector[N] height;                                        // response variables
+  vector[N] weight;                                        // predictor (previously centered)
+}
+parameters {                                               // unobserved variables
+  real beta[2];                                            // parameters: intercept and slopes
+  real sigma;
+}
+model {
+  height ~ normal(beta[1] + beta[2]*weight ,sigma);        // likelihood
+  beta[1] ~ normal(178, 100);                              // prior of the intercept
+  beta[2] ~ normal(0, 10);                                 // prior of the slope
+  sigma ~ uniform(0,50);
+}
+```
+
+```{r print_m3.1}
+fit.m3.1 <- sampling(m3.1, data = m3.data, iter = 1000, chains = 4, cores = 4)
+print(fit.m3.1, probs = c(0.10, 0.5, 0.9))
+```
+
+
+
+
+Another possibility for $\beta_{2}$ prior: $$\beta_{2} \sim \, \text{LogNormal}(0,10)$$.
+
+```{stan output.var="m3.2"}
+data {                                                     // observed variables 
+  int<lower=1> N;                                          // number of observations
+  vector[N] height;                                        // response variables
+  vector[N] weight;                                        // predictor (previously centered)
+}
+parameters {                                               // unobserved variables
+  real beta[2];                                            // parameters: intercept and slopes
+  real sigma;
+}
+model {
+  height ~ normal(beta[1] + beta[2]*weight ,sigma);        // likelihood
+  beta[1] ~ normal(178, 100);                              // prior of the intercept
+  beta[2] ~ lognormal(0, 1);                               // prior of the slope
+  sigma ~ uniform(0,50);
+}
+```
+
+```{r print_m3.2}
+fit.m3.2 <- sampling(m3.2, data = m3.data, iter = 1000, chains = 4, cores = 4)
+print(fit.m3.2, probs = c(0.10, 0.5, 0.9))
+```
+
+
+> vectorized with target +=
+
+```{stan output.var="m3.3"}
+data {                                                     // observed variables 
+  int<lower=1> N;                                          // number of observations
+  vector[N] height;                                        // response variables
+  vector[N] weight;                                        // predictor (previously centered)
+}
+parameters {                                               // unobserved variables
+  real beta[2];                                            // parameters: intercept and slopes
+  real sigma;
+}
+model {
+  target += normal_lpdf(height | beta[1] + beta[2]*weight, sigma);       // likelihood
+  target += normal_lpdf(beta[1] | 178, 20);                              // prior of the intercept
+  target += lognormal_lpdf(beta[2] |0, 1);                                // prior of the slope
+  target += uniform_lpdf(sigma|0,50);
+}
+```
+
+```{r print_m3.3}
+fit.m3.3 <- sampling(m3.3, data = m3.data, iter = 1000, chains = 4, cores = 4)
+print(fit.m3.3, probs = c(0.10, 0.5, 0.9))
+```
+
+
+
+
+
+
+## What do our priors imply?
+
+Let's simulate the prior predictive distribution (simulate heights from the model, using only the priors). 
+
+> See Chapter 4 of Statistical Rethinking.
+
+
+
+```{r comparing_priors,fig.width = 5,fig.height=3}
+set.seed(2971)
+N <- 100 # 100 lines
+a <- rnorm( N , 178 , 20 )
+b1 <- rnorm( N , 0 , 10 )
+b2 <- rlnorm( N, 0 , 1 )
+dens(rnorm(  1e4, 0 , 10 ),main="b ~ dnorm(0,10)")
+dens(rlnorm( 1e4 , 0 , 1 ),main="log(b) ~ dnorm(0,1)")
+```
+
+```{r normal_prior,fig.width = 6,fig.height=4}
+p <- plot( NULL , xlim=range(howell2$weight) , ylim=c(-100,400) ,xlab="weight" , ylab="height")
+abline(h=0,lty=2)
+abline( h=272 , lty=1 , lwd=0.5 )
+mtext( "b ~ dnorm(0,10)" )
+xbar <- mean(howell2$weight)
+for ( i in 1:N ) curve( a[i] + b1[i]*(x - xbar) ,
+from=min(howell2$weight) , to=max(howell2$weight) , add=TRUE ,
+col=col.alpha("black",0.2) )
+```
+
+McElreath: "For reference, I’ve added a dashed line at zero—no one is shorter than zero—and the “Wadlow” line at 272cm for the world’s tallest person. The pattern doesn’t look like any human population at all. It essentially says that the relationship between weight and height could be absurdly positive or negative. Before we’ve even seen the data, this is a bad model."
+
+```{r lognormal_prior,fig.width = 6,fig.height=4}
+plot( NULL , xlim=range(howell2$weight) , ylim=c(-100,400) ,xlab="weight" , ylab="height")
+abline(h=0,lty=2)
+abline( h=272 , lty=1 , lwd=0.5 )
+mtext( "log(b) ~ dnorm(0,1)" )
+xbar <- mean(howell2$weight)
+for ( i in 1:N ) curve( a[i] + b2[i]*(x - xbar) ,
+from=min(howell2$weight) , to=max(howell2$weight) , add=TRUE ,
+col=col.alpha("black",0.2) )
+
+```
+
+McElreath: "This is much more sensible. There is still a rare impossible relationship. But nearly all lines in the joint prior for $\beta_{1}$ and $\beta_{2}$ are now within human reason. 
+We’re fussing about this prior, even though as you’ll see in the next section there is so much data in this example that the priors end up not mattering. We fuss for two reasons. First, there are many analyses in which no amount of data makes the prior irrelevant. In such cases, non-Bayesian procedures are no better off. They also depend upon structural features of the model. Paying careful attention to those features is essential. Second, thinking about the priors helps us develop better models, maybe even eventually going beyond geocentrism."
+
+
+
+Help to choose your prior with Stan: https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations
+
+
+
+
+
+## Convergence diagnostics
+
+https://github.com/stan-dev/stan/wiki/Stan-Best-Practices
+
+### Rhat < 1.1
+
+"The best generic diagnostic for the accuracy of a Markov chain Monte Carlo algorithm is the split R-hat statistic which quantifies the **consistency of an ensemble of Markov chains**. The idea is to run multiple Markov chains, 4 is an okay default but running more makes the diagnostic more sensitive, and ensure that they're all exploring the same regions of parameter space. If even one chain is inconsistent with the others then all of the chains are suspect! In practice we have found that requiring Rhat < 1.1 is a good default requirement for each parameter."
+
+
+
+```{r rhats,fig.height=3}
+rhats <- rhat(fit.m3.2)
+print(rhats)
+mcmc_rhat(rhats)  + yaxis_text(hjust = 1)
+```
+
+
+### Effective sample size
+
+"Another potential problem to keep in mind is Markov chains that explore very slowly. Slow chains lead to low numbers of effective samples, and if there are too few effective samples then we can't accurate estimate the number of effective samples at all. A good check for such issues is the number of effective samples per iteration -- if N_eff / N < 0.001 then you should be suspect of the effective sample size calculation."
+
+
+```{r neff}
+ratios <- neff_ratio(fit.m3.2)
+print(ratios)
+mcmc_neff(ratios, size = 2)
+```
+
+
+### MCMC diagnostics using the bayesplot package
+
+We need:
+```{r info_model_fit}
+# The posterior draws
+posterior <- as.array(fit.m3.2)
+
+# The  log of the posterior density for each draw 
+lp <- log_posterior(fit.m3.2)
+head(lp)
+
+# Some NUTS-specific diagnostic values 
+np <- nuts_params(fit.m3.2)
+head(np)
+```
+
+#### Divergent transitions
+
+https://mc-stan.org/bayesplot/articles/visual-mcmc-diagnostics.html
+
+
+```{r parcoord}
+mcmc_parcoord(posterior, np = np,pars=c("beta[1]","beta[2]","sigma"))
+```
+
+Pairs plots:
+
+```{r pairs,fig.height=6}
+mcmc_pairs(posterior, np = np, pars = c("beta[1]","beta[2]","sigma"),  off_diag_args = list(size = 0.75))
+```
+
+Trace plots:
+
+```{r}
+mcmc_trace(posterior, pars = "beta[2]", np = np) +  xlab("Post-warmup iteration")
+```
+
+
+## Posterior predictive distributions
+
+https://mc-stan.org/docs/2_18/stan-users-guide/prediction-forecasting-and-backcasting.html
+
+
+```{r data_m4}
+m4.data <- list(N = nrow(howell2), height = howell2$height, weight = howell2$weight.c)
+```
+
+
+```{stan output.var="m4"}
+data {                                                     // observed variables 
+  int<lower=1> N;                                          // number of observations
+  vector[N] height;                                        // response variables
+  vector[N] weight;                                        // predictor (previously centered)
+}
+
+parameters {                                               // unobserved variables
+  real beta[2];                                            // parameters: intercept and slope
+  real sigma;
+}
+
+model {
+  height ~ normal(beta[1] + beta[2]*weight ,sigma);        // likelihood
+  beta[1] ~ normal(178, 100);                              // prior of the intercept
+  beta[2] ~ lognormal(0, 1);                                  // prior of the slope
+  sigma ~ uniform(0,50);
+}
+
+generated quantities {
+  vector[N] y_rep;
+
+  for(i in 1:N)
+  y_rep[i] = normal_rng(beta[1] + beta[2]*weight[i], sigma);
+}
+```
+
+
+
+```{r fit_m4_and_yrep}
+fit.m4 <- sampling(m4, data = m4.data, iter = 1000, chains = 4, cores = 4)
+y_rep <- as.matrix(fit.m4, pars = "y_rep")
+dim(y_rep)
+```
+
+
+
+```{r y_vs_yrep_m4,fig.height=6}
+ppc_dens_overlay(howell2$height, y_rep)
+```
+
+```{r summ_stats_yrep_m4,fig.height=5,message=F}
+plot_grid(ppc_stat(y = howell2$height, yrep = y_rep, stat = "mean"),
+          ppc_scatter_avg(y = howell2$height, yrep = y_rep))
+```
+
+
+## Visualizing the variance
+
+> See section 4.4 of Statistical rethinking
+
+
+Model with non-centered weight:
+
+```{r data_m3.1.bis}
+m3.1.bis.data <- list(N = nrow(howell2), height = howell2$height, weight = howell2$weight)
+```
+
+
+```{stan output.var="m3.1.bis"}
+data {                                                     // observed variables 
+  int<lower=1> N;                                          // number of observations
+  vector[N] height;                                        // response variables
+  vector[N] weight;                                        // predictor (previously centered)
+}
+parameters {                                               // unobserved variables
+  real beta[2];                                            // parameters: intercept and slopes
+  real sigma;
+}
+model {
+  height ~ normal(beta[1] + beta[2]*weight ,sigma);        // likelihood
+  beta[1] ~ normal(178, 100);                              // prior of the intercept
+  beta[2] ~ normal(0, 10);                                 // prior of the slope
+  sigma ~ uniform(0,50);
+}
+```
+
+```{r print_m3.1.bis}
+fit.m3.1.bis <- sampling(m3.1.bis, data = m3.1.bis.data, iter = 1000, chains = 4, cores = 4)
+print(fit.m3.1.bis, probs = c(0.10, 0.5, 0.9))
+```
+
+
+### Prediction interval for average height 
+
+> Figure 4.7. of Statistical rethinking
+
+
+```{r HPDI_average_height, warning=F}
+post <- as.data.frame(fit.m3.1.bis)
+f_mu <- function(x) post$`beta[1]` + post$`beta[2]` * x
+weight_new <- seq(25, 70)
+mu <- 
+  sapply(weight_new, f_mu) %>%
+  tibble::as_tibble() %>%
+  rename_all(function(x) weight_new) %>%
+  mutate(Iter = row_number()) %>%
+  gather(weight, height, -Iter) %>%
+  group_by(weight) %>%
+  mutate(hpdi_l = HDInterval::hdi(height, credMass = 0.89)[1],
+         hpdi_h = HDInterval::hdi(height, credMass = 0.89)[2]) %>%
+  mutate(mu = mean(height)) %>%
+  ungroup() %>%
+  mutate(weight = as.integer(weight))
+p <- ggplot() 
+p1 <- p +
+  geom_point(data = mu %>% filter(Iter < 101),
+             aes(weight, height), alpha = .05, color = 'dodgerblue') +
+  labs(subtitle="Density at each weight")
+p2 <- p +
+  geom_point(data = howell2,
+             aes(weight, height), shape = 1, color = 'dodgerblue') +
+  geom_ribbon(data = mu,
+              aes(x = weight, ymin = hpdi_l, ymax = hpdi_h),
+              alpha = .2) +
+  geom_abline(data = post,
+              aes(intercept = mean(`beta[1]`), slope = mean(`beta[2]`))) +
+  labs(subtitle="HPDI Interval = 0.89")
+grid.arrange(p1, p2, nrow = 1)  
+```
+
+"Left: The first 100 values in the distribution of $\beta_{1}$ (intercept) at each weight value. Right: The !Kung height data again, now with 89% HPDI of the mean indicated by the shaded region. Compare this region to the distributions of blue points on the left."
+
+
+### Prediction interval for actual heights 
+
+
+> Figure 4.8. of Statistical rethinking
+
+
+Incorporating the uncertainty related to the standard deviation $\sigma^{2}$.
+
+
+```{r HDPI_actual_heights}
+sim_ht <- 
+  sapply(weight_new,
+         function(x)
+           rnorm(NROW(post),
+                 post$`beta[1]` + post$`beta[2]` * x,
+                 post$sigma)) %>%
+  as_tibble() %>%
+  rename_all(function(x) weight_new) %>%
+  mutate(Iter = row_number()) %>%
+  gather(weight, height, -Iter) %>%
+  group_by(weight) %>%
+  mutate(pi_l = rethinking::PI(height, prob = 0.89)[1],
+         pi_h = rethinking::PI(height, prob = 0.89)[2]) %>%
+  ungroup() %>%
+  mutate(weight = as.integer(weight))
+p2 + geom_ribbon(data = sim_ht,
+                 mapping = aes(x=weight, ymin=pi_l, ymax=pi_h), alpha = .1) +
+  labs(subtitle = 'Prediction Intervals = 0.89')
+```
+
+"**Figure 4.8.** 89% prediction interval for height, as a function of weight. The solid line is the MAP estimate of the mean height at each weight. The two shaded regions
+show different 89% plausible regions. The narrow shaded interval around the line is the distribution of $\beta_{1}$ (intercept)  . The wider shaded region represents the region within which the model expects to find 89% of actual heights in the population, at each weight.""
+
+
+
+
+# With one categorical predictor
+
+Individual sex is a **categorical variable** with value 0 whenever the person is a female and a value 1 whenever the person is a male. 
+
+```{r boxplot_height_vs_sex}
+ggplot(howell2, aes(x=as.factor(male), y=height, color=as.factor(male))) +
+  geom_boxplot()   + scale_x_discrete(labels=c("0" = "Female", "1" = "Male")) + 
+  theme(axis.title.x=element_blank(),legend.position = "none")
+```
+
+
+There are two ways to include binary categorical variables, either using **indicator** variable or **index** variable. More details in section 5.3.1 of _Statistical rethinking_ (McElreath's book). 
+
+
+## Indicator variable (or dummy variable)
+
+Using indicator variables is ok with binary variables, but shouldn't be used for variables with many categories (see 5.3.2 section of Statistical rethiking).
+
+
+Model equation (like in McElreath's book):
+
+\begin{align*}
+    h_{i} &\sim \mathcal{N}(\mu_{i} \, , \,  \sigma^2) \\[4pt]
+    \mu_{i} &=  \alpha + \beta_{m} m_{i}\\[4pt]
+    \alpha &\sim \mathcal{N}(178,20)\\[4pt]
+    \beta_{m} &\sim \mathcal{N}(0,10)\\[4pt]
+    \sigma &\sim \mathcal{U}(0,50)\\[4pt]
+\end{align*}
+
+
+In R, we can convert our categorical variable in a dummy variable like this:
+
+```{r dummy_var_m5.1}
+X <- model.matrix(~male, howell2)
+```
+
+
+```{r data_m5.1}
+m5.1.data <- list(N = nrow(howell2), height = howell2$height, X = X, n = length(unique(howell2$male)))
+str(m5.1.data)
+```
+
+
+```{stan output.var="m5.1.1"}
+data {                                                     
+  int<lower=0> N;                                          // number of observations
+  int<lower=0> n;                                          // number of levels of the categorical variable
+  vector[N] height;                                        // response variables
+  matrix[N,n] X;                                           // categorical variable
+}
+
+parameters {                                          
+  vector[n] beta;                                         // intercepts of the categorical variable
+  real sigma;
+}
+
+transformed parameters {
+vector[N] mu;                                             
+mu = X*beta;  
+}
+
+model {
+  height ~ normal(mu ,sigma);                              // likelihood
+  sigma ~ uniform(0,50);
+  beta[1] ~ normal(178,20);
+  beta[2] ~ normal(0,10);
+}
+
+generated quantities {
+  vector[N] y_rep;
+ for(i in 1:N)
+ y_rep[i] = normal_rng(mu[i], sigma);
+}
+
+```
+
+```{r print_m5_1_1,cache=F, class.output="scroll-50"}
+fit.m5_1_1 <- sampling(m5.1.1, data = m5.1.data, iter = 1000, chains = 4, cores = 4)
+print(fit.m5_1_1, probs = c(0.10, 0.5, 0.9))
+```
+
+
+```{r freq_comp_m5_1_1}
+summary(lm(height~as.factor(male),data=howell2))
+```
+
+> Convergence diagnostics
+
+```{r divergence_diagnostics_m5_1_1,cache=FALSE}
+posterior <- as.array(fit.m5_1_1) # posterior draws
+lp <- log_posterior(fit.m5_1_1) # log of the posterior density for each draw 
+np <- nuts_params(fit.m5_1_1) # Some NUTS-specific diagnostic values 
+mcmc_parcoord(posterior, np = np,pars=c("beta[1]","beta[2]","sigma")) 
+mcmc_pairs(posterior, np = np, pars = c("beta[1]","beta[2]","sigma"),  off_diag_args = list(size = 0.75)) # Pairs plots
+mcmc_trace(posterior, pars = c("beta[1]","beta[2]","sigma"), np = np) +  xlab("Post-warmup iteration") # Trace plots
+```
+
+
+Same outputs with another prior for sigma: $\sigma \sim \, {\rm Cauchy} (0,5)$
+
+
+```{stan output.var="m5.1.2"}
+data {                                                     
+  int<lower=0> N;                                          // number of observations
+  int<lower=0> n;                                          // number of levels of the categorical variable
+  vector[N] height;                                        // response variables
+  matrix[N,n] X;                                           // categorical variable
+}
+
+parameters {                                          
+  vector[n] beta;                                         // intercepts of the categorical variable
+  real sigma;
+}
+
+transformed parameters {
+vector[N] mu;                                             
+mu = X*beta;  
+}
+
+model {
+  height ~ normal(mu ,sigma);                              // likelihood
+  sigma ~ cauchy(0,5);
+  beta[1] ~ normal(178,20);
+  beta[2] ~ normal(0,10);
+  // beta ~ normal(0,1000)
+}
+
+generated quantities {
+  vector[N] y_rep;
+ for(i in 1:N)
+ y_rep[i] = normal_rng(mu[i], sigma);
+}
+
+```
+
+```{r print_m5_1_2,cache=F, class.output="scroll-50"}
+fit.m5_1_2 <- sampling(m5.1.2, data = m5.1.data, iter = 1000, chains = 4, cores = 4)
+print(fit.m5_1_2, probs = c(0.10, 0.5, 0.9))
+```
+
+
+
+## Index variable
+
+Here we consider the variable `male` as an **index variable**, with value 1 whenever the person is a female and a value 2 whenever the person is a male. 
+
+
+```{r data_m5.2}
+howell2$male.index <- ifelse(howell2$male==1,2,1)
+m5.2.data <- list(N = nrow(howell2), height = howell2$height, male = as.integer(howell2$male.index), n = length(unique(howell2$male.index)))
+str(m5.2.data)
+```
+
+
+Model equation:
+
+\begin{align*}
+    h_{i} &\sim \mathcal{N}(\mu_{i} \, , \,  \sigma^2) \\[4pt]
+    \mu_{i} &= \alpha_{\text{SEX}[\textit{i}]}\\[4pt]
+    \alpha_{j} &\sim \mathcal{N}(178,20) \quad \text{, for} \, j = 1..2\\[4pt]
+    \sigma^2 &\sim \mathcal{U}(0,5)\\[4pt]
+\end{align*}
+
+
+```{stan output.var="m5.2"}
+data {                                                     
+  int<lower=0> N;                                          // number of observations
+  int<lower=0> n;                                          // number of levels of the categorical variable
+  vector[N] height;                                        // response variables
+  int<lower=1,upper=n> male[N];                            // categorical variable
+}
+
+parameters {                                          
+  vector[n] beta;    // real beta[n];  (idem)               // intercepts of the categorical variable
+  real sigma;
+}
+
+transformed parameters {
+vector[N] mu;                                              // create one variable with predictions for each obs
+for (i in 1:N)                                             // loop for all cases 
+mu[i] = beta[male[i]];  
+}
+
+model {
+  height ~ normal(mu ,sigma);                              // likelihood
+  sigma ~ cauchy(0,5);
+}
+
+generated quantities {
+  vector[N] y_rep;
+
+ for(i in 1:N)
+ y_rep[i] = normal_rng(mu[i], sigma);
+}
+
+```
+
+```{r print_m5_2,cache=F, class.output="scroll-100"}
+fit.m5_2 <- sampling(m5.2, data = m5.2.data, iter = 1000, chains = 4, cores = 4)
+print(fit.m5_2, probs = c(0.10, 0.5, 0.9))
+```
+
+
+Corresponds to a frequentist model with the intercept fixed to zero:
+
+```{r freq_comp_m5_2}
+summary(lm(height~as.factor(male)-1,data=howell2))
+```
+
+
+Even if you use a **index** variable (with values 1 or 2), you can also use the same notation as for dummy variables
+
+```{r data_m5.2.bis}
+X <- model.matrix(~male.index, howell2)
+m5.2.bis.data <- list(N = nrow(howell2), height = howell2$height, X = X, n = length(unique(howell2$male.index)))
+str(m5.2.bis.data)
+```
+
+```{stan output.var="m5.2.bis"}
+data {                                                     
+  int<lower=0> N;                                          // number of observations
+  int<lower=0> n;                                          // number of levels of the categorical variable
+  vector[N] height;                                        // response variables
+  matrix[N,n] X;                                           // categorical variable
+}
+
+parameters {                                          
+  vector[n] beta;                                         // intercepts of the categorical variable
+  real sigma;
+}
+
+transformed parameters {
+vector[N] mu;                                             
+mu = X*beta;  
+}
+
+model {
+  height ~ normal(mu ,sigma);                              // likelihood
+  sigma ~ cauchy(0,5);
+  beta[1] ~ normal(178,20);
+  beta[2] ~ normal(0,10);
+}
+
+generated quantities {
+  vector[N] y_rep;
+ for(i in 1:N)
+ y_rep[i] = normal_rng(mu[i], sigma);
+}
+
+```
+
+```{r print_m5_2_bis,cache=F, class.output="scroll-50"}
+fit.m5_2_bis <- sampling(m5.2.bis, data = m5.2.bis.data, iter = 1000, chains = 4, cores = 4)
+print(fit.m5_2_bis, probs = c(0.10, 0.5, 0.9))
+```
+
+
+
+
+
+# Polynomial regression
+
+## Howell 2: subset with only individuals over 18 years old
+
+Standardizing the explanatory variable:
+
+```{r standardizing_weight}
+howell2 <- howell2 %>% mutate(weight.z = (weight - mean(weight)) / sd(weight))
+```
+
+Data in a list:
+
+```{r data_m6}
+m6.data <- list(N = nrow(howell2), height = howell2$height, weight = howell2$weight.z)
+```
+
+
+```{stan output.var="m6"}
+data {                                                     // observed variables 
+  int<lower=1> N;                                          // number of observations
+  vector[N] height;                                        // response variables
+  vector[N] weight;                                        // predictor (previously centered)
+}
+
+parameters {                                               // unobserved variables
+  real beta[3];                                            // parameters: intercept and slope
+  real sigma;
+}
+
+model {
+  height ~ normal(beta[1] + beta[2]*weight + beta[3]*(weight .* weight),sigma);        // likelihood
+  beta[1] ~ normal(178, 100);                              // prior of the intercept
+  beta[2] ~ normal(0, 100);                                  // prior of the slope
+  beta[3] ~ normal(0, 100);
+  sigma ~ uniform(0,50);
+}
+
+generated quantities {
+  vector[N] y_rep;
+
+  for(i in 1:N)
+  y_rep[i] = normal_rng(beta[1] + beta[2]*weight[i] + beta[3]*(weight[i] .* weight[i]), sigma);
+}
+```
+
+```{r print_m6,class.output="scroll-50",cache=F}
+fit.m6 <- sampling(m6, data = m6.data, iter = 1000, chains = 4, cores = 4)
+print(fit.m6, probs = c(0.10, 0.5, 0.9))
+```
+
+
+```{r freq_comp_m6}
+summary(lm(height~weight.z+I(weight.z^2),data=howell2))
+```
+
+> See Figure 4.9 of Statistical rethinking
+
+https://github.com/ssp3nc3r/rethinking/blob/master/chapter04.Rmd
+
+
+```{r graph_m6,class.output="scroll-20",warning=F,echo=F}
+post <- as.data.frame(fit.m6)
+weight_z_new <- seq(-2.2, 2, length.out = 30)
+f_mu <- function(x) post$`beta[1]` + post$`beta[2]` * x + post$`beta[3]` * (x ^ 2)
+mu <- 
+  sapply(weight_z_new, f_mu) %>%
+  as_tibble() %>%
+  rename_all(function(x) weight_z_new) %>%
+  mutate(Iter = row_number()) %>%
+  gather(weight_z, height, -Iter) %>%
+  group_by(weight_z) %>%
+  mutate(hpdi_l = HDInterval::hdi(height, credMass = 0.8)[1],
+         hpdi_h = HDInterval::hdi(height, credMass = 0.8)[2]) %>%
+  mutate(mu = mean(height)) %>%
+  ungroup() %>%
+  mutate(weight_z = as.numeric(weight_z))
+sim_ht <- 
+  sapply(weight_z_new,
+         function(x)
+           rnorm(NROW(post),
+                 post$`beta[1]` + post$`beta[2]` * x + post$`beta[3]` * (x ^ 2),
+                 post$sigma)) %>%
+  as_tibble() %>%
+  rename_all(function(x) weight_z_new) %>%
+  mutate(Iter = row_number()) %>%
+  gather(weight_z, height, -Iter) %>%
+  group_by(weight_z) %>%
+  mutate(pi_l = rethinking::PI(height, prob = 0.8)[1],
+         pi_h = rethinking::PI(height, prob = 0.8)[2],
+         mu = mean(height)) %>%
+  ungroup() %>%
+  mutate(weight_z = as.numeric(weight_z))
+rescale <- seq(-2, 2, by = 1)
+ggplot() +
+  geom_point(data = howell2,
+             aes(weight.z, height), shape = 1, color = 'dodgerblue') +
+  geom_ribbon(data = sim_ht,
+              aes(x = weight_z, ymin = pi_l, ymax = pi_h), alpha = .1) +
+  geom_line(data = mu,
+            aes(weight_z, mu)) +
+  theme_tufte(base_family = 'sans') +
+  scale_x_continuous(breaks = rescale,
+                     labels = round(rescale * sd(howell2$weight) + mean(howell2$weight), 1)) +
+  labs(x = 'weight')
+```
+
+Here, all the variance is represented (variance of actual heights).
+
+
+
+
+## Howell 1: data set with all individuals
+
+Standardizing the explanatory variable:
+
+```{r standardizing_weight_m7}
+howell1 <- howell1 %>% mutate(weight.z = (weight - mean(weight)) / sd(weight))
+```
+
+Data in a list:
+
+```{r data_m7}
+m7.data <- list(N = nrow(howell1), height = howell1$height, weight = howell1$weight.z)
+```
+
+
+```{stan output.var="m7"}
+data {                                                     // observed variables 
+  int<lower=1> N;                                          // number of observations
+  vector[N] height;                                        // response variables
+  vector[N] weight;                                        // predictor (previously centered)
+}
+
+parameters {                                               // unobserved variables
+  real beta[3];                                            // parameters: intercept and slope
+  real sigma;
+}
+
+model {
+  height ~ normal(beta[1] + beta[2]*weight + beta[3]*(weight .* weight),sigma);        // likelihood
+  beta[1] ~ normal(178, 100);                              // prior of the intercept
+  beta[2] ~ normal(0, 100);                                  // prior of the slope
+  beta[3] ~ normal(0, 100);
+  sigma ~ uniform(0,50);
+}
+
+generated quantities {
+  vector[N] y_rep;
+
+  for(i in 1:N)
+  y_rep[i] = normal_rng(beta[1] + beta[2]*weight[i] + beta[3]*(weight[i] .* weight[i]), sigma);
+}
+```
+
+```{r print_m7,class.output="scroll-50",cache=F}
+fit.m7 <- sampling(m7, data = m7.data, iter = 1000, chains = 4, cores = 4)
+print(fit.m7, probs = c(0.10, 0.5, 0.9))
+```
+
+
+```{r freq_comp_m7}
+summary(lm(height~weight.z+I(weight.z^2),data=howell1))
+```
+
+
+
+> Figure 4.9 of Statistical rethinking
+
+
+```{r graph_m7,class.output="scroll-20",fig.height=7,warning=F,echo=F}
+post <- as.data.frame(fit.m7)
+weight_z_new <- seq(-2.2, 2, length.out = 30)
+f_mu <- function(x) post$`beta[1]` + post$`beta[2]` * x + post$`beta[3]` * (x ^ 2)
+
+mu <- 
+  sapply(weight_z_new, f_mu) %>%
+  tibble::as_tibble() %>%
+  rename_all(function(x) weight_z_new) %>%
+  mutate(Iter = row_number()) %>%
+  gather(weight_z, height, -Iter) %>%
+  group_by(weight_z) %>%
+  mutate(hpdi_l = HDInterval::hdi(height, credMass = 0.89)[1],
+         hpdi_h = HDInterval::hdi(height, credMass = 0.89)[2]) %>%
+  mutate(mu = mean(height)) %>%
+  ungroup() %>%
+  mutate(weight_z = as.numeric(weight_z))
+
+sim_ht <- 
+  sapply(weight_z_new,
+         function(x)
+           rnorm(NROW(post),
+                 post$`beta[1]` + post$`beta[2]` * x + post$`beta[3]` * (x ^ 2),
+                 post$sigma)) %>%
+  as_tibble() %>%
+  rename_all(function(x) weight_z_new) %>%
+  mutate(Iter = row_number()) %>%
+  gather(weight_z, height, -Iter) %>%
+  group_by(weight_z) %>%
+  mutate(pi_l = rethinking::PI(height, prob = 0.89)[1],
+         pi_h = rethinking::PI(height, prob = 0.89)[2],
+         mu = mean(height)) %>%
+  ungroup() %>%
+  mutate(weight_z = as.numeric(weight_z))
+
+rescale <- seq(-2, 2, by = 1)
+
+ggplot() +
+  geom_point(data = howell1,
+             aes(weight.z, height), shape = 1, color = 'dodgerblue') +
+  geom_ribbon(data = sim_ht,
+              aes(x = weight_z, ymin = pi_l, ymax = pi_h), alpha = .1) +
+  geom_line(data = mu,
+            aes(weight_z, mu)) +
+  theme_tufte(base_family = 'sans') +
+  scale_x_continuous(breaks = rescale,
+                     labels = round(rescale * sd(howell1$weight) + mean(howell1$weight), 1)) +
+  labs(x = 'weight')
+```
+
+
+
+# One continious variable + one categorical variable
+
+## Howell 2: subset with only individuals over 18 years old
+
+
+```{r visualization_m8}
+ggplot(howell2, aes(y = height, x = weight, group = male)) + geom_point() + geom_smooth(method = "lm")
+```
+
+```{r data_m8}
+Xmat <- model.matrix(~weight.z + male, howell2)
+m8.data <- with(howell2, list(y = height, X = Xmat, nX = ncol(Xmat), n = nrow(howell2)))
+```
+
+```{stan, output.var="m8"}
+data {
+  int<lower=1> n;
+  int<lower=1> nX;
+  vector [n] y;
+  matrix [n,nX] X;
+  }
+parameters {
+  vector[nX] beta;
+  real sigma;
+  }
+  transformed parameters {
+  vector[n] mu;
+
+  mu = X*beta;
+  }
+model {
+  y~normal(mu,sigma);
+  
+  beta ~ normal(0,100);
+  sigma~cauchy(0,5);
+  }
+generated quantities {
+  vector[n] log_lik;
+  
+  for (i in 1:n) {
+  log_lik[i] = normal_lpdf(y[i] | mu[i], sigma); 
+  }
+  }
+```
+
+```{r print_m8,class.output="scroll-50",cache=F}
+fit.m8 <- sampling(m8, data = m8.data, iter = 1000, chains = 4, cores = 4)
+print(fit.m8, probs = c(0.10, 0.5, 0.9))
+```
+
+
+```{r freq_comp_m8}
+summary(lm(height~weight.z+male,data=howell2))
+```
+
+
+## Howell 1: data set with all individuals
+
+
+```{r data_m8.1}
+howell1$male <- ifelse(howell1$male==1,2,1)
+m8.1.data <- list(N = nrow(howell1), height = howell1$height, weight = howell1$weight.z, male = as.integer(howell1$male), n = length(unique(howell1$male)))
+```
+
+
+```{stan output.var="m8.1"}
+data {                                                     // observed variables 
+  int<lower=1> N;                                          // number of observations
+  vector[N] height;                                        // response variables
+  vector[N] weight;                                        // predictor (previously centered)
+  int<lower=0> n; 
+  int<lower=1,upper=n> male[N]; 
+}
+
+parameters {                                               // unobserved variables
+  real beta[2];                                            // parameters: intercept and slope
+  vector[n] alpha; 
+  real sigma;
+}
+
+transformed parameters {
+vector[N] mu;                                              // create one variable with predictions for each obs
+for (i in 1:N)                                             // loop for all cases 
+mu[i] = alpha[male[i]] + beta[1]*weight[i] + beta[2]*(weight[i] .* weight[i]);  
+}
+
+
+model {
+  height ~ normal(mu,sigma);        // likelihood
+  alpha ~ normal(178, 100);                              // prior of the intercept
+  beta[1] ~ normal(0, 100);                                  // prior of the slope
+  beta[2] ~ normal(0, 100);
+  sigma ~ uniform(0,50);
+}
+
+```
+
+
+```{r print_m8.1,class.output="scroll-50",cache=F}
+fit.m8.1 <- sampling(m8.1, data = m8.1.data, iter = 1000, chains = 4, cores = 4)
+print(fit.m8.1, probs = c(0.10, 0.5, 0.9))
+```
+
+
