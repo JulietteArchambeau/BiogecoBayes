@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="author" content="Sylvain SCHMITT" />
+  <meta name="dcterms.date" content="2019-12-18" />
+  <title>Workshop 2 - Animal model</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="Animal_files/reveal.js-3.3.0.1/css/reveal.css"/>
+
+
+<style type="text/css">
+a.sourceLine { display: inline-block; line-height: 1.25; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+a.sourceLine:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource a.sourceLine
+  { position: relative; left: -4em; }
+pre.numberSource a.sourceLine::before
+  { content: attr(data-line-number);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  }
+@media screen {
+a.sourceLine::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+<link rel="stylesheet" href="Animal_files/reveal.js-3.3.0.1/css/theme/blood.css" id="theme">
+
+<style type="text/css">
+.reveal section img {
+  background: rgba(255, 255, 255, 0.85);
+}
+</style>
+
+  <!-- some tweaks to reveal css -->
+  <style type="text/css">
+    .reveal h1 { font-size: 2.0em; }
+    .reveal h2 { font-size: 1.5em;  }
+    .reveal h3 { font-size: 1.25em;	}
+    .reveal h4 { font-size: 1em;	}
+
+    .reveal .slides>section,
+    .reveal .slides>section>section {
+      padding: 0px 0px;
+    }
+
+
+
+    .reveal table {
+      border-width: 1px;
+      border-spacing: 2px;
+      border-style: dotted;
+      border-color: gray;
+      border-collapse: collapse;
+      font-size: 0.7em;
+    }
+
+    .reveal table th {
+      border-width: 1px;
+      padding-left: 10px;
+      padding-right: 25px;
+      font-weight: bold;
+      border-style: dotted;
+      border-color: gray;
+    }
+
+    .reveal table td {
+      border-width: 1px;
+      padding-left: 10px;
+      padding-right: 25px;
+      border-style: dotted;
+      border-color: gray;
+    }
+
+
+  </style>
+
+    <style type="text/css">code{white-space: pre;}</style>
+
+
+<!-- Printing and PDF exports -->
+<script id="paper-css" type="application/dynamic-css">
+
+/* Default Print Stylesheet Template
+   by Rob Glazebrook of CSSnewbie.com
+   Last Updated: June 4, 2008
+
+   Feel free (nay, compelled) to edit, append, and
+   manipulate this file as you see fit. */
+
+
+@media print {
+
+	/* SECTION 1: Set default width, margin, float, and
+	   background. This prevents elements from extending
+	   beyond the edge of the printed page, and prevents
+	   unnecessary background images from printing */
+	html {
+		background: #fff;
+		width: auto;
+		height: auto;
+		overflow: visible;
+	}
+	body {
+		background: #fff;
+		font-size: 20pt;
+		width: auto;
+		height: auto;
+		border: 0;
+		margin: 0 5%;
+		padding: 0;
+		overflow: visible;
+		float: none !important;
+	}
+
+	/* SECTION 2: Remove any elements not needed in print.
+	   This would include navigation, ads, sidebars, etc. */
+	.nestedarrow,
+	.controls,
+	.fork-reveal,
+	.share-reveal,
+	.state-background,
+	.reveal .progress,
+	.reveal .backgrounds {
+		display: none !important;
+	}
+
+	/* SECTION 3: Set body font face, size, and color.
+	   Consider using a serif font for readability. */
+	body, p, td, li, div {
+		font-size: 20pt!important;
+		font-family: Georgia, "Times New Roman", Times, serif !important;
+		color: #000;
+	}
+
+	/* SECTION 4: Set heading font face, sizes, and color.
+	   Differentiate your headings from your body text.
+	   Perhaps use a large sans-serif for distinction. */
+	h1,h2,h3,h4,h5,h6 {
+		color: #000!important;
+		height: auto;
+		line-height: normal;
+		font-family: Georgia, "Times New Roman", Times, serif !important;
+		text-shadow: 0 0 0 #000 !important;
+		text-align: left;
+		letter-spacing: normal;
+	}
+	/* Need to reduce the size of the fonts for printing */
+	h1 { font-size: 28pt !important;  }
+	h2 { font-size: 24pt !important; }
+	h3 { font-size: 22pt !important; }
+	h4 { font-size: 22pt !important; font-variant: small-caps; }
+	h5 { font-size: 21pt !important; }
+	h6 { font-size: 20pt !important; font-style: italic; }
+
+	/* SECTION 5: Make hyperlinks more usable.
+	   Ensure links are underlined, and consider appending
+	   the URL to the end of the link for usability. */
+	a:link,
+	a:visited {
+		color: #000 !important;
+		font-weight: bold;
+		text-decoration: underline;
+	}
+	/*
+	.reveal a:link:after,
+	.reveal a:visited:after {
+		content: " (" attr(href) ") ";
+		color: #222 !important;
+		font-size: 90%;
+	}
+	*/
+
+
+	/* SECTION 6: more reveal.js specific additions by @skypanther */
+	ul, ol, div, p {
+		visibility: visible;
+		position: static;
+		width: auto;
+		height: auto;
+		display: block;
+		overflow: visible;
+		margin: 0;
+		text-align: left !important;
+	}
+	.reveal pre,
+	.reveal table {
+		margin-left: 0;
+		margin-right: 0;
+	}
+	.reveal pre code {
+		padding: 20px;
+		border: 1px solid #ddd;
+	}
+	.reveal blockquote {
+		margin: 20px 0;
+	}
+	.reveal .slides {
+		position: static !important;
+		width: auto !important;
+		height: auto !important;
+
+		left: 0 !important;
+		top: 0 !important;
+		margin-left: 0 !important;
+		margin-top: 0 !important;
+		padding: 0 !important;
+		zoom: 1 !important;
+
+		overflow: visible !important;
+		display: block !important;
+
+		text-align: left !important;
+		-webkit-perspective: none;
+		   -moz-perspective: none;
+		    -ms-perspective: none;
+		        perspective: none;
+
+		-webkit-perspective-origin: 50% 50%;
+		   -moz-perspective-origin: 50% 50%;
+		    -ms-perspective-origin: 50% 50%;
+		        perspective-origin: 50% 50%;
+	}
+	.reveal .slides section {
+		visibility: visible !important;
+		position: static !important;
+		width: auto !important;
+		height: auto !important;
+		display: block !important;
+		overflow: visible !important;
+
+		left: 0 !important;
+		top: 0 !important;
+		margin-left: 0 !important;
+		margin-top: 0 !important;
+		padding: 60px 20px !important;
+		z-index: auto !important;
+
+		opacity: 1 !important;
+
+		page-break-after: always !important;
+
+		-webkit-transform-style: flat !important;
+		   -moz-transform-style: flat !important;
+		    -ms-transform-style: flat !important;
+		        transform-style: flat !important;
+
+		-webkit-transform: none !important;
+		   -moz-transform: none !important;
+		    -ms-transform: none !important;
+		        transform: none !important;
+
+		-webkit-transition: none !important;
+		   -moz-transition: none !important;
+		    -ms-transition: none !important;
+		        transition: none !important;
+	}
+	.reveal .slides section.stack {
+		padding: 0 !important;
+	}
+	.reveal section:last-of-type {
+		page-break-after: avoid !important;
+	}
+	.reveal section .fragment {
+		opacity: 1 !important;
+		visibility: visible !important;
+
+		-webkit-transform: none !important;
+		   -moz-transform: none !important;
+		    -ms-transform: none !important;
+		        transform: none !important;
+	}
+	.reveal section img {
+		display: block;
+		margin: 15px 0px;
+		background: rgba(255,255,255,1);
+		border: 1px solid #666;
+		box-shadow: none;
+	}
+
+	.reveal section small {
+		font-size: 0.8em;
+	}
+
+}  
+</script>
+
+
+<script id="pdf-css" type="application/dynamic-css">
+    
+/**
+ * This stylesheet is used to print reveal.js
+ * presentations to PDF.
+ *
+ * https://github.com/hakimel/reveal.js#pdf-export
+ */
+
+* {
+	-webkit-print-color-adjust: exact;
+}
+
+body {
+	margin: 0 auto !important;
+	border: 0;
+	padding: 0;
+	float: none !important;
+	overflow: visible;
+}
+
+html {
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+
+/* Remove any elements not needed in print. */
+.nestedarrow,
+.reveal .controls,
+.reveal .progress,
+.reveal .playback,
+.reveal.overview,
+.fork-reveal,
+.share-reveal,
+.state-background {
+	display: none !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	text-shadow: 0 0 0 #000 !important;
+}
+
+.reveal pre code {
+	overflow: hidden !important;
+	font-family: Courier, 'Courier New', monospace !important;
+}
+
+ul, ol, div, p {
+	visibility: visible;
+	position: static;
+	width: auto;
+	height: auto;
+	display: block;
+	overflow: visible;
+	margin: auto;
+}
+.reveal {
+	width: auto !important;
+	height: auto !important;
+	overflow: hidden !important;
+}
+.reveal .slides {
+	position: static;
+	width: 100%;
+	height: auto;
+
+	left: auto;
+	top: auto;
+	margin: 0 !important;
+	padding: 0 !important;
+
+	overflow: visible;
+	display: block;
+
+	-webkit-perspective: none;
+	   -moz-perspective: none;
+	    -ms-perspective: none;
+	        perspective: none;
+
+	-webkit-perspective-origin: 50% 50%; /* there isn't a none/auto value but 50-50 is the default */
+	   -moz-perspective-origin: 50% 50%;
+	    -ms-perspective-origin: 50% 50%;
+	        perspective-origin: 50% 50%;
+}
+
+.reveal .slides section {
+	page-break-after: always !important;
+
+	visibility: visible !important;
+	position: relative !important;
+	display: block !important;
+	position: relative !important;
+
+	margin: 0 !important;
+	padding: 0 !important;
+	box-sizing: border-box !important;
+	min-height: 1px;
+
+	opacity: 1 !important;
+
+	-webkit-transform-style: flat !important;
+	   -moz-transform-style: flat !important;
+	    -ms-transform-style: flat !important;
+	        transform-style: flat !important;
+
+	-webkit-transform: none !important;
+	   -moz-transform: none !important;
+	    -ms-transform: none !important;
+	        transform: none !important;
+}
+
+.reveal section.stack {
+	margin: 0 !important;
+	padding: 0 !important;
+	page-break-after: avoid !important;
+	height: auto !important;
+	min-height: auto !important;
+}
+
+.reveal img {
+	box-shadow: none;
+}
+
+.reveal .roll {
+	overflow: visible;
+	line-height: 1em;
+}
+
+/* Slide backgrounds are placed inside of their slide when exporting to PDF */
+.reveal section .slide-background {
+	display: block !important;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	z-index: -1;
+}
+
+/* All elements should be above the slide-background */
+.reveal section>* {
+	position: relative;
+	z-index: 1;
+}
+
+/* Display slide speaker notes when 'showNotes' is enabled */
+.reveal .speaker-notes-pdf {
+	display: block;
+	width: 100%;
+	max-height: none;
+	left: auto;
+	top: auto;
+	z-index: 100;
+}
+
+/* Display slide numbers when 'slideNumber' is enabled */
+.reveal .slide-number-pdf {
+	display: block;
+	position: absolute;
+	font-size: 14px;
+}
+
+</script>
+
+
+<script>
+var style = document.createElement( 'style' );
+style.type = 'text/css';
+var style_script_id = window.location.search.match( /print-pdf/gi ) ? 'pdf-css' : 'paper-css';
+var style_script = document.getElementById(style_script_id).text;
+style.innerHTML = style_script;
+document.getElementsByTagName('head')[0].appendChild(style);
+</script>
+
+    <link href="Animal_files/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+    <link href="Animal_files/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+<section>
+    <h1 class="title">Workshop 2 - Animal model</h1>
+    <h2 class="author">Sylvain SCHMITT</h2>
+    <h3 class="date">2019-12-18</h3>
+</section>
+
+<section><section id="introduction" class="title-slide slide level1"><h1>Introduction</h1></section><section id="setup" class="slide level2">
+<h2>Setup</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="kw">rm</span>(<span class="dt">list =</span> <span class="kw">ls</span>()) ; <span class="kw">gc</span>()</a></code></pre></div>
+<pre><code>##          used (Mb) gc trigger (Mb) max used (Mb)
+## Ncells 460922 24.7     996122 53.2   641594 34.3
+## Vcells 883665  6.8    8388608 64.0  1752615 13.4</code></pre>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">library</span>(knitr)</a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="kw">library</span>(tidyverse)</a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"><span class="kw">library</span>(rstan)</a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"><span class="kw">library</span>(bayesplot)</a>
+<a class="sourceLine" id="cb3-5" data-line-number="5"><span class="kw">theme_set</span>(bayesplot<span class="op">::</span><span class="kw">theme_default</span>())</a>
+<a class="sourceLine" id="cb3-6" data-line-number="6"><span class="kw">options</span>(<span class="dt">mc.cores =</span> parallel<span class="op">::</span><span class="kw">detectCores</span>())</a>
+<a class="sourceLine" id="cb3-7" data-line-number="7"><span class="kw">rstan_options</span>(<span class="dt">auto_write =</span> T)</a>
+<a class="sourceLine" id="cb3-8" data-line-number="8">opts_chunk<span class="op">$</span><span class="kw">set</span>(<span class="dt">echo =</span> T, <span class="dt">eval =</span> T, <span class="dt">cache =</span> T, <span class="dt">fig.height =</span> <span class="dv">5</span>)</a></code></pre></div>
+</section><section id="a-phenotype" class="slide level2">
+<h2>A Phenotype</h2>
+<p><img src="Animal_data/growth.png" width="1536" /></p>
+</section><section id="a-kinship-matrix" class="slide level2">
+<h2>A Kinship matrix</h2>
+<p><img src="Animal_data/kniship.png" width="1536" /></p>
+</section><section id="genetic-variance" class="slide level2">
+<h2>Genetic variance</h2>
+<blockquote>
+<p>How much of my phenotype is explained by genetic ?</p>
+</blockquote>
+</section></section>
+<section><section id="maths" class="title-slide slide level1"><h1>Maths</h1></section><section id="animal-model" class="slide level2">
+<h2>Animal model</h2>
+<p><span class="math display">\[y \sim \mathcal N(\mu + u, \sigma_E)\]</span></p>
+<p><span class="math display">\[u \sim \mathcal{MVN}_N(0, \sigma_GK)\]</span></p>
+<p><span class="math display">\[\sigma_P = \sigma_G + \sigma_E\]</span></p>
+<ul>
+<li><span class="math inline">\(y\)</span> vector of <span class="math inline">\(N\)</span> individuals phenotypes</li>
+<li><span class="math inline">\(\sigma_P\)</span> the phenotypic variance</li>
+<li><span class="math inline">\(\mu\)</span> the mean phenotype</li>
+<li><span class="math inline">\(K\)</span> matrix of <span class="math inline">\(N\times N\)</span> between-individuals kinship</li>
+<li><span class="math inline">\(u\)</span> vector of <span class="math inline">\(N\)</span> random effects of individual kinship</li>
+<li><span class="math inline">\(\sigma_G\)</span> phenotypic variance explained by genetic</li>
+<li><span class="math inline">\(\sigma_E\)</span> residual phenotypic variance unexplained by genetic</li>
+</ul>
+</section><section id="multivaraite-normal-distribution" class="slide level2">
+<h2>Multivaraite normal distribution</h2>
+<p><img data-src="https://upload.wikimedia.org/wikipedia/commons/8/8e/MultivariateNormal.png" /><!-- --></p>
+</section><section id="multivaraite-normal---pdf" class="slide level2">
+<h2>Multivaraite normal - PDF</h2>
+<p><span class="math inline">\(\mathcal{MVN}_N(\mu,\Sigma)\)</span></p>
+<blockquote>
+<p>If <span class="math inline">\(\Sigma\)</span> is positive-definite, MVN is “non-degenerate”</p>
+</blockquote>
+<p><span class="math display">\[f(x\mid\mu,\Sigma) = \frac{exp(-\frac 12 (x-\mu)^T\Sigma^{-1}(x-\mu))}{\sqrt{(2\pi)^kdet(\Sigma)}}\]</span></p>
+</section><section id="multivariate-normal---normal-random-vector" class="slide level2">
+<h2>Multivariate normal - Normal random vector</h2>
+<p><span class="math display">\[X \sim \mathcal{MVN}(\mu,\Sigma) \iff\]</span></p>
+<p><span class="math display">\[\exists \mu \in \mathbb R^k, A\in\mathbb R^{k\times l}\]</span></p>
+<p><span class="math display">\[\mid X = AZ+\mu ~for~Z_n \sim \mathcal N(0,1), i.i.d\]</span></p>
+<p><span class="math display">\[resulting~in~\Sigma=AA^T\]</span></p>
+</section><section id="multivariate-normal---cholesky-decomposition" class="slide level2">
+<h2>Multivariate normal - Cholesky decomposition</h2>
+<blockquote>
+<p>If <span class="math inline">\(\Sigma\)</span> is positive-definite</p>
+</blockquote>
+<blockquote>
+<p><span class="math inline">\(\Sigma=AA^T\)</span></p>
+</blockquote>
+<blockquote>
+<p>And <span class="math inline">\(A\)</span> is the Cholesky decomposition of <span class="math inline">\(\Sigma\)</span></p>
+</blockquote>
+<blockquote>
+<p>Cholesky decomposition is implemented in stan !</p>
+</blockquote>
+</section><section id="back-to-the-animal-model" class="slide level2">
+<h2>Back to the Animal model</h2>
+<p><span class="math display">\[X \sim \mathcal{MVN}(\mu,\Sigma) \iff X = AZ+\mu\mid Z_n \sim \mathcal N(0,1), i.i.d\]</span></p>
+<p><span class="math display">\[u \sim \mathcal{MVN}_N(0, \sigma_GK) \iff \sigma_GA\tilde u \mid\tilde u \sim\mathcal N(0,1)\]</span></p>
+<p>Resulting in:</p>
+<p><span class="math display">\[y \sim \mathcal N(\mu + \sigma_GA\tilde u, \sigma_E)\]</span></p>
+<p><span class="math display">\[\tilde u \sim \mathcal{N}_N(0, 1)\]</span></p>
+<p><span class="math display">\[\sigma_P = \sigma_G + \sigma_E\]</span></p>
+<p>with A the Cholesky decomposition of K</p>
+</section><section id="back-to-the-linear-model" class="slide level2">
+<h2>Back to the linear model</h2>
+<blockquote>
+<p>What about other informations on the individuals ?</p>
+</blockquote>
+<p><span class="math display">\[\mu = \beta_0+\beta_1x_1+..+\beta_qx_q\]</span></p>
+<p><span class="math display">\[\mu = \begin{bmatrix} \beta_0 \\ \beta_1 \\ ... \\ \beta_q  \end{bmatrix} [1,x_1,...,x_q] = \beta X\]</span></p>
+<p><span class="math display">\[y \sim \mathcal N(X \beta + u, \sigma_E)\]</span></p>
+</section><section id="to-go-further" class="slide level2">
+<h2>To go further</h2>
+<blockquote>
+<p>Mathematically the Animal model is the basis of other genomic models including genomic structure throught genetic markers (i.e. SNPs). For instance Linear Mixed Models (LMM), used for major effet detection, or Bayesian Sparse Linear Model (BSLMM), used for polygenic structure inference, are based on the Animal model structure.</p>
+</blockquote>
+</section><section id="linear-mixed-models---lmm" class="slide level2">
+<h2>Linear Mixed Models - LMM</h2>
+<p><span class="math display">\[y \sim \mathcal N(\mu + x\beta + u, \sigma_E)\]</span></p>
+<p><span class="math display">\[u \sim \mathcal{MVN}_N(0, \sigma_GK)\]</span></p>
+<p><span class="math display">\[\sigma_P = \sigma_G + \sigma_E\]</span></p>
+<p>with <span class="math inline">\(x\)</span> one genetic marker and <span class="math inline">\(\beta\)</span> its effect size on the phenotype</p>
+</section><section id="basyesian-sparse-linear-mixed-models---bslmm" class="slide level2">
+<h2>Basyesian Sparse Linear Mixed Models - BSLMM</h2>
+<p><span class="math display">\[y \sim \mathcal N(\mu + X\tilde \beta + u, \sigma_E)\]</span></p>
+<p><span class="math display">\[u \sim \mathcal{MVN}_N(0, \sigma_bK)\]</span></p>
+<p><span class="math display">\[\tilde \beta \sim \pi\mathcal{N}(0, \sigma_a) + (1-\pi)\delta_0\]</span></p>
+<p><span class="math display">\[\sigma_P = \sigma_a + \sigma_b + \sigma_E\]</span></p>
+<p>with <span class="math inline">\(X\)</span> the matrix of genetic markers and <span class="math inline">\(\tilde \beta\)</span> their sparse effects on the phenotype</p>
+</section></section>
+<section><section id="stan-univariate" class="title-slide slide level1"><h1>Stan Univariate</h1></section><section id="acknowledgements" class="slide level2">
+<h2>Acknowledgements</h2>
+<blockquote>
+<p><a href="https://github.com/diogro">Diogo Melo</a> a Brazilian reasearcher from Sao Paulo who originally developed the stan code after a discussion on the stan forum</p>
+</blockquote>
+</section><section id="data-1" class="slide level2">
+<h2>Data 1</h2>
+<ul>
+<li><span class="math inline">\(y\)</span> vector of <span class="math inline">\(N\)</span> individuals phenotypes</li>
+<li><span class="math inline">\(K\)</span> matrix of <span class="math inline">\(N\times N\)</span> between-individuals kinship</li>
+</ul>
+<pre class="stan"><code>data {
+  int&lt;lower=0&gt;  N ; // # of individuals
+  real Y[N] ; // phenotype
+  cov_matrix[N] K ; // kinship covariance matrix
+}</code></pre>
+</section><section id="data-2" class="slide level2">
+<h2>Data 2</h2>
+<ul>
+<li><span class="math inline">\(y\)</span> vector of <span class="math inline">\(N\)</span> individuals phenotypes</li>
+<li><span class="math inline">\(K\)</span> matrix of <span class="math inline">\(N\times N\)</span> between-individuals kinship</li>
+<li><span class="math inline">\(X\)</span> matrix of <span class="math inline">\(N\times J\)</span> covariates</li>
+</ul>
+<pre class="stan"><code>data {
+  int&lt;lower=0&gt;  N ; // # of individuals
+  int&lt;lower=0&gt;  J ; // # of covariates + 1 (intercept)  
+  real Y[N] ; // phenotype
+  matrix[N,J] X ; // covariates
+  cov_matrix[N] K ; // kinship covariance matrix
+}</code></pre>
+</section><section id="transformed-data" class="slide level2">
+<h2>Transformed data</h2>
+<ul>
+<li><span class="math inline">\(\sigma_P\)</span> the phenotypic variance</li>
+<li><span class="math inline">\(u \sim \mathcal{MVN}_N(0, \sigma_GK) \iff \sigma_GA\tilde u \mid\tilde u \sim\mathcal N(0,1)\)</span></li>
+</ul>
+<pre class="stan"><code>transformed data{
+  matrix[N, N] A ; // cholesky-decomposed kinship
+  real&lt;lower=0&gt; sigma ; // phenotypic variance
+  A = cholesky_decompose(K) ;
+  sigma = sd(Y) * sd(Y) ;
+}</code></pre>
+</section><section id="parameters-1" class="slide level2">
+<h2>Parameters 1</h2>
+<p><span class="math display">\[y \sim \mathcal N(\mu + \sigma_GA\tilde u, \sigma_E)\]</span></p>
+<pre class="stan"><code>parameters {
+  vector[N]  u_tilde ; // random effects / breeding values
+  real mu ; // intercept
+  simplex[2] part ; // variance partition
+}</code></pre>
+</section><section id="parameters-2" class="slide level2">
+<h2>Parameters 2</h2>
+<p><span class="math display">\[y \sim \mathcal N(\beta X + \sigma_GA\tilde u, \sigma_E)\]</span></p>
+<pre class="stan"><code>parameters {
+  vector[N]  u_tilde ; // random effects / breeding values
+  vector[J] beta; // fixed effects
+  simplex[2] part ; // variance partition
+}</code></pre>
+</section><section id="model-1" class="slide level2">
+<h2>Model 1</h2>
+<p><span class="math display">\[u \sim \mathcal{MVN}_N(0, \sigma_GK) \iff \sigma_GA\tilde u \mid\tilde u \sim\mathcal N(0,1)\]</span></p>
+<p><span class="math display">\[y \sim \mathcal N(\mu + u, \sigma_E)\]</span></p>
+<p><span class="math display">\[u \sim \mathcal{MVN}_N(0, \sigma_GK)\]</span></p>
+<pre class="stan"><code>model {
+    vector[N] u ;
+    
+    u_tilde ~ normal(0, 1) ; // priors
+    mu ~ normal(0, 1) ;
+    
+    u = sqrt(sigma*part[1])*(A * u_tilde) ;
+
+    Y ~ normal(mu + u, sqrt(sigma*part[2]));
+}</code></pre>
+</section><section id="model-1-bis" class="slide level2">
+<h2>Model 1 bis</h2>
+<p><span class="math display">\[y \sim \mathcal N(\mu + \sigma_GA\tilde u, \sigma_E)\]</span></p>
+<p><span class="math display">\[\tilde u \sim \mathcal{N}_N(0, 1)\]</span></p>
+<pre class="stan"><code>model {
+    u_tilde ~ normal(0, 1) ; // priors
+    mu ~ normal(0, 1) ;
+    Y ~ normal(mu + sqrt(sigma*part[1])*(A * u_tilde), sqrt(sigma*part[2]));
+}</code></pre>
+</section><section id="model-2" class="slide level2">
+<h2>Model 2</h2>
+<p><span class="math display">\[u \sim \mathcal{MVN}_N(0, \sigma_GK) \iff \sigma_GA\tilde u \mid\tilde u \sim\mathcal N(0,1)\]</span></p>
+<p><span class="math display">\[y \sim \mathcal N(\beta X + u, \sigma_E)\]</span></p>
+<p><span class="math display">\[u \sim \mathcal{MVN}_N(0, \sigma_GK)\]</span></p>
+<pre class="stan"><code>model {
+    vector[N] u ;
+    vector[N] mu;
+    
+    u_tilde ~ normal(0, 1) ; // priors
+    to_vector(beta) ~ normal(0, 1) ;
+
+    u = sqrt(sigma*part[1])*(A * u_tilde) ;
+    for(n in 1:N)
+       mu[n] = beta * X[n] + a[n] ;
+
+    Y ~ normal(mu, sqrt(sigma*part[2])) ;
+}</code></pre>
+</section><section id="model-2-bis" class="slide level2">
+<h2>Model 2 bis</h2>
+<p><span class="math display">\[y \sim \mathcal N(X\beta + \sigma_GA\tilde u, \sigma_E)\]</span></p>
+<p><span class="math display">\[\tilde u \sim \mathcal{N}_N(0, 1)\]</span></p>
+<pre class="stan"><code>model {
+    u_tilde ~ normal(0, 1) ; // priors
+    beta ~ normal(0, 1) ;
+   Y ~ normal(X*beta + sqrt(sigma*part[1])*(A * u_tilde), sqrt(sigma*part[2])) ;
+}</code></pre>
+</section><section id="generated-quantities" class="slide level2">
+<h2>Generated quantities</h2>
+<p><span class="math display">\[\sigma_P = \sigma_G + \sigma_E\]</span></p>
+<pre class="stan"><code>generated quantities{
+  real sigmaE ; // residual variation
+  real sigmaG ; // genetic variation
+  sigmaE = sigma*part[2] ;
+  sigmaG = sigma*part[1] ;
+}</code></pre>
+</section><section id="full" class="slide level2">
+<h2>Full</h2>
+<pre class="stan"><code>data {
+  int&lt;lower=0&gt;  N ; // # of individuals
+  real Y[N] ; // phenotype
+  cov_matrix[N] K ; // kinship covariance matrix
+}
+transformed data{
+  matrix[N, N] A ; // cholesky-decomposed kinship
+  real&lt;lower=0&gt; sigma ; // phenotypic variance
+  A = cholesky_decompose(K) ;
+  sigma = sd(Y) * sd(Y) ;
+}
+parameters {
+  vector[N]  u_tilde ; // random effects / breeding values
+  real mu ; // intercept
+  simplex[2] part ; // variance partition
+}
+model {
+    u_tilde ~ normal(0, 1) ; // priors
+    mu ~ normal(0, 1) ;
+    Y ~ normal(mu + sqrt(sigma*part[1])*(A * u_tilde), sqrt(sigma*part[2]));
+}
+generated quantities{
+  real sigmaE ; // residual variation
+  real sigmaG ; // genetic variation
+  sigmaE = sigma*part[2] ;
+  sigmaG = sigma*part[1] ;
+}</code></pre>
+</section></section>
+<section><section id="r-univariate-1" class="title-slide slide level1"><h1>R Univariate 1</h1></section><section id="variances" class="slide level2">
+<h2>Variances</h2>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb15-1" data-line-number="1">h2 &lt;-<span class="st"> </span><span class="fl">0.25</span> <span class="co"># heritability</span></a>
+<a class="sourceLine" id="cb15-2" data-line-number="2">sigmaP &lt;-<span class="st">  </span><span class="dv">1</span> <span class="co"># phenotypic variance (reduced)</span></a>
+<a class="sourceLine" id="cb15-3" data-line-number="3">sigmaG &lt;-<span class="st"> </span>h2 <span class="op">*</span><span class="st"> </span>sigmaP  <span class="co"># genetic variance</span></a>
+<a class="sourceLine" id="cb15-4" data-line-number="4">sigmaE &lt;-<span class="st"> </span>(<span class="dv">1</span> <span class="op">-</span><span class="st"> </span>h2) <span class="op">*</span><span class="st"> </span>sigmaP <span class="co"># residual variance</span></a></code></pre></div>
+</section><section id="variances-1" class="slide level2">
+<h2>Variances</h2>
+<p><img data-src="Animal_files/figure-revealjs/varsG-1.png" /><!-- --></p>
+</section><section id="kinship" class="slide level2">
+<h2>Kinship</h2>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb16-1" data-line-number="1">ped &lt;-<span class="st"> </span><span class="kw">read.table</span>(<span class="st">&quot;https://raw.githubusercontent.com/diogro/QGcourse/master/tutorials/volesPED.txt&quot;</span>, <span class="dt">header =</span> T)</a>
+<a class="sourceLine" id="cb16-2" data-line-number="2">inv.phylo &lt;-<span class="st"> </span>MCMCglmm<span class="op">::</span><span class="kw">inverseA</span>(ped, <span class="dt">scale =</span> <span class="ot">TRUE</span>)</a>
+<a class="sourceLine" id="cb16-3" data-line-number="3">K &lt;-<span class="st"> </span><span class="kw">solve</span>(inv.phylo<span class="op">$</span>Ainv)</a>
+<a class="sourceLine" id="cb16-4" data-line-number="4">K &lt;-<span class="st"> </span>(K <span class="op">+</span><span class="st"> </span><span class="kw">t</span>(K))<span class="op">/</span><span class="dv">2</span></a>
+<a class="sourceLine" id="cb16-5" data-line-number="5"><span class="kw">rownames</span>(K) &lt;-<span class="st"> </span><span class="kw">rownames</span>(inv.phylo<span class="op">$</span>Ainv)</a>
+<a class="sourceLine" id="cb16-6" data-line-number="6">K[K <span class="op">&lt;</span><span class="st"> </span><span class="fl">1e-10</span>] =<span class="st"> </span><span class="dv">0</span>  <span class="co"># Not always exactly positive-definite</span></a></code></pre></div>
+</section><section id="kinship-1" class="slide level2">
+<h2>Kinship</h2>
+<p><img data-src="Animal_files/figure-revealjs/kinG-1.png" /><!-- --></p>
+</section><section id="breeding-values" class="slide level2">
+<h2>Breeding values</h2>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb17-1" data-line-number="1">u &lt;-<span class="st"> </span><span class="kw">t</span>(mvtnorm<span class="op">::</span><span class="kw">rmvnorm</span>(<span class="dv">1</span>, <span class="dt">sigma =</span> sigmaG<span class="op">*</span><span class="kw">as.matrix</span>(K)))</a></code></pre></div>
+</section><section id="breeding-values-1" class="slide level2">
+<h2>Breeding values</h2>
+<p><img data-src="Animal_files/figure-revealjs/uG-1.png" /><!-- --></p>
+</section><section id="intercept" class="slide level2">
+<h2>Intercept</h2>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb18-1" data-line-number="1">mu &lt;-<span class="st"> </span><span class="kw">rnorm</span>(<span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb18-2" data-line-number="2">mu</a></code></pre></div>
+<pre><code>## [1] -1.00489</code></pre>
+</section><section id="noise" class="slide level2">
+<h2>Noise</h2>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb20-1" data-line-number="1">e &lt;-<span class="st"> </span><span class="kw">rnorm</span>(<span class="kw">nrow</span>(u), <span class="dt">sd =</span> <span class="kw">sqrt</span>(sigmaE))</a></code></pre></div>
+</section><section id="noise-1" class="slide level2">
+<h2>Noise</h2>
+<p><img data-src="Animal_files/figure-revealjs/noiseG-1.png" /><!-- --></p>
+</section><section id="phenotype" class="slide level2">
+<h2>Phenotype</h2>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb21-1" data-line-number="1">y &lt;-<span class="st"> </span>mu <span class="op">+</span><span class="st"> </span>u <span class="op">+</span><span class="st"> </span>e</a></code></pre></div>
+</section><section id="phenotype-1" class="slide level2">
+<h2>Phenotype</h2>
+<p><img data-src="Animal_files/figure-revealjs/phenoG-1.png" /><!-- --></p>
+</section><section id="inference-1" class="slide level2">
+<h2>Inference 1</h2>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb22-1" data-line-number="1">AnimalUnivariate1 &lt;-<span class="st"> </span><span class="kw">stan_model</span>(<span class="st">&quot;Animal_models/AnimalUnivariate1bis.stan&quot;</span>) </a>
+<a class="sourceLine" id="cb22-2" data-line-number="2">fitUnivariate1 &lt;-<span class="st"> </span><span class="kw">sampling</span>(AnimalUnivariate1, <span class="dt">data =</span> <span class="kw">list</span>(<span class="dt">N =</span> <span class="kw">nrow</span>(y), <span class="dt">Y =</span> <span class="kw">as.vector</span>(y), <span class="dt">K =</span> <span class="kw">as.matrix</span>(K)), <span class="dt">chains =</span> <span class="dv">2</span>, <span class="dt">save_warmup =</span> F)</a>
+<a class="sourceLine" id="cb22-3" data-line-number="3"><span class="kw">save</span>(fitUnivariate1, <span class="dt">file =</span> <span class="st">&quot;Animal_save/univariate1.Rdata&quot;</span>)</a></code></pre></div>
+</section><section id="convergence-1" class="slide level2">
+<h2>Convergence 1</h2>
+<pre><code>## Registered S3 method overwritten by &#39;xts&#39;:
+##   method     from
+##   as.zoo.xts zoo</code></pre>
+<p><img data-src="Animal_files/figure-revealjs/conv-1.png" /><!-- --></p>
+</section><section id="posteriors-1" class="slide level2">
+<h2>Posteriors 1</h2>
+<p><img data-src="Animal_files/figure-revealjs/post-1.png" /><!-- --></p>
+</section></section>
+<section><section id="r-univariate-2" class="title-slide slide level1"><h1>R Univariate 2</h1></section><section id="covariates" class="slide level2">
+<h2>Covariates</h2>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb24-1" data-line-number="1">beta &lt;-<span class="st"> </span><span class="kw">matrix</span>(<span class="kw">c</span>(<span class="kw">rnorm</span>(<span class="dv">1</span>), <span class="kw">rnorm</span>(<span class="dv">1</span>)), <span class="dv">2</span>, <span class="dv">1</span>, <span class="dt">byrow =</span> <span class="ot">TRUE</span>)</a>
+<a class="sourceLine" id="cb24-2" data-line-number="2"><span class="kw">rownames</span>(beta) &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;Intercept&quot;</span>, <span class="st">&quot;age&quot;</span>)</a>
+<a class="sourceLine" id="cb24-3" data-line-number="3">X &lt;-<span class="st"> </span><span class="kw">cbind</span>(<span class="kw">rep</span>(<span class="dv">1</span>, <span class="kw">nrow</span>(u)), <span class="kw">rnorm</span>(<span class="kw">nrow</span>(u), <span class="dv">5</span>, <span class="dv">3</span>))</a></code></pre></div>
+</section><section id="covariates-1" class="slide level2">
+<h2>Covariates</h2>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb25-1" data-line-number="1"><span class="kw">ggplot</span>(<span class="kw">data.frame</span>(<span class="dt">age =</span> X[,<span class="dv">2</span>]), <span class="kw">aes</span>(age)) <span class="op">+</span><span class="st"> </span><span class="kw">geom_histogram</span>()</a></code></pre></div>
+<pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
+<p><img data-src="Animal_files/figure-revealjs/ageG-1.png" /><!-- --></p>
+</section><section id="phenotype-2" class="slide level2">
+<h2>Phenotype 2</h2>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb27-1" data-line-number="1">y &lt;-<span class="st"> </span>X <span class="op">%*%</span><span class="st"> </span>beta <span class="op">+</span><span class="st"> </span>u <span class="op">+</span><span class="st"> </span>e</a></code></pre></div>
+</section><section id="phenotype-2-1" class="slide level2">
+<h2>Phenotype 2</h2>
+<p><img data-src="Animal_files/figure-revealjs/pheno2G-1.png" /><!-- --></p>
+</section><section id="inference-2" class="slide level2">
+<h2>Inference 2</h2>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb28-1" data-line-number="1">AnimalUnivariate2 &lt;-<span class="st"> </span><span class="kw">stan_model</span>(<span class="st">&quot;Animal_models/AnimalUnivariate2bis.stan&quot;</span>) </a>
+<a class="sourceLine" id="cb28-2" data-line-number="2">fitUnivariate2 &lt;-<span class="st"> </span><span class="kw">sampling</span>(AnimalUnivariate2, <span class="dt">data =</span> <span class="kw">list</span>(<span class="dt">N =</span> <span class="kw">nrow</span>(y), <span class="dt">J =</span> <span class="kw">ncol</span>(X), <span class="dt">Y =</span> <span class="kw">as.vector</span>(y), <span class="dt">X =</span> X, <span class="dt">K =</span> <span class="kw">as.matrix</span>(K)), <span class="dt">chains =</span> <span class="dv">2</span>, <span class="dt">save_warmup =</span> F)</a>
+<a class="sourceLine" id="cb28-3" data-line-number="3"><span class="kw">save</span>(fitUnivariate2, <span class="dt">file =</span> <span class="st">&quot;Animal_save/univariate2.Rdata&quot;</span>)</a></code></pre></div>
+</section><section id="convergence-2" class="slide level2">
+<h2>Convergence 2</h2>
+<pre><code>## Registered S3 method overwritten by &#39;xts&#39;:
+##   method     from
+##   as.zoo.xts zoo</code></pre>
+<p><img data-src="Animal_files/figure-revealjs/conv2-1.png" /><!-- --></p>
+</section><section id="posteriors-2" class="slide level2">
+<h2>Posteriors 2</h2>
+<pre><code>## Registered S3 method overwritten by &#39;xts&#39;:
+##   method     from
+##   as.zoo.xts zoo</code></pre>
+<p><img data-src="Animal_files/figure-revealjs/post2-1.png" /><!-- --></p>
+</section></section>
+    </div>
+  </div>
+
+  <script src="Animal_files/reveal.js-3.3.0.1/lib/js/head.min.js"></script>
+  <script src="Animal_files/reveal.js-3.3.0.1/js/reveal.js"></script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://github.com/hakimel/reveal.js#configuration
+      Reveal.initialize({
+        // Display the page number of the current slide
+        slideNumber: true,
+        // Push each slide change to the browser history
+        history: true,
+        // Vertical centering of slides
+        center: true,
+        // Opens links in an iframe preview overlay
+        previewLinks: true,
+        // Transition style
+        transition: 'default', // none/fade/slide/convex/concave/zoom
+        // Transition style for full page slide backgrounds
+        backgroundTransition: 'default', // none/fade/slide/convex/concave/zoom
+
+
+
+        chalkboard: {
+        },
+
+        keyboard: {
+          67: function() { RevealChalkboard.toggleNotesCanvas() },    // toggle notes canvas when 'c' is pressed
+          66: function() { RevealChalkboard.toggleChalkboard() }, // toggle chalkboard when 'b' is pressed
+          46: function() { RevealChalkboard.clear() },    // clear chalkboard when 'DEL' is pressed
+           8: function() { RevealChalkboard.reset() },    // reset chalkboard data on current slide when 'BACKSPACE' is pressed
+          68: function() { RevealChalkboard.download() }, // downlad recorded chalkboard drawing when 'd' is pressed
+        },
+
+        // Optional reveal.js plugins
+        dependencies: [
+          { src: 'Animal_files/reveal.js-3.3.0.1/plugin/chalkboard/chalkboard.js', async: true },
+        ]
+      });
+    </script>
+  <!-- dynamically load mathjax for compatibility with self-contained -->
+  <script>
+    (function () {
+      var script = document.createElement("script");
+      script.type = "text/javascript";
+      script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+      document.getElementsByTagName("head")[0].appendChild(script);
+    })();
+  </script>
+
+<script>
+  (function() {
+    if (window.jQuery) {
+      Reveal.addEventListener( 'slidechanged', function(event) {  
+        window.jQuery(event.previousSlide).trigger('hidden');
+        window.jQuery(event.currentSlide).trigger('shown');
+      });
+    }
+  })();
+</script>
+
+
+  </body>
+</html>

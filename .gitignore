@@ -1,0 +1,7 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+/Workshop*/*.html
+/Workshop*/*_cache
+/Workshop*/*_files 
