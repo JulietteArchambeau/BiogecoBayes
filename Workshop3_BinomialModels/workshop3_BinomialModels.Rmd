@@ -40,17 +40,18 @@ Now we fit that model
 ```{stan output.var="m1.1"}
 data {                                             // observed variables 
   int<lower=1> N;                                  // number of observations
-  real temp[N];                                 // temperature
-  real y[N];                                    // response variable
+  vector[N] temp;                                 // temperature
+  int<lower=0> y[N];                                    // response variable
 }
 parameters {                                       // unobserved variables
   real mu_temp;
   real gamma; 
 }
 model {
-  for (k in 1:N) 
+  for (k in 1:N){
   y[k] ~ bernoulli_logit(gamma*(temp[k]-mu_temp));       // likelihood
   //y[k] ~ bernoulli_logit(alpha+beta*temp[k]);       // likelihood -- does not work either
+  }
   mu_temp ~ normal(2, 10);        // prior of the mean temp
   gamma ~ normal(1, 10);          // prior of the slope
 }
