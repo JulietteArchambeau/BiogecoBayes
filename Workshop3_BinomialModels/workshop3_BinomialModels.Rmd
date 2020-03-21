@@ -1,0 +1,62 @@
+---
+title: "Workshop 3 -- Binomial model"
+author: "Frederic Barraquand"
+date: "March 21, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+options(width = 300)
+library(rstan)
+```
+
+Here we construct a Binomial model first. We have got 25 groups of size 50 or less, with a slightly different probability of success in each group. Let's say we have we have 25 groups of 50 turtles and females are more likely 
+
+```{r simulating-data}
+sample_size_per_group = round(30*runif(25))+20
+n_groups = length(sample_size_per_group)
+temperature = (1:n_groups)*0.1 + rnorm(n_groups,0,0.5)
+plot(1:n_groups,temperature,type="o",xlab="Group ID",ylab="Temperature")
+
+Y = p = temperature
+for (i in 1:n_groups){
+  p[i] = 1/(1+exp(-3*(temperature[i]-mean(temperature)) ) )
+  Y[i] = rbinom(1,sample_size_per_group[i],p[i])
+}
+
+plot(temperature,p,type="p",xlab="Temperature",ylab="Pr(female)")
+plot(1:n_groups,Y,type="p",xlab="Number_group",ylab="N_females")
+
+```
+
+Data in a list:
+
+```{r data_m1}
+m1.data <- list(N = n_groups, y = Y, temp = temperature)
+```
+
+Now we fit that model
+
+```{stan output.var="m1.1"}
+data {                                             // observed variables 
+  int<lower=1> N;                                  // number of observations
+  real temp[N];                                 // temperature
+  real y[N];                                    // response variable
+}
+parameters {                                       // unobserved variables
+  real mu_temp;
+  real gamma; 
+}
+model {
+  for (k in 1:N) 
+  y[k] ~ bernoulli_logit(gamma*(temp[k]-mu_temp));       // likelihood
+  //y[k] ~ bernoulli_logit(alpha+beta*temp[k]);       // likelihood -- does not work either
+  mu_temp ~ normal(2, 10);        // prior of the mean temp
+  gamma ~ normal(1, 10);          // prior of the slope
+}
+```
+
+```{r print_m1.1}
+fit.m1.1 <- sampling(m1.1, data = m1.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.1, probs = c(0.10, 0.5, 0.9))
+```
