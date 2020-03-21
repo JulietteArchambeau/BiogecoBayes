@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 options(width = 300)
 library(rstan)
+library(MASS)
 ```
 
 ## Binomial and Bernoulli (generalized linear) models on simulated data 
@@ -94,6 +95,8 @@ Why did I choose the Beta distribution for the prior of $p$? In short, this is t
 - A conjugate prior is a prior whose probability distribution is also the distribution of the posterior. 
 In other words, here if we have a Beta prior we get a Beta posterior, and if we iterate the data assimilation process 10 000 times it will still be Beta. 
 
+[For more info and formulas](https://en.wikipedia.org/wiki/Conjugate_prior)
+
 ### What shape? 
 
 ```{r shape-beta}
@@ -173,4 +176,64 @@ for (kprior in 1:100) {
 
 ## A real data example: eagles
 
+As suggested by McElreath p. 330 of his book, records of (160!) salmon-pirating attempts by one Bald eagle on another Bald eagle (not always the same!). NB: I haven't implemented the quadratic approx. suggested by McElreath though that sounds like an excellent exercise. 
+
+```{r eagles-exploring data}
+?eagles
+data(eagles) ### Explanatory variables
+#P
+#Size of pirating eagle (L = large, S = small).
+#A
+#Age of pirating eagle (I = immature, A = adult).
+#V
+#Size of victim eagle (L = large, S = small).
+eagles.glm <- glm(cbind(y, n - y) ~ P*A + V, data = eagles,
+                  family = binomial) ##classic frequentist modelling
+# Small and immature birds capture less, small birds are more likely to have salmon stolen. So far so good. 
+m2.data = list(N=nrow(eagles),y=eagles$y,z=eagles$n,P=as.numeric(eagles$P)-1,A=as.numeric(eagles$A)-1,V=as.numeric(eagles$V)-1)
+# m2.data = list(N=nrow(eagles),y=eagles$y,z=eagles$n,P=eagles$P,A=eagles$A,V=eagles$V)
+
+```
+
+We're in a similar situation to the turtles sex, but with categorical explanatory variables
+
+```{stan output.var="m2.1"}
+data {                                             // observed variables 
+  int<lower=1> N;                                  // number of observations
+  vector[N] temp;                                  // temperature
+  int<lower=0,upper=50> y[N];                      // response variable
+  int<lower=0,upper=50> z[N];                      // sample size per group  
+  int<lower=0,upper=1>  A[N];
+  int<lower=0,upper=1>  P[N];
+  int<lower=0,upper=1>  V[N];
+  
+}
+
+parameters {                                       // unobserved variables
+  real alpha;
+  real beta_P; 
+  real beta_V; 
+  real beta_A; 
+}
+
+model {
+  for (k in 1:N){
+  y[k] ~ binomial(z[k], inv_logit(alpha + beta_P*P[k] + beta_V*V[k] +beta_A*A[k]) );       // likelihood
+  }
+  alpha ~ normal(0, 10);        // prior of the mean temp
+  beta_P ~ normal(0, 5);          // prior of the slope
+  beta_V ~ normal(0, 5);          // prior of the slope
+  beta_A ~ normal(0, 5);          // prior of the slope
+}
+
+```
+
+Fitting the model
+
+```{r print_m2.1}
+fit.m2.1 <- sampling(m2.1, data = m2.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m2.1, probs = c(0.10, 0.5, 0.9))
+```
+
+What do we think of these priors? 
 
