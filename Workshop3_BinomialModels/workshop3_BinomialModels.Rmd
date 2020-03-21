@@ -10,7 +10,9 @@ options(width = 300)
 library(rstan)
 ```
 
-Here we construct a Binomial model first. We have got 25 groups of size 50 or less, with a slightly different probability of success in each group. Let's say we have we have 25 groups of 50 turtles and females are more likely 
+## Binomial and Bernoulli (generalized linear) models on simulated data 
+
+Here we construct a Binomial model first. We have got 25 groups of size 50 or less, with a slightly different probability of success in each group. Let's say we have we have 25 groups of $z_i$ turtles. Females are born with probability $p_i$ in group $i$. 
 
 ```{r simulating-data}
 sample_size_per_group = round(30*runif(25))+20
@@ -32,16 +34,19 @@ plot(1:n_groups,Y,type="p",xlab="Number_group",ylab="N_females")
 Data in a list:
 
 ```{r data_m1}
-m1.data <- list(N = n_groups, y = Y, temp = temperature)
+m1.data <- list(N = n_groups, y = Y, temp = temperature, z = sample_size_per_group)
 ```
 
-Now we fit that model
+Now we fit that model which writes mathematically like
+
+$$ y_i \sim \text{Binomial}(z_i,p(\text{temp}_i)) $$
 
 ```{stan output.var="m1.1"}
 data {                                             // observed variables 
   int<lower=1> N;                                  // number of observations
-  vector[N] temp;                                 // temperature
-  int<lower=0> y[N];                                    // response variable
+  vector[N] temp;                                  // temperature
+  int<lower=0,upper=50> y[N];                      // response variable
+  int<lower=0,upper=50> z[N];                      // sample size per group  
 }
 parameters {                                       // unobserved variables
   real mu_temp;
@@ -49,8 +54,8 @@ parameters {                                       // unobserved variables
 }
 model {
   for (k in 1:N){
-  y[k] ~ bernoulli_logit(gamma*(temp[k]-mu_temp));       // likelihood
-  //y[k] ~ bernoulli_logit(alpha+beta*temp[k]);       // likelihood -- does not work either
+  y[k] ~ binomial(z[k], inv_logit(gamma*(temp[k]-mu_temp)));       // likelihood
+  //y[k] ~ bernoulli_logit(alpha+beta*temp[k]);       // likelihood -- does not work because not bernoulli of course!
   }
   mu_temp ~ normal(2, 10);        // prior of the mean temp
   gamma ~ normal(1, 10);          // prior of the slope
@@ -61,3 +66,111 @@ model {
 fit.m1.1 <- sampling(m1.1, data = m1.data, iter = 1000, chains = 2, cores = 2)
 print(fit.m1.1, probs = c(0.10, 0.5, 0.9))
 ```
+
+Now we consider a simpler model with a different set of priors. We consider only one group which has 50 young turtles. The probability of obtaining a female of 0.3. 
+We have individual-level data. (As we don't have individual-level covariates, doing a bernoulli or binomial model is very much similar, but I am changing things just for fun and exercise here. Also to see if some codes are much faster). 
+
+```{r simulating-data-2}
+Y=rbinom(50,1,0.3)
+m2.data <- list(N = 50, y = Y)
+
+```
+
+And now we fit the model
+
+```{r stan-model-2}
+m1.2 = stan_model("m1.2.stan")
+fit.m1.2 <- sampling(m1.2, data = m2.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.2, probs = c(0.10, 0.5, 0.9))
+
+```
+
+
+## Playing with priors
+
+### Why Beta? 
+
+Why did I choose the Beta distribution for the prior of $p$? In short, this is the *conjugate prior distribution*, some sort of canonical choice. In the past, choosing conjugate priors used to speed up monumentously the computations. Nowadays this is less true but still: 
+- A conjugate prior is a prior whose probability distribution is also the distribution of the posterior. 
+In other words, here if we have a Beta prior we get a Beta posterior, and if we iterate the data assimilation process 10 000 times it will still be Beta. 
+
+### What shape? 
+
+```{r shape-beta}
+curve(dbeta(x,2,2))
+curve(dbeta(x,0.5,0.5),add=T,col="red")
+```
+
+Obivously red would make little sense here. What would it imply? 
+
+```{r modified-priors}
+m1.3 = stan_model("m1.3.stan")
+fit.m1.3 <- sampling(m1.3, data = m2.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.3, probs = c(0.10, 0.5, 0.9))
+```
+
+Still works well but the prior is bringing no information or even poor information. 
+
+### The consequence of too flat priors (esp. when messing with link functions)
+
+```{stan output.var="m1.5"}
+data {                                             // observed variables 
+  int<lower=1> N;                                  // number of observations
+  vector[N] temp;                                  // temperature
+  int<lower=0,upper=50> y[N];                      // response variable
+  int<lower=0,upper=50> z[N];                      // sample size per group  
+}
+parameters {                                       // unobserved variables
+  real mu_temp;
+  real gamma; 
+}
+model {
+  for (k in 1:N){
+  y[k] ~ binomial(z[k], inv_logit(gamma*(temp[k]-mu_temp)));       // likelihood
+  //y[k] ~ bernoulli_logit(alpha+beta*temp[k]);       // likelihood -- does not work because not bernoulli of course!
+  }
+  mu_temp ~ normal(2, 100);        // prior of the mean temp
+  gamma ~ normal(1, 100);          // prior of the slope
+}
+```
+
+Let us propagate the uncertainty by visualizing the transformed parameter. We simulate according to the prior
+
+```{r simulating-prior-and-transformed-quantities}
+mu_temp = rnorm(100,2, 100) # prior of the mean temp
+gamma = rnorm(100,1, 100)   # prior on the slope
+x=seq(min(temperature),max(temperature),by=0.01)
+par(mfrow=c(1,2))
+plot(0, bty = 'n', pch = '', ylab = "Pr(female)", xlab = "Temperature",ylim=c(0,1))
+for (kprior in 1:100) {
+  prob = 1/(1+exp(-0.3*(x-mu_temp[kprior])) ) 
+  lines(x,prob,type="l",col="blue",add=TRUE)}
+plot(0, bty = 'n', pch = '', ylab = "Pr(female)", xlab = "Temperature",ylim=c(0,1))
+for (kprior in 1:100) {
+  prob = 1/(1+exp(-gamma[kprior]*(x-mean(temperature))) ) 
+  lines(x,prob,type="l",col="blue",add=TRUE)}
+### We get either 0 or 1. 
+
+### Better priors
+mu_temp = rnorm(100,2, 1) # prior of the mean temp
+gamma = rnorm(100,1, 1)   # prior on the slope
+par(mfrow=c(1,2))
+plot(0, bty = 'n', pch = '', ylab = "Pr(female)", xlab = "Temperature",ylim=c(0,1))
+for (kprior in 1:100) {
+  prob = 1/(1+exp(-0.3*(x-mu_temp[kprior])) ) 
+  lines(x,prob,type="l",col="blue",add=TRUE)}
+plot(0, bty = 'n', pch = '', ylab = "Pr(female)", xlab = "Temperature",ylim=c(0,1))
+for (kprior in 1:100) {
+  prob = 1/(1+exp(-abs(gamma[kprior])*(x-mean(temperature))) ) 
+  lines(x,prob,type="l",col="blue",add=TRUE)}
+
+```
+
+
+### Weakly informative priors
+
+[What are they? Why use them? A more detailed explanation](https://onlinelibrary.wiley.com/doi/10.1111/oik.05985)
+
+## A real data example: eagles
+
+
