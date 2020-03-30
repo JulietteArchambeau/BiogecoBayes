@@ -2,12 +2,22 @@
 title: "Workshop 3 -- Binomial model"
 author: "Frederic Barraquand"
 date: "March 21, 2020"
-output: html_document
+output: 
+  html_document:
+      toc: true
+      toc_depth: 4
+      toc_float:
+        collapsed: false
+      theme: paper
+      highlight: textmate
 ---
 
 ```{r setup, include=FALSE}
 options(width = 300)
+knitr::opts_chunk$set(cache = TRUE)
 library(rstan)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
 library(MASS)
 ```
 
