@@ -1,0 +1,1245 @@
+---
+title: 'Workshop 4: Hierarchical Models'
+author: "Juliette Archambeau"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    # code_fold: hide
+    toc: true
+    toc_depth: 4
+    toc_float:
+       collapsed: false
+    number_sections: true
+    theme: paper
+    highlight: textmate
+---
+
+
+<style>
+pre {
+  overflow-x: auto;
+}
+pre code {
+  word-wrap: normal;
+  white-space: pre;
+}
+</style>
+
+<style type="text/css">
+body{ /* Normal  */
+      font-size: 16px;
+  }
+div.main-container {
+  max-width: 2000px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+
+```{css, echo=FALSE}
+pre {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+pre[class] {
+  max-height: 600px;
+}
+```
+
+```{r setup, include=FALSE}
+library(knitr)
+options(width = 300)
+knitr::opts_chunk$set(fig.width = 8,fig.height=5,cache=TRUE)
+library(rstan)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+library(bayesplot)
+library(gridExtra)
+library(grid)
+library(ggplot2)
+color_scheme_set("green")
+library(tibble)
+library(cowplot)
+library(rethinking)
+library(loo)
+library(dplyr)
+library(tidyr)
+```
+
+
+# **The data**
+
+ 
+```{r load_data}
+data <- readRDS(file="../../data/sub_portugal_5provs_4blocks.rds")
+```
+
+- Height data from a provenance trial (in Portugal) of maritime pine saplings. 
+
+- Randomized block design. Here I selected 5 provenances and 4 blocks. 
+
+- Saplings have different ages: 11, 15, 20 and 27 month old.
+
+```{r exp_design}
+table(data$prov,data$block)
+table(data$prov,as.factor(data$age))
+```
+
+
+```{r formatting_data}
+randoms <- c("block","prov","clon","tree")
+for (i in randoms){data[,i] <- as.factor( data[,i])}
+```
+
+```{r mean_centering_age}
+data <- data %>% mutate(age.sc=(age-mean(age))/sd(age))
+```
+
+```{r height_vs_age, message=F,warning=F}
+data %>% ggplot(aes(x=height)) + geom_histogram(color="darkblue", fill="lightblue") + theme_bw()
+
+data %>% ggplot(aes(x=height, color=as.factor(age))) + geom_histogram(fill="white", alpha=0.5, position="identity") + theme_bw()  +
+  facet_wrap(~as.factor(age)) + theme(legend.position = "none")
+
+plot_grid(data %>% ggplot(aes(x=age,y=height)) + geom_point(alpha=0.2) + 
+      stat_smooth(method = "lm", col = "red") + theme_bw()  +
+      theme(axis.title=element_text(size=16)),
+data %>% ggplot(aes(x=age,y=height)) + geom_point(alpha=0.2) + 
+      stat_smooth(method = "lm", col = "red", formula = y~poly(x,2)) + theme_bw() +
+      theme(axis.title=element_text(size=16)))
+
+
+plot_grid(data %>% ggplot(aes(x=age,y=log(height))) + geom_point(alpha=0.2) + 
+      stat_smooth(method = "lm", col = "red") + theme_bw()  +
+      theme(axis.title=element_text(size=16)),
+data %>% ggplot(aes(x=age,y=log(height))) + geom_point(alpha=0.2) + 
+      stat_smooth(method = "lm", col = "red", formula = y~poly(x,2)) + theme_bw() +
+      theme(axis.title=element_text(size=16)))
+```
+
+```{r height_prov_block, message=F,warning=F}
+data %>% ggplot(aes(x=height, color=prov)) + geom_histogram(fill="white", alpha=0.5, position="identity") + theme_bw()  +
+  facet_wrap(~prov) + theme(legend.position = "none")
+
+data %>% ggplot(aes(x=height, color=block)) + geom_histogram(fill="white", alpha=0.5, position="identity") + theme_bw()  +
+  facet_wrap(~block) + theme(legend.position = "none")
+```
+
+# **"Fixed effects" models**
+
+> Dummy variables for each level = Regularized intercepts, because we use weakly informative priors. But no information shared between intercepts.
+
+P299 in Statistical Rethinking of McElreath.
+
+## Likelihood = Normal distribution
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+\alpha_{BLOCK} & \sim \mathcal{N}(0,10)\\
+\alpha_{PROV} & \sim \mathcal{N}(0,10)\\
+\beta_{age} & \sim \mathcal{N}(0,10) \\
+\beta_{age2} & \sim \mathcal{N}(0,10)\\
+\sigma & \sim \text{HalfCauchy}(0,25)
+\end{aligned}
+\end{equation}
+
+
+***
+
+
+> Comment about the choice of HalfCauchy prior for $\sigma$
+
+
+[Prior recommendations](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations#prior-for-scale-parameters-in-hierarchical-models)
+
+$\sigma$ is strictly positive, what priors can we use?
+
+- Very weakly informative prior:  $\sigma \sim \text{HalfCauchy}(0,25)$. From Gelman (2006): 8-schools example (p430). And [here](http://www.stat.columbia.edu/~gelman/research/published/taumain.pdf).
+
+- Weakly informative prior: 
+    
+    - $\sigma \sim \text{HalfCauchy}(0,1)$ (McElreath, First version) $\sigma \sim \text{HalfCauchy}(0,5)$ ([Betancourt in 8-schools example](https://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html))
+
+    - $\sigma \sim \text{exponential}(1)$ (McElreath, Second version)  or  $\sigma \sim \text{exponential}(0.1)$      
+
+    - $\sigma \sim \text{LogNormal}(0,1)$ (McElreath, Second version)        
+
+- More informative prior : $\sigma \sim \text{HalfNormal}(0,1)$  or $\sigma \sim \text{Half-t}(3,0,1)$ 
+
+
+***
+
+```{r datalist_mod1}
+data.list <- list(N=length(data$height),              # Number of observations
+                  y=data$height,                      # Response variables
+                  age=data$age.sc,                    # Tree age
+                  nprov=length(unique(data$prov)),    # Number of provenances
+                  nblock=length(unique(data$block)),  # Number of blocks
+                  prov=as.numeric(data$prov),         # Provenances
+                  bloc=as.numeric(data$block))        # Blocks
+```
+
+> Model with sigma ~ HalfCauchy(0,1)
+
+```{r mod1_halfcauchy0_1_stan}
+mod1_halfcauchy0_1 = stan_model("mod1_halfcauchy0_1.stan") 
+```
+
+```{r mod1_halfcauchy0_1_sampling}
+fit.mod1_halfcauchy0_1 <- sampling(mod1_halfcauchy0_1, data = data.list, iter = 2000, chains = 2, cores = 2) 
+print(fit.mod1_halfcauchy0_1, pars = c("beta_age","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+> Model with sigma ~ HalfCauchy(0,25)
+
+```{r mod1_halfcauchy0_25_stan}
+mod1_halfcauchy0_25 = stan_model("mod1_halfcauchy0_25.stan")
+```
+
+```{r mod1_halfcauchy0_25_sampling}
+fit.mod1_halfcauchy0_25 <- sampling(mod1_halfcauchy0_25, data = data.list, iter = 2000, chains = 2, cores = 2)
+print(fit.mod1_halfcauchy0_25, pars = c("beta_age","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+
+> Posterior predictive checks
+
+```{r mod1_halfcauchy0_1_post_predict}
+y_rep <- as.matrix(fit.mod1_halfcauchy0_1, pars = "y_rep")
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25),
+                                                            legend.title=element_text(size=18),
+                                                            axis.text = element_text(size=18),
+                                                            legend.position = c(0.8,0.6))
+```
+
+
+> Let's vectorize this model. 
+
+```{r mod1_vectorized_stan}
+mod1_vectorized = stan_model("mod1_vectorized.stan")
+```
+
+
+```{r mod1_vectorized_sampling}
+fit.mod1_vectorized <- sampling(mod1_vectorized, data = data.list, iter = 2000, chains = 2, cores = 2)
+print(fit.mod1_vectorized, pars = c("beta_age","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+> Another way of vectorizing the model.
+
+```{r mod1_vectorized2_stan}
+mod1_vectorized2 = stan_model("mod1_vectorized2.stan") 
+```
+
+
+```{r mod1_vectorized2_sampling}
+fit.mod1_vectorized2 <- sampling(mod1_vectorized2, data = data.list, iter = 2000, chains = 2, cores = 2) 
+print(fit.mod1_vectorized2, pars = c("beta_age","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+
+> Let's compare the speed of these four models.
+
+```{r comparing_running_time}
+get_elapsed_time(fit.mod1_halfcauchy0_25)
+get_elapsed_time(fit.mod1_halfcauchy0_1)
+get_elapsed_time(fit.mod1_vectorized)
+get_elapsed_time(fit.mod1_vectorized2)
+```
+
+
+
+## Likelihood = Log-normal distribution
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+\alpha_{BLOCK} & \sim \mathcal{N}(0,10)\\
+\alpha_{PROV} & \sim \mathcal{N}(0,10)\\
+\beta_{age} & \sim \mathcal{N}(0,10) \\
+\beta_{age2} & \sim \mathcal{N}(0,10)\\
+\sigma & \sim \text{HalfCauchy}(0,1)
+\end{aligned}
+\end{equation}
+
+```{r mod1_lognormal_stan}
+mod1_lognormal = stan_model("mod1_lognormal.stan") 
+```
+
+```{r mod1_lognormal_sampling}
+fit.mod1_lognormal <- sampling(mod1_lognormal, data = data.list, iter = 2000, chains = 2, cores = 2)
+print(fit.mod1_lognormal, pars = c("beta_age","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+
+```{r mod1_lognormal_post_predict}
+y_rep <- as.matrix(fit.mod1_lognormal, pars = "y_rep")
+ppc_dens_overlay(y =data$height,y_rep[1:50, ])  + theme_bw() + theme(legend.text=element_text(size=25),
+                                                             legend.title=element_text(size=18),
+                                                             axis.text = element_text(size=18),
+                                                             legend.position = c(0.8,0.6))
+```
+
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+\alpha_{BLOCK} & \sim \mathcal{N}(0,1)\\
+\alpha_{PROV} & \sim \mathcal{N}(0,1)\\
+\beta_{age} & \sim \mathcal{N}(0,1) \\
+\beta_{age2} & \sim \mathcal{N}(0,1)\\
+\sigma & \sim \text{HalfCauchy}(0,1)
+\end{aligned}
+\end{equation}
+
+```{r mod1_2_lognormal_stan}
+mod1_2_lognormal = stan_model("mod1_2_lognormal.stan")
+```
+
+```{r mod1_2_lognormal_sampling}
+fit.mod1_2_lognormal <- sampling(mod1_2_lognormal, data = data.list, iter = 2000, chains = 2, cores = 2)
+print(fit.mod1_2_lognormal, pars = c("beta_age","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+
+```{r mod1_2_lognormal_post_predict}
+y_rep <- as.matrix(fit.mod1_2_lognormal, pars = "y_rep")
+ppc_dens_overlay(y =data$height,y_rep[1:50, ])  + theme_bw() + theme(legend.text=element_text(size=25),
+                                                             legend.title=element_text(size=18),
+                                                             axis.text = element_text(size=18),
+                                                             legend.position = c(0.8,0.6))
+```
+
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+\alpha_{BLOCK} & \sim \mathcal{N}(0,1)\\
+\alpha_{PROV} & \sim \mathcal{N}(0,1)\\
+\beta_{age} & \sim \mathcal{N}(0,1) \\
+\beta_{age2} & \sim \mathcal{N}(0,1)\\
+\sigma & \sim \text{Exponential}(1)
+\end{aligned}
+\end{equation}
+
+```{r mod1_3_lognormal_stan}
+mod1_3_lognormal = stan_model("mod1_3_lognormal.stan")
+```
+
+```{r mod1_3_lognormal_sampling}
+fit.mod1_3_lognormal <- sampling(mod1_3_lognormal, data = data.list, iter = 2000, chains = 2, cores = 2)
+print(fit.mod1_3_lognormal, pars = c("beta_age","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+
+```{r mod1_3_lognormal_post_predict}
+y_rep <- as.matrix(fit.mod1_3_lognormal, pars = "y_rep")
+ppc_dens_overlay(y =data$height,y_rep[1:50, ])  + theme_bw() + theme(legend.text=element_text(size=25),
+                                                             legend.title=element_text(size=18),
+                                                             axis.text = element_text(size=18),
+                                                             legend.position = c(0.8,0.6))
+```
+
+## Likelihood = Normal distribution with a log-transformed response variable
+
+\begin{equation}
+\begin{aligned}
+\text{log}(h_{i}) & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+\alpha_{BLOCK} & \sim \mathcal{N}(0,10)\\
+\alpha_{PROV} & \sim \mathcal{N}(0,10)\\
+\beta_{age} & \sim \mathcal{N}(0,10) \\
+\beta_{age2} & \sim \mathcal{N}(0,10)\\
+\sigma & \sim \text{HalfCauchy}(0,1)
+\end{aligned}
+\end{equation}
+
+```{r datalist_mod1_logy}
+data.list_logy <- list(N=length(data$height),              # Number of observations
+                  y=log(data$height),                      # Response variables
+                  age=data$age.sc,                            # Tree age
+                  nprov=length(unique(data$prov)),         # Number of provenances
+                  nblock=length(unique(data$block)),       # Number of blocks
+                  prov=as.numeric(data$prov),              # Provenances
+                  bloc=as.numeric(data$block))             # Blocks
+```
+
+```{r mod1_logy_stan}
+mod1_logy = stan_model("mod1_logy.stan")
+```
+
+
+```{r mod1_logy_sampling}
+fit.mod1log <- sampling(mod1_logy, data = data.list_logy, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))
+print(fit.mod1log, pars = c("beta_age","beta_age2","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+```{r mod1_logy_post_predict}
+y_rep <- as.matrix(fit.mod1log, pars = "y_rep")
+ppc_dens_overlay(y =log(data$height),y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25),
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6))
+```
+
+
+
+\begin{equation}
+\begin{aligned}
+\text{log}(h_{i}) & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+\alpha_{BLOCK} & \sim \mathcal{N}(0,1)\\
+\alpha_{PROV} & \sim \mathcal{N}(0,1)\\
+\beta_{age} & \sim \mathcal{N}(0,1) \\
+\beta_{age2} & \sim \mathcal{N}(0,1)\\
+\sigma & \sim \text{Exponential}(1)
+\end{aligned}
+\end{equation}
+
+
+
+```{r mod1_logy2_stan}
+mod1_logy2 = stan_model("mod1_logy2.stan")
+```
+
+
+```{r mod1_logy2_sampling}
+fit.mod1log2 <- sampling(mod1_logy2, data = data.list_logy, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))
+print(fit.mod1log2, pars = c("beta_age","beta_age2","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+```{r mod1_logy2_post_predict}
+y_rep <- as.matrix(fit.mod1log2, pars = "y_rep")
+ppc_dens_overlay(y =log(data$height),y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25),
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6))
+```
+
+
+
+
+
+\begin{equation}
+\begin{aligned}
+\text{log}(h_{i}) & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+\alpha_{BLOCK} & \sim \mathcal{N}(0,1)\\
+\alpha_{PROV} & \sim \mathcal{N}(0,1)\\
+\beta_{age} & \sim \mathcal{N}(0,1) \\
+\beta_{age2} & \sim \mathcal{N}(0,1)\\
+\sigma & \sim \text{HalfStudentT}(4,0,1)
+\end{aligned}
+\end{equation}
+
+
+
+```{r mod1_logy3_stan}
+mod1_logy3 = stan_model("mod1_logy3.stan")
+```
+
+
+```{r mod1_logy3_sampling}
+fit.mod1log3 <- sampling(mod1_logy3, data = data.list_logy, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))
+print(fit.mod1log3, pars = c("beta_age","beta_age2","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+
+
+# **Multilevel models**
+
+> Adaptive regularization
+
+Links:
+
+- [McElreath lecture on YouTube](https://www.youtube.com/watch?v=AALYPv5xSos)
+
+- [Bayesian Inference 2019. Ville Hyvönen & Topias Tolonen. Chapter 6 Hierarchical models](https://vioshyvo.github.io/Bayesian_inference/hierarchical-models.html)
+
+## **One varying intercept** (provenance)
+
+### Centered parameterization
+
+P357 McElreath (first version).
+
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} + \alpha_{PROV[p]}\\
+\alpha_{PROV} & \sim \mathcal{N}(\mu_{\alpha_{PROV}},\sigma_{\alpha_{PROV}})\\
+\beta_{age} & \sim \mathcal{N}(0,1) \\
+\beta_{age2} & \sim \mathcal{N}(0,1)\\
+\mu_{\alpha_{PROV}} & \sim \mathcal{N}(0,1)\\
+\sigma_{\alpha_{PROV}} & \sim \text{HalfCauchy}(0,1)\\
+\sigma & \sim \text{HalfCauchy}(0,1)
+\end{aligned}
+\end{equation}
+
+```{r datalist_mod2_1}
+data.list_mod2_1 <- list(N=length(data$height),          # Number of observations
+                  y=data$height,                         # Response variables
+                  age=data$age.sc,                       # Tree age
+                  nprov=length(unique(data$prov)),       # Number of provenances
+                  prov=as.numeric(data$prov))            # Provenances
+```
+
+```{r mod2_1_stan}
+mod2_1 = stan_model("mod2_1.stan")   
+```
+
+```{r mod2_1_sampling}
+fit.mod2_1 <- sampling(mod2_1, data = data.list_mod2_1, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))
+print(fit.mod2_1, pars = c("beta_age","beta_age2","alpha_prov", "sigma_y","mean_alpha_prov","sigma_alpha_prov"), probs = c(0.10, 0.5, 0.9))
+```
+
+```{r mod2_1_post_predict}
+y_rep <- as.matrix(fit.mod2_1, pars = "y_rep")  
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25),
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6))
+```
+
+```{r caterpillar_plot_mod2_1,fig.width=12}
+posterior <- as.array(fit.mod2_1)
+np <- nuts_params(fit.mod2_1)
+mcmc_trace(posterior, pars = "alpha_prov[3]", np = np) + 
+  xlab("Post-warmup iteration")
+```
+
+```{r pairs_plots_mod2_1,fig.width=17, fig.height=10}
+mcmc_pairs(posterior, np = np, pars = c("mean_alpha_prov","sigma_alpha_prov","alpha_prov[3]","beta_age","beta_age2"), 
+           off_diag_args = list(size = 1, alpha = 1/3),np_style = pairs_style_np(div_size=1, div_shape = 19))
+```
+
+
+Why is this model poorly fitted?
+
+- Four points (four ages) is not enough to estimate a second degree polynomial? I tried to remove $\beta_{age2}$ but it hasn't changed much. This has reduced the number of divergent transitions. (to 11 divergent transitions). But R-hat was still very high. In particular, for $\mu_{\alpha_{PROV}}$ (R-hat = 1.53 !).
+
+- Too vague priors? 
+
+#### More informative priors
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} + \alpha_{PROV[p]}\\
+\alpha_{PROV} & \sim \mathcal{N}(\mu_{\alpha_{PROV}},\sigma_{\alpha_{PROV}})\\
+\beta_{age} & \sim \text{LogNormal}(0,1) \\
+\beta_{age2} & \sim \mathcal{N}(0,1)\\
+\mu_{\alpha_{PROV}} & \sim \text{LogNormal}(0,1)\\
+\sigma_{\alpha_{PROV}} & \sim Exponential(1)\\
+\sigma & \sim Exponential(1)
+\end{aligned}
+\end{equation}
+
+```{r mod2_1_otherpriors_stan}
+mod2_1_otherpriors = stan_model("mod2_1_otherpriors.stan") 
+```
+
+```{r mod2_1_otherpriors_sampling}
+fit.mod2_1_otherpriors <- sampling(mod2_1_otherpriors, data = data.list_mod2_1, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))  
+print(fit.mod2_1_otherpriors, pars = c("beta_age","beta_age2","alpha_prov", "sigma_y","mean_alpha_prov","sigma_alpha_prov"), probs = c(0.10, 0.5, 0.9))
+```
+
+```{r mod2_1_otherpriors_post_predict}
+y_rep <- as.matrix(fit.mod2_1_otherpriors, pars = "y_rep")    
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25),
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6))
+```
+
+```{r caterpillar_plot_mod2_1_otherpriors,fig.width=16}
+posterior_cp <- as.array(fit.mod2_1_otherpriors)
+np_cp <- nuts_params(fit.mod2_1_otherpriors)  
+mcmc_trace(posterior_cp, pars =c( "alpha_prov[3]","mean_alpha_prov"), np = np_cp) + 
+  xlab("Post-warmup iteration")
+```
+
+This model is better. But still not ok, any suggestions? Let's try the non-centered parametrization. 
+
+
+### Non-centered parameterization
+
+
+Links: 
+
+- [Stan user guide](https://mc-stan.org/docs/2_22/stan-users-guide/reparameterization-section.html)
+
+- https://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html
+
+- https://jrnold.github.io/bugs-examples-in-stan/aspirin.html
+
+
+***
+
+From McElreath, P429 (13.4.2.) of Statistical Rethinking (second version) 
+
+
+$$ \alpha \sim \mathcal{N}(\mu,\sigma)$$
+
+
+is equivalent to 
+
+\begin{equation}
+\begin{aligned}
+\alpha &= \mu + \beta\\
+\beta &\sim \mathcal{N}(0,\sigma)
+\end{aligned}
+\end{equation}
+
+is equivalent to
+
+
+\begin{equation}
+\begin{aligned}
+\alpha &= \mu + z\sigma\\
+z &\sim \mathcal{N}(0,1)
+\end{aligned}
+\end{equation}
+
+No parameters are left inside the prior.
+
+***
+
+From [Updating: A Set of Bayesian Notes. Jeffrey B. Arnold. 20 Multilevel Models](https://jrnold.github.io/bayesian_notes/multilevel-models.html)
+
+These are two ways of writing the same model. However, they change the parameters that the HMC algorithm is actively sampling and thus can have different sampling performance.
+
+However, neither is universally better.
+
+  - If much data, the non-centered parameterization works better
+  - If less data, the centered parameterization works better
+
+And there is currently no ex-ante way to know which will work better, and at what amount of “data” that the performance of one or the other is better. However, one other reason to use the centered parameterization (if it is also scaled), is that the Stan HMC implementation tends to be more efficient if all parameters are on the scale.
+
+
+***
+
+> Non-centered model equation
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \alpha + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} + z_{PROV[p]}\sigma_{PROV}\\
+\alpha & \sim \mathcal{N}(0,1) \\
+\beta_{age} & \sim \mathcal{N}(0,1) \\
+\beta_{age2} & \sim \mathcal{N}(0,1)\\
+z_{PROV[p]} & \sim \mathcal{N}(0,1)\\
+\sigma_{PROV} & \sim \text{HalfCauchy}(0,1)\\
+\sigma & \sim \text{HalfCauchy}(0,1)
+\end{aligned}
+\end{equation}
+
+
+```{r mod2_1_nc_stan}
+mod2_1_nc = stan_model("mod2_1_nc.stan")
+```
+
+```{r mod2_1_nc_sampling}
+fit.mod2_1_nc <- sampling(mod2_1_nc, data = data.list_mod2_1, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))
+print(fit.mod2_1_nc, pars=c("beta_age","beta_age2","z_prov","sigma_prov","sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+```{r mod2_1_nc_post_predict}
+y_rep <- as.matrix(fit.mod2_1_nc, pars = "y_rep")
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25),
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6))
+```
+
+I think I'm doing something wrong here... Let's try with more informative priors.
+
+
+#### More informative priors
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \alpha + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} + z_{PROV[p]}\sigma_{PROV}\\
+\alpha & \sim \mathcal{N}(0,1) \\
+\beta_{age} & \sim \text{LogNormal}(0,1) \\
+\beta_{age2} & \sim \mathcal{N}(0,1)\\
+z_{PROV[p]} & \sim \mathcal{N}(0,1)\\
+\sigma_{PROV} & \sim \text{Exponential}(1)\\
+\sigma & \sim \text{Exponential}(1)
+\end{aligned}
+\end{equation}
+
+
+```{r mod2_1_nc_otherpriors_stan}
+mod2_1_nc_otherpriors = stan_model("mod2_1_nc_otherpriors.stan")
+```
+
+```{r mod2_1_nc_otherpriors_sampling}
+fit.mod2_1_nc_otherpriors <- sampling(mod2_1_nc_otherpriors, data = data.list_mod2_1, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))
+print(fit.mod2_1_nc_otherpriors, pars=c("beta_age","beta_age2","z_prov","sigma_prov","sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+```{r mod2_1_nc_otherpriors_post_predict}
+y_rep <- as.matrix(fit.mod2_1_nc_otherpriors, pars = "y_rep")
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25),
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6))
+```
+
+```{r caterpillar_plot_mod2_1_nc_otherpriors,fig.width=16}
+posterior_cp <- as.array(fit.mod2_1_nc_otherpriors)
+np_cp <- nuts_params(fit.mod2_1_nc_otherpriors)  
+mcmc_trace(posterior_cp, pars =c( "alpha","sigma_prov"), np = np_cp) + 
+  xlab("Post-warmup iteration")
+```
+
+```{r pairs_plots,fig.width=17, fig.height=10}
+mcmc_pairs(posterior_cp, np = np_cp, pars = c("sigma_y","sigma_prov","alpha","beta_age","beta_age2"), 
+           off_diag_args = list(size = 1, alpha = 1/3),np_style = pairs_style_np(div_size=3, div_shape = 19))
+```
+
+A lot better!
+
+## **Two varying intercepts** (prov and block)
+
+
+
+### Centered parameterization (what we shouldn't do)
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+\beta_{age} & \sim \mathcal{N}(0,1) \\
+\beta_{age2} & \sim \mathcal{N}(0,1)\\
+\alpha_{BLOCK} & \sim \mathcal{N}(\mu_{\alpha_{BLOCK}},\sigma_{\alpha_{BLOCK}})\\
+\alpha_{PROV} & \sim \mathcal{N}(\mu_{\alpha_{PROV}},\sigma_{\alpha_{PROV}})\\
+\mu_{\alpha_{PROV}} & \sim \mathcal{N}(0,1)\\
+\mu_{\alpha_{BLOCK}}& \sim \mathcal{N}(0,1)\\
+\sigma_{\alpha_{PROV}} & \sim \text{HalfCauchy}(0,1)\\
+\sigma_{\alpha_{BLOCK}} & \sim \text{HalfCauchy}(0,1)\\
+\sigma & \sim \text{HalfCauchy}(0,1)
+\end{aligned}
+\end{equation}
+
+
+```{r datalist_mod2_2}
+data.list_mod2_2 <- list(N=length(data$height),          # Number of observations
+                  y=data$height,                         # Response variables
+                  age=data$age.sc,                       # Tree age
+                  nprov=length(unique(data$prov)),       # Number of provenances
+                  nblock=length(unique(data$block)),     # Number of blocks
+                  prov=as.numeric(data$prov),            # Provenances
+                  bloc=as.numeric(data$block))           # Blocks
+```
+
+
+```{r mod2_2_stan}
+mod2_2 = stan_model("mod2_2.stan")
+```
+
+
+```{r mod2_2_sampling}
+fit.mod2_2 <- sampling(mod2_2, data = data.list_mod2_2, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))
+print(fit.mod2_2, pars = c("beta_age","beta_age2",
+                           "alpha_prov","alpha_block", 
+                           "mean_alpha_prov","sigma_alpha_prov",
+                           "mean_alpha_block","sigma_alpha_block",
+                           "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+
+```{r mod2_2_post_predict}
+y_rep <- as.matrix(fit.mod2_2, pars = "y_rep")
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25),
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6)) 
+```
+
+McElreath: "[...] note that there is only one global mean parameter $\alpha$, and both of the varying intercept parameters are centered at zero. We can’t identify a separate mean for each varying intercept type, because both intercepts are added to the same linear prediction. So it is conventional to define varying intercepts with a mean of zero, so there’s no risk of accidentally creating hard-to-identify parameters." "If you do include a mean for each cluster type, it won’t be the end of the world, however."
+
+
+#### More informative priors
+
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
+\mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+\beta_{age} & \sim \text{LogNormal}(0,1) \\
+\beta_{age2} & \sim \mathcal{N}(0,1)\\
+\alpha_{BLOCK} & \sim \mathcal{N}(\mu_{\alpha_{BLOCK}},\sigma_{\alpha_{BLOCK}})\\
+\alpha_{PROV} & \sim \mathcal{N}(\mu_{\alpha_{PROV}},\sigma_{\alpha_{PROV}})\\
+\mu_{\alpha_{PROV}} & \sim \mathcal{N}(0,1)\\
+\mu_{\alpha_{BLOCK}}& \sim \mathcal{N}(0,1)\\
+\sigma_{\alpha_{PROV}} & \sim \text{Exponential}(1)\\
+\sigma_{\alpha_{BLOCK}} & \sim \text{Exponential}(1)\\
+\sigma & \sim \text{HalfCauchy}(0,1)
+\end{aligned}
+\end{equation}
+
+```{r mod2_2_otherpriors_stan}
+mod2_2_otherpriors = stan_model("mod2_2_otherpriors.stan")
+```
+
+
+```{r mod2_2_otherpriors_sampling}
+fit.mod2_2_otherpriors <- sampling(mod2_2_otherpriors, data = data.list_mod2_2, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))
+print(fit.mod2_2_otherpriors, pars = c("beta_age","beta_age2",
+                           "alpha_prov","alpha_block", 
+                           "mean_alpha_prov","sigma_alpha_prov",
+                           "mean_alpha_block","sigma_alpha_block",
+                           "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+
+### Centered-parameterization (what we should do)
+
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma^{2}_{i})\\
+\mu_{i} & = \alpha + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+\beta_{age} & \sim \mathcal{N}(0,1) \\
+\beta_{age2} & \sim \mathcal{N}(0,1)\\
+\alpha & \sim \mathcal{N}(0,1)\\
+\alpha_{BLOCK} & \sim \mathcal{N}(0,\sigma_{\alpha_{BLOCK}})\\
+\alpha_{PROV} & \sim \mathcal{N}(0,\sigma_{\alpha_{PROV}})\\
+\sigma_{\alpha_{PROV}} & \sim \text{HalfCauchy}(0,1)\\
+\sigma_{\alpha_{BLOCK}} & \sim \text{HalfCauchy}(0,1)\\
+\sigma & \sim \text{HalfCauchy}(0,1)
+\end{aligned}
+\end{equation}
+
+
+```{r mod2_3_stan}
+mod2_3 = stan_model("mod2_3.stan")
+```
+
+
+```{r mod2_3_sampling}
+fit.mod2_3 <- sampling(mod2_3, data = data.list_mod2_2, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))
+print(fit.mod2_3, pars = c("beta_age","beta_age2",
+                           "alpha",
+                           "alpha_prov","alpha_block", 
+                           "sigma_alpha_prov","sigma_alpha_block",
+                           "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+
+```{r mod2_3_post_predict}
+y_rep <- as.matrix(fit.mod2_3, pars = "y_rep")
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25),
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6)) 
+```
+
+
+#### More informative priors
+
+
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma^{2}_{i})\\
+\mu_{i} & = \alpha + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+\beta_{age} & \sim \text{LogNormal}(0,1) \\
+\beta_{age2} & \sim \mathcal{N}(0,1)\\
+\alpha & \sim \text{LogNormal}(0,1)\\
+\alpha_{BLOCK} & \sim \mathcal{N}(0,\sigma_{\alpha_{BLOCK}})\\
+\alpha_{PROV} & \sim \mathcal{N}(0,\sigma_{\alpha_{PROV}})\\
+\sigma_{\alpha_{PROV}} & \sim \text{Exponential}(1)\\
+\sigma_{\alpha_{BLOCK}} & \sim \text{Exponential}(1)\\
+\sigma & \sim \text{Exponential}(1)
+\end{aligned}
+\end{equation}
+
+```{r mod2_3_otherpriors_stan}
+mod2_3_otherpriors = stan_model("mod2_3_otherpriors.stan")
+```
+
+
+```{r mod2_3_otherpriors_sampling}
+fit.mod2_3_otherpriors <- sampling(mod2_3_otherpriors, data = data.list_mod2_2, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))
+print(fit.mod2_3_otherpriors, pars = c("beta_age","beta_age2",
+                           "alpha",
+                           "alpha_prov","alpha_block", 
+                           "sigma_alpha_prov","sigma_alpha_block",
+                           "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+$\alpha$ is very different between the two models!
+
+
+> With more iterations:
+
+```{r mod2_3_otherpriors_iter3000_sampling}
+fit.mod2_3_otherpriors_iter3000 <- sampling(mod2_3_otherpriors, data = data.list_mod2_2, iter = 3000, chains = 2, cores = 2, control=list(max_treedepth=14))
+print(fit.mod2_3_otherpriors_iter3000, pars = c("beta_age","beta_age2",
+                           "alpha",
+                           "alpha_prov","alpha_block", 
+                           "sigma_alpha_prov","sigma_alpha_block",
+                           "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+
+
+### Non-centered parameterization
+
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma^{2}_{i})\\
+\mu_{i} & = \alpha + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  z_{BLOCK[b]}\sigma_{BLOCK} + z_{PROV[p]}\sigma_{PROV}\\
+\beta_{age} & \sim \mathcal{N}(0,10) \\
+\beta_{age2} & \sim \mathcal{N}(0,10)\\
+\alpha & \sim \mathcal{N}(0,10)\\
+z_{BLOCK} & \sim \mathcal{N}(0,1)\\
+z_{PROV} & \sim \mathcal{N}(0,1)\\
+\sigma_{PROV} & \sim HalfCauchy(0,1)\\
+\sigma_{BLOCK} & \sim HalfCauchy(0,1)\\
+\sigma & \sim HalfCauchy(0,1)
+\end{aligned}
+\end{equation}
+
+
+```{r mod2_4_stan}
+mod2_4 = stan_model("mod2_4.stan")
+```
+
+
+```{r mod2_4_sampling}
+fit.mod2_4 <- sampling(mod2_4, data = data.list_mod2_2, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))  
+print(fit.mod2_4, pars = c("beta_age","beta_age2",
+                           "alpha",
+                           "z_prov","z_block", 
+                           "sigma_prov","sigma_block",
+                           "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+
+```{r mod2_4_post_predict}
+y_rep <- as.matrix(fit.mod2_4, pars = "y_rep")
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25), 
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6))
+```
+
+
+```{r caterpillar_plot_mod2_4,fig.width=17}
+posterior_cp <- as.array(fit.mod2_4)
+np_cp <- nuts_params(fit.mod2_4)  
+mcmc_trace(posterior_cp, pars = c("alpha", "sigma_block", "sigma_prov","z_block[3]"), np = np_cp) + 
+  xlab("Post-warmup iteration")
+```
+
+
+#### More informative priors
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma^{2}_{i})\\
+\mu_{i} & = \alpha + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  z_{BLOCK[b]}\sigma_{BLOCK} + z_{PROV[p]}\sigma_{PROV}\\
+\beta_{age} & \sim \text{LogNormal}(0,10) \\
+\beta_{age2} & \sim \mathcal{N}(0,10)\\
+\alpha & \sim \text{LogNormal}(0,10)\\
+z_{BLOCK} & \sim \mathcal{N}(0,1)\\
+z_{PROV} & \sim \mathcal{N}(0,1)\\
+\sigma_{PROV} & \sim \text{Exponential}(0,1)\\
+\sigma_{BLOCK} & \sim \text{Exponential}(1)\\
+\sigma & \sim \text{Exponential}(0,1)
+\end{aligned}
+\end{equation}
+
+
+```{r mod2_4_otherpriors_stan}
+mod2_4_otherpriors = stan_model("mod2_4_otherpriors.stan")
+```
+
+
+```{r mod2_4_otherpriors_sampling}
+fit.mod2_4_otherpriors <- sampling(mod2_4_otherpriors, data = data.list_mod2_2, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14))  
+print(fit.mod2_4_otherpriors, pars = c("beta_age","beta_age2",
+                           "alpha",
+                           "z_prov","z_block", 
+                           "sigma_prov","sigma_block",
+                           "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+
+```{r mod2_4_otherpriors_post_predict}
+y_rep <- as.matrix(fit.mod2_4_otherpriors, pars = "y_rep")
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25), 
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6))
+```
+
+
+```{r caterpillar_plot_mod2_4_otherpriors,fig.width=17}
+posterior_cp <- as.array(fit.mod2_4_otherpriors)
+np_cp <- nuts_params(fit.mod2_4_otherpriors)  
+mcmc_trace(posterior_cp, pars = c("alpha", "sigma_block", "sigma_prov","z_block[3]"), np = np_cp) + 
+  xlab("Post-warmup iteration")
+```
+
+
+> Let's increase the target acceptance (adapt_delta=0.99)
+
+McEleath (Second version) : "[...] the target acceptance rate is controlled by the `adapt_delta` control parameter. The default is 0.95, which means that it aims to attain a 95% acceptance rate. It tries this during the warmup phase, adjusting the step size of each leapfrog step (go back to Chapter 9 if these terms aren’t familiar). When `adapt_delta` is set high, it results in a smaller step size, which means a more accurate approximation of the curved surface. It also means more computation, which means a slower chain. Increasing adapt_delta can often, but not always, help with divergent transitions."
+
+```{r mod2_4_otherpriors_adaptdelta_sampling}
+fit.mod2_4_otherpriors_adaptdelta <- sampling(mod2_4_otherpriors, data = data.list_mod2_2, iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14,adapt_delta=0.99))
+print(fit.mod2_4_otherpriors_adaptdelta, pars = c("beta_age","beta_age2",
+                           "alpha",
+                           "z_prov","z_block", 
+                           "sigma_prov","sigma_block",
+                           "sigma_y"), probs = c(0.10, 0.5, 0.9))
+```
+
+Longer to run, but it's ok now ! And similar to model `mod2_3_otherpriors` (model with centered parameterization and more informative priors).
+
+
+## **Varying intercepts and varying slopes**
+
+
+```{r datalist_data_mod3}
+data.list_mod3 <- list(N=length(data$height),          # Number of observations
+                  y=data$height,                         # Response variables
+                  age=data$age.sc,                       # Tree age
+                  nprov=length(unique(data$prov)),       # Number of provenances
+                  nblock=length(unique(data$block)),     # Number of blocks
+                  prov=as.numeric(data$prov),            # Provenances
+                  bloc=as.numeric(data$block))           # Blocks
+```
+
+### Centered parameterization
+
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\[4pt]
+\mu_{i} & = \alpha + \alpha_{BLOCK[b]} + \alpha_{PROV[p]} + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \gamma_{PROV[p]}age_{i} \\[4pt]
+
+\begin{bmatrix}  \alpha_{PROV[p]} \\  \gamma_{PROV[p]}  
+    \end{bmatrix} & \sim \text{MVNormal}\left(\begin{bmatrix} 0 \\ 0 \end{bmatrix},\mathbf{S} \right) \\[4pt]
+
+\mathbf{S} & = \begin{pmatrix} \sigma_{\alpha_{PROV[p]}} & 0 \\ 0 & \sigma_{\gamma_{PROV[p]}} \end{pmatrix} 
+          \begin{pmatrix} 1 & \rho \\ \rho & 1 \end{pmatrix}
+          \begin{pmatrix} \sigma_{\alpha_{PROV[p]}} & 0 \\ 0 & \sigma_{\gamma_{PROV[p]}} \end{pmatrix} \\[4pt]
+          
+\alpha & \sim \text{LogNormal}(0,1)\\[4pt] 
+\beta_{age} & \sim \text{LogNormal}(0,1) \\[4pt]
+\beta_{age2} & \sim \mathcal{N}(0,1)\\[4pt]
+
+
+\alpha_{BLOCK} & \sim \mathcal{N}(0,\sigma_{\alpha_{BLOCK}})\\[4pt]
+
+\sigma_{\alpha_{BLOCK}} & \sim \text{Exponential}(1)\\[4pt]
+\sigma & \sim \text{Exponential}(1)\\[4pt]
+\sigma_{\gamma_{PROV[p]}} & \sim \text{Exponential}(1)\\[4pt]
+\sigma_{\alpha_{PROV}} & \sim \text{Exponential}(1)\\[4pt]
+
+
+\begin{pmatrix} 1 & \rho \\ \rho & 1 \end{pmatrix} & \sim \text{LKJcorr(2)}
+
+\end{aligned}
+\end{equation}
+
+#### `mod3_1`
+
+In this model, I followed the example from here: [Stan code of Statistical Rethinking. 13.3 Example: cross-classified chimpanzees with varying slopes](https://github.com/ssp3nc3r/rethinking/blob/master/chapter13.Rmd).
+
+Even with 99% acceptance rate (`adapt_delta`=0.99)` and 3000 iterations, the model had some divergent transitions and small sample sizes.
+
+One thing I didn't understand with this model code is: where are LKJ and $\sigma_{\alpha_{BLOCK}}$ priors? 
+
+```{r mod3_1_stan}
+mod3_1 = stan_model("mod3_1.stan")
+```
+
+```{r mod3_1_sampling}
+fit.mod3_1 <- sampling(mod3_1, data = data.list_mod3 , iter = 3000, chains = 2, cores = 2, control=list(max_treedepth=14,adapt_delta=0.99))   
+print(fit.mod3_1, probs = c(0.10, 0.5, 0.9))
+```
+
+```{r mod3_1_post_predict}
+y_rep <- as.matrix(fit.mod3_1, pars = "y_rep") 
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25), 
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6))
+```
+
+
+Let's call the correlation matrix $\mathbf{R}$:
+
+$$\mathbf{R} = \begin{pmatrix} 1 & \rho \\ \rho & 1 \end{pmatrix}$$
+If the prior was:
+
+$$\mathbf{R} \sim \text{LKJcorr(2)}$$
+
+There were more divergent transitions. 
+
+
+If the prior was:
+
+$$\mathbf{R} \sim \text{LKJcorr(4)}$$
+
+There were less divergent transitions, see the model below. 
+
+McElreath: "So whatever is the LKJcorr distribution? What LKJcorr(2) does is define a weakly informative prior on $\rho$ that is skeptical of extreme correlations near −1 or 1. You can think of it as a regularizing prior for correlations. This distribution has a single parameter, $\eta$, that controls how skeptical the prior is of large correlations in the matrix. When we use LKJcorr(1), the prior is flat over all valid correlation matrices. When the value is greater than 1, such as the 2 we used above, then extreme correlations are less likely. To visualize this family of priors, it will help to sample random matrices from it and plot the distribution of correlations"
+
+```{r vizualize_LKJ_prior,fig.width=3,fig.height=3}
+Rho2 <- rlkjcorr( 1e4 , K=2 , eta=2 )
+Rho1 <- rlkjcorr( 1e4 , K=2 , eta=1 )
+Rho4 <- rlkjcorr( 1e4 , K=2 , eta=4 )
+plot_grid(dens(Rho1[,1,2],xlim=c(-1,1),xlab="correlation" ,ylim=c(0,1.2),main="eta=1"),
+         dens(Rho2[,1,2] , xlab="correlation" ,xlim=c(-1,1),ylim=c(0,1.2),main="eta=2"),
+         dens(Rho4[,1,2],xlim=c(-1,1),xlab="correlation" ,ylim=c(0,1.2),main="eta=4"))
+```
+
+#### `mod3_2`
+
+> Model with $\mathbf{R} \sim \text{LKJcorr(4)}$
+
+```{r mod3_2_stan}
+mod3_2 = stan_model("mod3_2.stan")  
+```
+
+```{r mod3_2_sampling}
+fit.mod3_2 <- sampling(mod3_2, data = data.list_mod3 , iter = 3000, chains = 2, cores = 2, control=list(max_treedepth=14,adapt_delta=0.99))   
+print(fit.mod3_2, pars = c("beta_age","beta_age2",
+                           "alpha","alpha_block", "sigma_block",
+                           "Rho_prov","sigma_prov","alpha_prov","beta_prov","v_prov","SRS_prov",
+                           "sigma_y"), probs = c(0.10, 0.5, 0.9)) 
+```
+
+```{r mod3_2_post_predict}
+y_rep <- as.matrix(fit.mod3_2, pars = "y_rep") 
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25), 
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6))
+```
+
+
+### Non-centered parameterization 
+
+\begin{equation}
+\begin{aligned}
+h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\[4pt]
+\mu_{i} & = \alpha + z_{\alpha_{BLOCK[b]}}\sigma_{\alpha_{BLOCK}} + z_{\alpha_{PROV[p]}}\sigma_{\alpha_{PROV}} + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  z_{\gamma_{PROV[p]}}\sigma_{\gamma_{PROV}}age_{i} \\[4pt]
+
+\begin{bmatrix}  z_{\alpha_{PROV[p]}} \\  z_{\gamma_{PROV[p]}} 
+    \end{bmatrix} & \sim \text{MVNormal}\left(\begin{bmatrix} 0 \\ 0 \end{bmatrix},\mathbf{R} \right) \\[4pt]
+
+          
+          
+\beta_{age} & \sim \text{LogNormal}(0,1) \\[4pt]
+\beta_{age2} & \sim \mathcal{N}(0,1)\\[4pt]
+
+\alpha & \sim \text{LogNormal}(0,1)\\[4pt]
+z_{\alpha_{BLOCK[p]}} & \sim \mathcal{N}(0,1)\\[4pt]
+\sigma_{\alpha_{BLOCK}} & \sim \text{Exponential}(1)\\[4pt]
+\sigma & \sim \text{Exponential}(1)\\[4pt]
+
+\sigma_{\gamma_{PROV}} & \sim \text{Exponential}(1)\\[4pt]
+\sigma_{\alpha_{PROV}} & \sim \text{Exponential}(1)\\[4pt]
+
+
+\mathbf{R}& \sim \text{LKJcorr(4)}
+
+\end{aligned}
+\end{equation}
+
+
+
+#### Following McElreath
+
+> Statistical rethinking (first version): `m13_6NC1` P405
+
+[Stan code here: Code model using non-centered parameterization.](https://github.com/ssp3nc3r/rethinking/blob/master/chapter13.Rmd)
+
+
+
+```{r mod3_3_stan}
+mod3_3 = stan_model("mod3_3.stan") 
+```
+
+```{r mod3_3_sampling}
+fit.mod3_3 <- sampling(mod3_3, data = data.list_mod3 , iter = 3000, chains = 2, cores = 2, control=list(max_treedepth=14,adapt_delta=0.99)) 
+print(fit.mod3_3, pars = c("beta_age","beta_age2",
+                           "alpha","z_alpha_block", "sigma_block",
+                           "Rho_prov","sigma_prov","z_alpha_prov","z_beta_prov","v_prov",
+                           "sigma_y"), probs = c(0.10, 0.5, 0.9)) 
+```
+
+```{r mod3_3_post_predict}
+y_rep <- as.matrix(fit.mod3_3, pars = "y_rep")  
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25), 
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6))
+```
+
+```{r caterpillar_plot_mod3_3,fig.width=16}
+posterior_cp <- as.array(fit.mod3_3) 
+np_cp <- nuts_params(fit.mod3_3)  
+mcmc_trace(posterior_cp, pars =c( "alpha","sigma_prov[1]"), np = np_cp) + 
+  xlab("Post-warmup iteration")
+```
+
+```{r pairs_plots_3_3,fig.width=17, fig.height=10}
+mcmc_pairs(posterior_cp, np = np_cp, pars = c("alpha","beta_age","beta_age2","sigma_y","sigma_prov[1]","sigma_prov[2]"),  
+           off_diag_args = list(size = 1, alpha = 1/3),np_style = pairs_style_np(div_size=3, div_shape = 19))
+```
+
+
+Comment: I tried $\alpha \sim \mathcal{N}(0,1)$, chains didn't mix. Very high R-hat values and lots of divergent transitions.
+
+#### Following Sorensen
+
+[Sorensen et al. 2016. Listing 8.](http://jakewestfall.org/misc/SorensenEtAl.pdf)
+
+```{r datalist_data_mod3_4}
+data.list_mod3_4 <- list(N=length(data$height),          # Number of observations
+                  y=data$height,                         # Response variables
+                  age=data$age.sc,                       # Tree age
+                  nprov=length(unique(data$prov)),       # Number of provenances
+                  nblock=length(unique(data$block)),     # Number of blocks
+                  prov=as.numeric(data$prov),            # Provenances
+                  bloc=as.numeric(data$block))           # Blocks
+```
+
+```{r mod3_4_stan}
+mod3_4 = stan_model("mod3_4.stan")  
+```
+
+```{r mod3_4_sampling}
+fit.mod3_4 <- sampling(mod3_4, data = data.list_mod3_4 , iter = 2000, chains = 2, cores = 2, control=list(max_treedepth=14,adapt_delta=0.999))  
+print(fit.mod3_4, probs = c(0.10, 0.5, 0.9))
+```
+
+```{r mod3_4_post_predict}
+y_rep <- as.matrix(fit.mod3_4, pars = "y_rep")
+ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25), 
+                                                                 legend.title=element_text(size=18),
+                                                                 axis.text = element_text(size=18),
+                                                                 legend.position = c(0.8,0.6))
+```
+
+Comment: $\alpha$ has very different values between McElreath and Sorensen models..
+
