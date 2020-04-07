@@ -6,3 +6,4 @@
 /Workshop*/*_cache
 /Workshop*/*_files 
 /Workshop*/*.rds
+data/*

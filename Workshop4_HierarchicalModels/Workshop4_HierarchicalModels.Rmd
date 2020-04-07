@@ -1,6 +1,6 @@
 ---
 title: 'Workshop 4: Hierarchical Models'
-author: "Juliette Archambeau"
+author: "Juliette Archambeau, Sylvain Schmitt"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   html_document:
@@ -51,7 +51,7 @@ pre[class] {
 ```{r setup, include=FALSE}
 library(knitr)
 options(width = 300)
-knitr::opts_chunk$set(fig.width = 8,fig.height=5,cache=TRUE)
+knitr::opts_chunk$set(fig.width = 8, fig.height = 5, cache = TRUE)
 library(rstan)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
@@ -71,90 +71,89 @@ library(tidyr)
 
 # **The data**
 
- 
-```{r load_data}
-data <- readRDS(file="../../data/sub_portugal_5provs_4blocks.rds")
+```{r loadData}
+data <- readRDS(file="../data/sub_portugal_5provs_4blocks.rds") %>% 
+  mutate_at(c("block", "prov", "clon", "tree"), as.factor) %>% # formatting data
+  mutate(age.sc = as.vector(scale(age))) # mean centering age
+  # mutate(age.sc = scale(age, center = F)) # as age is definite and R+ I would only reduce it..
 ```
 
-- Height data from a provenance trial (in Portugal) of maritime pine saplings. 
+The dataset includes:
 
-- Randomized block design. Here I selected 5 provenances and 4 blocks. 
+* Height data from a provenance trial (in Portugal) of maritime pine saplings. 
+* Randomized block design. Here I selected 5 provenances and 4 blocks. 
+* Saplings have different ages: 11, 15, 20 and 27 month old.
 
-- Saplings have different ages: 11, 15, 20 and 27 month old.
-
-```{r exp_design}
-table(data$prov,data$block)
-table(data$prov,as.factor(data$age))
+```{r expDesign}
+table(data$prov,data$block) %>% kable(caption = "Provenance against block number.")
+table(data$prov,as.factor(data$age)) %>% kable(caption = "Provenance against age.")
 ```
 
+```{r heightVsAge, message = F, warning = F, fig.cap="Height versus age."}
+ggplot(data, aes(x=height)) + 
+  geom_histogram(color="darkblue", fill="lightblue") + 
+  theme_bw()
 
-```{r formatting_data}
-randoms <- c("block","prov","clon","tree")
-for (i in randoms){data[,i] <- as.factor( data[,i])}
+ggplot(data, aes(x=height, color=as.factor(age))) + 
+  geom_histogram(fill="white", alpha=0.5, position="identity") + 
+  theme_bw()  +
+  facet_wrap(~as.factor(age)) + 
+  theme(legend.position = "none")
+
+plot_grid(ggplot(data, aes(x=age,y=height)) + 
+            geom_point(alpha=0.2) + 
+            stat_smooth(method = "lm", col = "red") + 
+            theme_bw()  +
+            theme(axis.title=element_text(size=16)),
+          ggplot(data, aes(x=age,y=height)) + 
+            geom_point(alpha=0.2) + 
+            stat_smooth(method = "lm", col = "red", formula = y~poly(x,2)) + 
+            theme_bw() +
+            theme(axis.title=element_text(size=16)))
+
+plot_grid(ggplot(data, aes(x=age,y=log(height))) + 
+            geom_point(alpha=0.2) + 
+            stat_smooth(method = "lm", col = "red") + 
+            theme_bw()  +
+            theme(axis.title=element_text(size=16)),
+          ggplot(data, aes(x=age,y=log(height))) + 
+            geom_point(alpha=0.2) + 
+            stat_smooth(method = "lm", col = "red", formula = y~poly(x,2)) + 
+            theme_bw() +
+            theme(axis.title=element_text(size=16)))
 ```
 
-```{r mean_centering_age}
-data <- data %>% mutate(age.sc=(age-mean(age))/sd(age))
-```
-
-```{r height_vs_age, message=F,warning=F}
-data %>% ggplot(aes(x=height)) + geom_histogram(color="darkblue", fill="lightblue") + theme_bw()
-
-data %>% ggplot(aes(x=height, color=as.factor(age))) + geom_histogram(fill="white", alpha=0.5, position="identity") + theme_bw()  +
-  facet_wrap(~as.factor(age)) + theme(legend.position = "none")
-
-plot_grid(data %>% ggplot(aes(x=age,y=height)) + geom_point(alpha=0.2) + 
-      stat_smooth(method = "lm", col = "red") + theme_bw()  +
-      theme(axis.title=element_text(size=16)),
-data %>% ggplot(aes(x=age,y=height)) + geom_point(alpha=0.2) + 
-      stat_smooth(method = "lm", col = "red", formula = y~poly(x,2)) + theme_bw() +
-      theme(axis.title=element_text(size=16)))
-
-
-plot_grid(data %>% ggplot(aes(x=age,y=log(height))) + geom_point(alpha=0.2) + 
-      stat_smooth(method = "lm", col = "red") + theme_bw()  +
-      theme(axis.title=element_text(size=16)),
-data %>% ggplot(aes(x=age,y=log(height))) + geom_point(alpha=0.2) + 
-      stat_smooth(method = "lm", col = "red", formula = y~poly(x,2)) + theme_bw() +
-      theme(axis.title=element_text(size=16)))
-```
-
-```{r height_prov_block, message=F,warning=F}
-data %>% ggplot(aes(x=height, color=prov)) + geom_histogram(fill="white", alpha=0.5, position="identity") + theme_bw()  +
-  facet_wrap(~prov) + theme(legend.position = "none")
-
-data %>% ggplot(aes(x=height, color=block)) + geom_histogram(fill="white", alpha=0.5, position="identity") + theme_bw()  +
-  facet_wrap(~block) + theme(legend.position = "none")
+```{r heightProvBlock, message = F, warning = F, fig.cap="Height distribution by Provenance and Block."}
+ggplot(data, aes(x=height, color=block)) +
+  geom_histogram(fill="white", alpha=0.5, position="identity") + 
+  theme_bw()  +
+  facet_grid(prov ~block, labeller = label_both) + 
+  theme(legend.position = "none")
 ```
 
 # **"Fixed effects" models**
 
-> Dummy variables for each level = Regularized intercepts, because we use weakly informative priors. But no information shared between intercepts.
+> Dummy variables for each level = Regularized intercepts, because we use weakly informative priors. But no information shared between intercepts. *[P299 in Statistical Rethinking of McElreath](link?)*
 
-P299 in Statistical Rethinking of McElreath.
+## $\mathcal{Normal}$ distribution
 
-## Likelihood = Normal distribution
+### Mathematical model
 
 \begin{equation}
-\begin{aligned}
-h_{i} & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
-\mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
-\alpha_{BLOCK} & \sim \mathcal{N}(0,10)\\
-\alpha_{PROV} & \sim \mathcal{N}(0,10)\\
-\beta_{age} & \sim \mathcal{N}(0,10) \\
-\beta_{age2} & \sim \mathcal{N}(0,10)\\
-\sigma & \sim \text{HalfCauchy}(0,25)
-\end{aligned}
+  \begin{aligned}
+    h_{i} & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
+    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+    \alpha_{BLOCK} & \sim \mathcal{N}(0,10)\\
+    \alpha_{PROV} & \sim \mathcal{N}(0,10)\\
+    \beta_{age} & \sim \mathcal{N}(0,10) \\
+    \beta_{age2} & \sim \mathcal{N}(0,10)\\
+    \sigma & \sim \text{HalfCauchy}(0,25)
+  \end{aligned}
 \end{equation}
 
+### Variance prior
 
-***
-
-
-> Comment about the choice of HalfCauchy prior for $\sigma$
-
-
-[Prior recommendations](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations#prior-for-scale-parameters-in-hierarchical-models)
+> Comment about the choice of HalfCauchy prior for $\sigma$ *[Prior recommendations](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations#prior-for-scale-parameters-in-hierarchical-models)*
 
 $\sigma$ is strictly positive, what priors can we use?
 
@@ -171,9 +170,9 @@ $\sigma$ is strictly positive, what priors can we use?
 - More informative prior : $\sigma \sim \text{HalfNormal}(0,1)$  or $\sigma \sim \text{Half-t}(3,0,1)$ 
 
 
-***
+### Model 1 with $\sigma \sim HalfCauchy(0,1)$
 
-```{r datalist_mod1}
+```{r datalistMod1}
 data.list <- list(N=length(data$height),              # Number of observations
                   y=data$height,                      # Response variables
                   age=data$age.sc,                    # Tree age
@@ -183,75 +182,79 @@ data.list <- list(N=length(data$height),              # Number of observations
                   bloc=as.numeric(data$block))        # Blocks
 ```
 
-> Model with sigma ~ HalfCauchy(0,1)
-
-```{r mod1_halfcauchy0_1_stan}
+```{r mod1Halfcauchy01Sampling, message = FALSE}
 mod1_halfcauchy0_1 = stan_model("mod1_halfcauchy0_1.stan") 
+fit.mod1_halfcauchy0_1 <- sampling(mod1_halfcauchy0_1, data = data.list, iter = 2000, chains = 2, cores = 2, save_warmup = F) 
+broom::tidyMCMC(fit.mod1_halfcauchy0_1, 
+                pars = c("beta_age", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
+  kable(caption = "Model 1 with $\\sigma \\sim HalfCauchy(0,1)$")
 ```
 
-```{r mod1_halfcauchy0_1_sampling}
-fit.mod1_halfcauchy0_1 <- sampling(mod1_halfcauchy0_1, data = data.list, iter = 2000, chains = 2, cores = 2) 
-print(fit.mod1_halfcauchy0_1, pars = c("beta_age","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
-```
+### Model 1 with $\sigma \sim HalfCauchy(0,25)$
 
-> Model with sigma ~ HalfCauchy(0,25)
-
-```{r mod1_halfcauchy0_25_stan}
+```{r mod1Halfcauchy025sampling, message = FALSE}
 mod1_halfcauchy0_25 = stan_model("mod1_halfcauchy0_25.stan")
+fit.mod1_halfcauchy0_25 <- sampling(mod1_halfcauchy0_25, data = data.list, iter = 2000, chains = 2, cores = 2, save_warmup = F)
+broom::tidyMCMC(fit.mod1_halfcauchy0_25, 
+                pars = c("beta_age", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
+  kable(caption = "Model 1 with $\\sigma \\sim HalfCauchy(0,25)$")
 ```
 
-```{r mod1_halfcauchy0_25_sampling}
-fit.mod1_halfcauchy0_25 <- sampling(mod1_halfcauchy0_25, data = data.list, iter = 2000, chains = 2, cores = 2)
-print(fit.mod1_halfcauchy0_25, pars = c("beta_age","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
+### Posterior predictive checks
+
+```{r mod1Halfcauchy01PostPredict}
+ppc_dens_overlay(y = data$height,
+                 as.matrix(fit.mod1_halfcauchy0_1, pars = "y_rep")[1:50, ]) + 
+  theme_bw() + 
+  theme(legend.text=element_text(size=25),
+        legend.title=element_text(size=18),
+        axis.text = element_text(size=18),
+        legend.position = c(0.8,0.6))
 ```
 
-
-> Posterior predictive checks
-
-```{r mod1_halfcauchy0_1_post_predict}
-y_rep <- as.matrix(fit.mod1_halfcauchy0_1, pars = "y_rep")
-ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=element_text(size=25),
-                                                            legend.title=element_text(size=18),
-                                                            axis.text = element_text(size=18),
-                                                            legend.position = c(0.8,0.6))
-```
-
+### Vectorized model
 
 > Let's vectorize this model. 
 
-```{r mod1_vectorized_stan}
+```{r mod1Vectorized, message = FALSE}
 mod1_vectorized = stan_model("mod1_vectorized.stan")
-```
-
-
-```{r mod1_vectorized_sampling}
-fit.mod1_vectorized <- sampling(mod1_vectorized, data = data.list, iter = 2000, chains = 2, cores = 2)
-print(fit.mod1_vectorized, pars = c("beta_age","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
+fit.mod1_vectorized <- sampling(mod1_vectorized, data = data.list, iter = 2000, chains = 2, cores = 2, save_warmup = F)
+broom::tidyMCMC(fit.mod1_vectorized, 
+                pars = c("beta_age", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
+  kable(caption = "Model 1 with $\\sigma \\sim HalfCauchy(0,1)$ vectorised 1")
 ```
 
 > Another way of vectorizing the model.
 
-```{r mod1_vectorized2_stan}
+```{r mod1Vectorized2, message = FALSE}
 mod1_vectorized2 = stan_model("mod1_vectorized2.stan") 
+fit.mod1_vectorized2 <- sampling(mod1_vectorized2, data = data.list, iter = 2000, chains = 2, cores = 2, save_warmup = F) 
+broom::tidyMCMC(fit.mod1_vectorized2, 
+                pars = c("beta_age", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
+  kable(caption = "Model 1 with $\\sigma \\sim HalfCauchy(0,1)$ vectorised 2")
 ```
-
-
-```{r mod1_vectorized2_sampling}
-fit.mod1_vectorized2 <- sampling(mod1_vectorized2, data = data.list, iter = 2000, chains = 2, cores = 2) 
-print(fit.mod1_vectorized2, pars = c("beta_age","alpha_prov","alpha_block", "sigma_y"), probs = c(0.10, 0.5, 0.9))
-```
-
 
 > Let's compare the speed of these four models.
 
-```{r comparing_running_time}
-get_elapsed_time(fit.mod1_halfcauchy0_25)
-get_elapsed_time(fit.mod1_halfcauchy0_1)
-get_elapsed_time(fit.mod1_vectorized)
-get_elapsed_time(fit.mod1_vectorized2)
+```{r comparingRunningTime}
+lapply(lapply(c(fit.mod1_halfcauchy0_25, fit.mod1_halfcauchy0_1, fit.mod1_vectorized, fit.mod1_vectorized2), 
+       get_elapsed_time), data.frame) %>% 
+  bind_rows(.id = "model") %>% 
+  mutate(model = recode_factor(model, 
+                               "1" = "Model 1 with $\\sigma \\sim HalfCauchy(0,25)$",
+                               "2" = "Model 1 with $\\sigma \\sim HalfCauchy(0,1)$",
+                               "3" = "Model 1 with $\\sigma \\sim HalfCauchy(0,1)$ vectorised 1",
+                               "4" = "Model 1 with $\\sigma \\sim HalfCauchy(0,1)$ vectorised 2")) %>% 
+  mutate(total = warmup + sample) %>% 
+  arrange(total) %>% 
+  kable(caption = "Model speed comparison.")
 ```
 
-
+`r knitr::opts_chunk$set(eval = F)`
 
 ## Likelihood = Log-normal distribution
 
