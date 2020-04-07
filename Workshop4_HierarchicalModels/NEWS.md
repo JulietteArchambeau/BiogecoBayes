@@ -9,3 +9,5 @@ I changed :
 * `save_warmup = F,` to save a bit of R space
 * sub-level header to help reading
 * table of model speed comparison
+* lognormal model with lognormal priors in fixed effects
+* lognormal non centered parameterisation
