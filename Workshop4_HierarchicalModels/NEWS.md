@@ -34,8 +34,3 @@
 1. Two-varying intercept  
 1. Varying intercepts & slopes
 
-# Test
-
-Ceci est un test
-
-
