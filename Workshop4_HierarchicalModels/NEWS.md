@@ -1,4 +1,4 @@
-# Changes
+# Sylvain changes
 
 * data/ folder at roots ignored by git for data reading
 * chunk names in camel, e.g. `loadData` instead of `load_data`, as it creates bug in cross-referencing
@@ -11,6 +11,7 @@
 * table of model speed comparison
 * lognormal model with lognormal priors in fixed effects
 * lognormal non centered parameterisation
+
 
 # Content
 
@@ -33,4 +34,6 @@
     1. Lognormal on R+ Non Centered
 1. Two-varying intercept  
 1. Varying intercepts & slopes
+
+
 

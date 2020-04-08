@@ -6,7 +6,7 @@ output:
   html_document:
     # code_fold: hide
     toc: true
-    toc_depth: 4
+    toc_depth: 5
     toc_float:
        collapsed: false
     number_sections: true
@@ -69,13 +69,14 @@ library(tidyr)
 ```
 
 
+
 # **The data**
 
 ```{r loadData}
 data <- readRDS(file="../data/sub_portugal_5provs_4blocks.rds") %>% 
   mutate_at(c("block", "prov", "clon", "tree"), as.factor) %>% # formatting data
-  mutate(age.sc = as.vector(scale(age))) # mean centering age
-  # mutate(age.sc = scale(age, center = F)) # as age is definite and R+ I would only reduce it..
+  mutate(age.sc = as.vector(scale(age, center = F))) # as age is definite on R+ I would only reduce it..
+  # mutate(age.sc = as.vector(scale(age))) # mean centering age
 ```
 
 The dataset includes:
@@ -131,13 +132,21 @@ ggplot(data, aes(x=height, color=block)) +
   theme(legend.position = "none")
 ```
 
+
+
 # **"Fixed effects" models**
 
-> Dummy variables for each level = Regularized intercepts, because we use weakly informative priors. But no information shared between intercepts. *[P299 in Statistical Rethinking of McElreath](link?)*
+> Dummy variables for each level = Regularized intercepts, because we use weakly informative priors. But no information shared between intercepts. (See P299 in Statistical Rethinking of McElreath)
 
-## $\mathcal{Normal}$ distribution
+First, we are going to try three different likehoods: the normal distribution, the normal distribution with a log-transformed response variable and a lognormal distribution.
 
-### Mathematical model
+## Different distributions
+
+### Normal distribution
+
+#### Model mN
+
+> Mathematical model
 
 \begin{equation}
   \begin{aligned}
@@ -151,11 +160,192 @@ ggplot(data, aes(x=height, color=block)) +
   \end{aligned}
 \end{equation}
 
-### Variance prior
 
-> Comment about the choice of HalfCauchy prior for $\sigma$ *[Prior recommendations](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations#prior-for-scale-parameters-in-hierarchical-models)*
+> Data in a list.
 
-$\sigma$ is strictly positive, what priors can we use?
+```{r DatalistmN}
+data.list <- list(N=length(data$height),              # Number of observations
+                  y=data$height,                      # Response variables
+                  age=data$age.sc,                    # Tree age
+                  nprov=length(unique(data$prov)),    # Number of provenances
+                  nblock=length(unique(data$block)),  # Number of blocks
+                  prov=as.numeric(data$prov),         # Provenances
+                  bloc=as.numeric(data$block))        # Blocks
+```
+
+
+```{r SamplingmN}
+mN = stan_model("mN.stan") 
+fit.mN <- sampling(mN, data = data.list, iter = 2000, chains = 2, cores = 2) 
+broom::tidyMCMC(fit.mN, 
+                pars = c("beta_age","beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
+  kable(caption = "Model mN with a normal distribution")
+```
+
+
+```{r PostPredictmN}
+ppc_dens_overlay(y = data$height,
+                 as.matrix(fit.mN, pars = "y_rep")[1:50, ]) + 
+  theme_bw() + 
+  theme(legend.text=element_text(size=25),
+        legend.title=element_text(size=18),
+        axis.text = element_text(size=18),
+        legend.position = c(0.8,0.6))
+```
+
+> We can probably do better...
+
+
+### Normal distribution with log(y)
+
+#### Model mNlogy
+
+> Mathematical model
+
+\begin{equation}
+  \begin{aligned}
+    \text{log}(h_{i}) & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
+    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+    \alpha_{BLOCK} & \sim \mathcal{N}(0,10)\\
+    \alpha_{PROV} & \sim \mathcal{N}(0,10)\\
+    \beta_{age} & \sim \mathcal{N}(0,10) \\
+    \beta_{age2} & \sim \mathcal{N}(0,10)\\
+    \sigma & \sim \text{HalfCauchy}(0,25)
+  \end{aligned}
+\end{equation}
+
+```{r DatalistmNlogy}
+data.list.mNlogy <- list(N=length(data$height),              # Number of observations
+                  y=log(data$height),                      # log(response variable)
+                  age=data$age.sc,                         # Tree age
+                  nprov=length(unique(data$prov)),         # Number of provenances
+                  nblock=length(unique(data$block)),       # Number of blocks
+                  prov=as.numeric(data$prov),              # Provenances
+                  bloc=as.numeric(data$block))             # Blocks
+```
+
+> Same stan code as the previous model!
+
+```{r SamplingmNlogy, message = FALSE}
+mNlogy = stan_model("mNlogy.stan")
+fit.mNlogy <- sampling(mNlogy, data = data.list.mNlogy, iter = 2000, chains = 2, cores = 2,
+                        control=list(max_treedepth=14), save_warmup = F)
+broom::tidyMCMC(fit.mNlogy, 
+                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
+  kable(caption = "Model mNlogy with a normal distribution and a log-transformed response variable")
+```
+
+- If we increase the number of iterations to 2,500, this warning disappears.
+
+- Need to increase
+
+- The likelihood has largely increased. 
+
+```{r PostPredictmNlogy}
+y_rep <- as.matrix(fit.mNlogy, pars = "y_rep")
+ppc_dens_overlay(y =log(data$height),
+                 as.matrix(fit.mNlogy, pars = "y_rep")[1:50, ]) + 
+  theme_bw() + 
+  theme(legend.text=element_text(size=25), legend.title=element_text(size=18), 
+        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
+```
+
+> A better fit than mN.
+
+
+### LogNormal distribution on R
+
+#### Model mLogNR
+
+> Mathematical model
+
+\begin{equation}
+  \begin{aligned}
+    h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
+    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+    \alpha_{BLOCK} & \sim \mathcal{N}(0,10)\\
+    \alpha_{PROV} & \sim \mathcal{N}(0,10)\\
+    \beta_{age} & \sim \mathcal{N}(0,10) \\
+    \beta_{age2} & \sim \mathcal{N}(0,10)\\
+    \sigma & \sim \text{HalfCauchy}(0,25)
+  \end{aligned}
+\end{equation}
+
+
+We are going to use the same data list as in the first model mN. 
+
+
+```{r SamplingmLogNR}
+mLogNR = stan_model("mLogNR.stan") 
+fit.mLogNR <- sampling(mLogNR, data = data.list, iter = 2000, 
+                               cores = 2, control=list(max_treedepth=14), save_warmup = F)
+broom::tidyMCMC(fit.mLogNR, 
+                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
+  kable(caption = "Model mLogNR with a LogNormal distribution on R")
+```
+
+```{r PostPredictmLogNR}
+ppc_dens_overlay(y = data$height,
+                 as.matrix(fit.mLogNR, pars = "y_rep")[1:50, ])  + 
+  theme_bw() + 
+  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
+        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
+```
+
+
+
+### LogNormal distribution on R+
+
+#### Model mLogNRplus
+
+> Mathematical model
+
+\begin{equation}
+  \begin{aligned}
+    h_{i} & \sim \text{LogNormal}(log(\mu_{i}),\sigma_{i})\\
+    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+    \alpha_{BLOCK} & \sim \mathcal{N_{T}}(0,1)\\
+    \alpha_{PROV} & \sim \mathcal{N_{T}}(0,1)\\
+    \beta_{age} & \sim \mathcal{N}(0,10) \\
+    \beta_{age2} & \sim \mathcal{N}(0,10)\\
+    \sigma & \sim \text{HalfCauchy}(0,25)
+  \end{aligned}
+\end{equation}
+
+
+We are going to use the same data list as in the first model mN. 
+
+
+```{r SamplingmLogNRplus}
+mLogNRplus = stan_model("mLogNRplus.stan") 
+fit.mLogNRplus <- sampling(mLogNRplus, data = data.list, iter = 2000, 
+                               cores = 2, control=list(max_treedepth=14), save_warmup = F)
+broom::tidyMCMC(fit.mLogNRplus, 
+                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
+  kable(caption = "Model mLogNRplus with a LogNormal distribution on R+")
+```
+
+```{r PostPredictmLogNRplus}
+ppc_dens_overlay(y = data$height,
+                 as.matrix(fit.mLogNRplus, pars = "y_rep")[1:50, ])  + 
+  theme_bw() + 
+  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
+        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
+```
+
+What's wrong here? We probably have to use more informative priors here. 
+
+
+## More informative priors
+
+> **Variance priors**
+
+[Prior recommendations for scale parameters in hierarchical models](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations#prior-for-scale-parameters-in-hierarchical-models)
+
 
 - Very weakly informative prior:  $\sigma \sim \text{HalfCauchy}(0,25)$. From Gelman (2006): 8-schools example (p430). And [here](http://www.stat.columbia.edu/~gelman/research/published/taumain.pdf).
 
@@ -170,97 +360,23 @@ $\sigma$ is strictly positive, what priors can we use?
 - More informative prior : $\sigma \sim \text{HalfNormal}(0,1)$  or $\sigma \sim \text{Half-t}(3,0,1)$ 
 
 
-### Model 1 with $\sigma \sim HalfCauchy(0,1)$
+> **Beta priors**
 
-```{r datalistMod1}
-data.list <- list(N=length(data$height),              # Number of observations
-                  y=data$height,                      # Response variables
-                  age=data$age.sc,                    # Tree age
-                  nprov=length(unique(data$prov)),    # Number of provenances
-                  nblock=length(unique(data$block)),  # Number of blocks
-                  prov=as.numeric(data$prov),         # Provenances
-                  bloc=as.numeric(data$block))        # Blocks
-```
 
-```{r mod1Halfcauchy01Sampling, message = FALSE}
-mod1_halfcauchy0_1 = stan_model("mod1_halfcauchy0_1.stan") 
-fit.mod1_halfcauchy0_1 <- sampling(mod1_halfcauchy0_1, data = data.list, 
-                                   iter = 2000, chains = 2, cores = 2, save_warmup = F) 
-broom::tidyMCMC(fit.mod1_halfcauchy0_1, 
-                pars = c("beta_age", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
-  kable(caption = "Model 1 with $\\sigma \\sim HalfCauchy(0,1)$")
-```
+- More informative priors: $\beta \sim \mathcal{N}(0,1)$. 
 
-### Model 1 with $\sigma \sim HalfCauchy(0,25)$
+- We can also consider that $age$ is positively associated with height so we can add some information in our model and constrain $\beta$ to positive values, such as: $\beta_{age} \sim \text{LogNormal}(0,1)$ or $\beta_{age} \sim \text{Gamma}(?,?)$. 
 
-```{r mod1Halfcauchy025sampling, message = FALSE}
-mod1_halfcauchy0_25 = stan_model("mod1_halfcauchy0_25.stan")
-fit.mod1_halfcauchy0_25 <- sampling(mod1_halfcauchy0_25, data = data.list, 
-                                    iter = 2000, chains = 2, cores = 2, save_warmup = F)
-broom::tidyMCMC(fit.mod1_halfcauchy0_25, 
-                pars = c("beta_age", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
-  kable(caption = "Model 1 with $\\sigma \\sim HalfCauchy(0,25)$")
-```
 
-### Posterior predictive checks
 
-```{r mod1Halfcauchy01PostPredict}
-ppc_dens_overlay(y = data$height,
-                 as.matrix(fit.mod1_halfcauchy0_1, pars = "y_rep")[1:50, ]) + 
-  theme_bw() + 
-  theme(legend.text=element_text(size=25),
-        legend.title=element_text(size=18),
-        axis.text = element_text(size=18),
-        legend.position = c(0.8,0.6))
-```
 
-### Vectorized model
 
-> Let's vectorize this model. 
 
-```{r mod1Vectorized, message = FALSE}
-mod1_vectorized = stan_model("mod1_vectorized.stan")
-fit.mod1_vectorized <- sampling(mod1_vectorized, data = data.list, iter = 2000,
-                                chains = 2, cores = 2, save_warmup = F)
-broom::tidyMCMC(fit.mod1_vectorized, 
-                pars = c("beta_age", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
-  kable(caption = "Model 1 with $\\sigma \\sim HalfCauchy(0,1)$ vectorised 1")
-```
+### Normal distribution with log(y)
 
-> Another way of vectorizing the model.
+#### Model mNlogySigmaPrior
 
-```{r mod1Vectorized2, message = FALSE}
-mod1_vectorized2 = stan_model("mod1_vectorized2.stan") 
-fit.mod1_vectorized2 <- sampling(mod1_vectorized2, data = data.list, iter = 2000, 
-                                 chains = 2, cores = 2, save_warmup = F) 
-broom::tidyMCMC(fit.mod1_vectorized2, 
-                pars = c("beta_age", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
-  kable(caption = "Model 1 with $\\sigma \\sim HalfCauchy(0,1)$ vectorised 2")
-```
-
-> Let's compare the speed of these four models.
-
-```{r comparingRunningTime}
-lapply(lapply(c(fit.mod1_halfcauchy0_25, fit.mod1_halfcauchy0_1, fit.mod1_vectorized, fit.mod1_vectorized2), 
-       get_elapsed_time), data.frame) %>% 
-  bind_rows(.id = "model") %>% 
-  mutate(model = recode_factor(model, 
-                               "1" = "Model 1 with $\\sigma \\sim HalfCauchy(0,25)$",
-                               "2" = "Model 1 with $\\sigma \\sim HalfCauchy(0,1)$",
-                               "3" = "Model 1 with $\\sigma \\sim HalfCauchy(0,1)$ vectorised 1",
-                               "4" = "Model 1 with $\\sigma \\sim HalfCauchy(0,1)$ vectorised 2")) %>% 
-  mutate(total = warmup + sample) %>% 
-  arrange(total) %>% 
-  kable(caption = "Model speed comparison.")
-```
-
-## $\mathcal{Normal}$ distribution with a log-transformed response variable
-
-### Model 1 with $\text{log}(h)$ and $\sigma \sim \text{HalfCauchy}(0,1)$
+> Mathematical model
 
 \begin{equation}
   \begin{aligned}
@@ -270,40 +386,36 @@ lapply(lapply(c(fit.mod1_halfcauchy0_25, fit.mod1_halfcauchy0_1, fit.mod1_vector
     \alpha_{PROV} & \sim \mathcal{N}(0,10)\\
     \beta_{age} & \sim \mathcal{N}(0,10) \\
     \beta_{age2} & \sim \mathcal{N}(0,10)\\
-    \sigma & \sim \text{HalfCauchy}(0,1)
+    \sigma & \sim \text{Exponential}(1)
   \end{aligned}
 \end{equation}
 
-```{r datalistMod1Logy}
-data.list_logy <- list(N=length(data$height),              # Number of observations
-                  y=log(data$height),                      # Response variables
-                  age=data$age.sc,                            # Tree age
-                  nprov=length(unique(data$prov)),         # Number of provenances
-                  nblock=length(unique(data$block)),       # Number of blocks
-                  prov=as.numeric(data$prov),              # Provenances
-                  bloc=as.numeric(data$block))             # Blocks
-```
 
-```{r mod1LogySampling, message = FALSE}
-mod1_logy = stan_model("mod1_logy.stan")
-fit.mod1log <- sampling(mod1_logy, data = data.list_logy, iter = 2000, chains = 2, cores = 2,
+
+```{r SamplingmNlogySigmaPrior}
+mNlogySigmaPrior = stan_model("mNlogySigmaPrior.stan")
+fit.mNlogySigmaPrior <- sampling(mNlogySigmaPrior, data = data.list.mNlogy, iter = 2000, chains = 2, cores = 2,
                         control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod1log, 
+broom::tidyMCMC(fit.mNlogySigmaPrior, 
                 pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
-  kable(caption = "Model 1 with $\\text{log}(h)$ and $\\sigma \\sim \\text{HalfCauchy}(0,1)$")
+  kable(caption = "Model mNlogySigmaPrior with a normal distribution and a log-transformed response variable")
 ```
 
-```{r mod1LogyPostPredict}
-y_rep <- as.matrix(fit.mod1log, pars = "y_rep")
+
+```{r PostPredictmNlogySigmaPrior}
 ppc_dens_overlay(y =log(data$height),
-                 as.matrix(fit.mod1log, pars = "y_rep")[1:50, ]) + 
+                 as.matrix(fit.mNlogySigmaPrior, pars = "y_rep")[1:50, ]) + 
   theme_bw() + 
   theme(legend.text=element_text(size=25), legend.title=element_text(size=18), 
         axis.text = element_text(size=18), legend.position = c(0.8,0.6))
 ```
 
-### Model 1 with $\text{log}(h)$ and $\sigma \sim \text{Exponential}(1)$
+
+#### Model mNlogyBetaAlphaPrior
+
+
+> Mathematical model
 
 \begin{equation}
   \begin{aligned}
@@ -317,183 +429,192 @@ ppc_dens_overlay(y =log(data$height),
   \end{aligned}
 \end{equation}
 
-```{r mod1Logy2Sampling}
-mod1_logy2 = stan_model("mod1_logy2.stan")
-fit.mod1log2 <- sampling(mod1_logy2, data = data.list_logy, iter = 2000, chains = 2, 
-                         cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod1log2, 
+
+
+```{r SamplingmNlogyBetaAlphaPrior}
+mNlogyBetaAlphaPrior = stan_model("mNlogyBetaAlphaPrior.stan")
+fit.mNlogyBetaAlphaPrior <- sampling(mNlogyBetaAlphaPrior, data = data.list.mNlogy, iter = 2000, chains = 2, cores = 2,
+                        control=list(max_treedepth=14), save_warmup = F)
+broom::tidyMCMC(fit.mNlogyBetaAlphaPrior, 
                 pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
-  kable(caption = "Model 1 with $\\text{log}(h)$ and $\\sigma \\sim \\text{Exponential}(1)$")
+  kable(caption = "Model mNlogyBetaAlphaPrior with a normal distribution and a log-transformed response variable")
 ```
 
-```{r mod1Logy2PostPredict}
+
+```{r PostPredictmNlogyBetaAlphaPrior}
 ppc_dens_overlay(y =log(data$height),
-                 as.matrix(fit.mod1log2, pars = "y_rep")[1:50, ]) + 
+                 as.matrix(fit.mNlogyBetaAlphaPrior, pars = "y_rep")[1:50, ]) + 
+  theme_bw() + 
+  theme(legend.text=element_text(size=25), legend.title=element_text(size=18), 
+        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
+```
+
+
+### LogNormal distribution on R
+
+
+#### Model mLogNRInfPriors
+
+> Mathematical model
+
+\begin{equation}
+  \begin{aligned}
+    h_{i} & \sim \text{LogNormal}(log(\mu_{i}),\sigma_{i})\\
+    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+    \alpha_{BLOCK} & \sim \mathcal{N}(0,1)\\
+    \alpha_{PROV} & \sim \mathcal{N}(0,1)\\
+    \beta_{age} & \sim \text{LogNormal}(0,1) \\
+    \beta_{age2} & \sim \mathcal{N}(0,1)\\
+    \sigma & \sim \text{Exponential}(1)
+  \end{aligned}
+\end{equation}
+
+
+We use the same data list as in the first model mN. 
+
+
+```{r SamplingmLogNRInfPriors}
+mLogNRInfPriors = stan_model("mLogNRInfPriors.stan") 
+fit.mLogNRInfPriors <- sampling(mLogNRInfPriors, data = data.list, iter = 2000, 
+                               cores = 2, control=list(max_treedepth=14), save_warmup = F)
+broom::tidyMCMC(fit.mLogNRInfPriors, 
+                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
+  kable(caption = "Model mLogNRInfPriors with a LogNormal distribution on R+")
+```
+
+```{r PostPredictmLogNRInfPriors}
+ppc_dens_overlay(y = data$height,
+                 as.matrix(fit.mLogNRInfPriors, pars = "y_rep")[1:50, ])  + 
   theme_bw() + 
   theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
         axis.text = element_text(size=18), legend.position = c(0.8,0.6))
 ```
 
-### Model 1 with $\text{log}(h)$ and $\sigma \sim \text{HalfStudentT}(4,0,1)$
+
+
+### LogNormal distribution on R+
+
+
+#### Model mLogNRplusInfPriors
+
+> Mathematical model
+
+\begin{equation}
+  \begin{aligned}
+    h_{i} & \sim \text{LogNormal}(log(\mu_{i}),\sigma_{i})\\
+    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
+    \alpha_{BLOCK} & \sim \mathcal{N_{T}}(0,1)\\
+    \alpha_{PROV} & \sim \mathcal{N_{T}}(0,1)\\
+    \beta_{age} & \sim \text{LogNormal}(0,1) \\
+    \beta_{age2} & \sim \mathcal{N}(0,1)\\
+    \sigma & \sim \text{Exponential}(1)
+  \end{aligned}
+\end{equation}
+
+
+We use the same data list as in the first model mN. 
+
+
+```{r SamplingmLogNRplusInfPriors}
+mLogNRplusInfPriors = stan_model("mLogNRplusInfPriors.stan") 
+fit.mLogNRplusInfPriors <- sampling(mLogNRplusInfPriors, data = data.list, iter = 2000, 
+                               cores = 2, control=list(max_treedepth=14), save_warmup = F)
+broom::tidyMCMC(fit.mLogNRplusInfPriors, 
+                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
+  kable(caption = "Model mLogNRplusInfPriors with a LogNormal distribution on R+")
+```
+
+```{r PostPredictmLogNRplusInfPriors}
+ppc_dens_overlay(y = data$height,
+                 as.matrix(fit.mLogNRplusInfPriors, pars = "y_rep")[1:50, ])  + 
+  theme_bw() + 
+  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
+        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
+```
+
+It's better than the model mLogNRplusInfPriors (without more informative priors), but there is still something wrong...
+
+
+
+
+## Vectorized models
+
+I use here the model mNlogy (normal distribution with log(y) and weakly informative priors)
+
+> Mathematical model
 
 \begin{equation}
   \begin{aligned}
     \text{log}(h_{i}) & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
-    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
-    \alpha_{BLOCK} & \sim \mathcal{N}(0,1)\\
-    \alpha_{PROV} & \sim \mathcal{N}(0,1)\\
-    \beta_{age} & \sim \mathcal{N}(0,1) \\
-    \beta_{age2} & \sim \mathcal{N}(0,1)\\
-    \sigma & \sim \text{HalfStudentT}(4,0,1)
-  \end{aligned}
-\end{equation}
-
-```{r mod1Logy3Sampling}
-mod1_logy3 = stan_model("mod1_logy3.stan")
-fit.mod1log3 <- sampling(mod1_logy3, data = data.list_logy, iter = 2000, chains = 2, 
-                         cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod1log3, 
-                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
-  kable(caption = "Model 1 with $\\text{log}(h)$ and $\\sigma \\sim \\text{HalfStudentT}(4,0,1)$")
-```
-
-## $\mathcal{Lognormal}$ distribution with $\mathcal{Normal}$ priors
-
-### Model 1 with $\text{LogNormal}$ and $\sigma \sim \text{HalfCauchy}(0,1)$
-
-\begin{equation}
-  \begin{aligned}
-    h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
     \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
     \alpha_{BLOCK} & \sim \mathcal{N}(0,10)\\
     \alpha_{PROV} & \sim \mathcal{N}(0,10)\\
     \beta_{age} & \sim \mathcal{N}(0,10) \\
     \beta_{age2} & \sim \mathcal{N}(0,10)\\
-    \sigma & \sim \text{HalfCauchy}(0,1)
+    \sigma & \sim \text{HalfCauchy}(0,25)
   \end{aligned}
 \end{equation}
 
-```{r mod1LognormalSampling}
-mod1_lognormal = stan_model("mod1_lognormal.stan") 
-fit.mod1_lognormal <- sampling(mod1_lognormal, data = data.list, iter = 2000, 
-                               cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod1_lognormal, 
-                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
+### Option 1
+
+```{r Vectorize1mNlogy}
+mNlogyVectorize1 = stan_model("mNlogyVectorize1.stan")
+fit.mNlogyVectorize1 <- sampling(mNlogyVectorize1, data = data.list.mNlogy, iter = 2000,
+                        control=list(max_treedepth=14),
+                                chains = 2, cores = 2, save_warmup = F)
+broom::tidyMCMC(fit.mNlogyVectorize1, 
+                pars = c("beta_age", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
-  kable(caption = "Model 1 with $\\text{LogNormal}$ and $\\sigma \\sim \\text{HalfCauchy}(0,1)$")
+  kable(caption = "Model mNlogyVectorize1 with a normal distribution and log(y)")
 ```
 
-```{r mod1LognormalPostPredict}
-ppc_dens_overlay(y = data$height,
-                 as.matrix(fit.mod1_lognormal, pars = "y_rep")[1:50, ])  + 
-  theme_bw() + 
-  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
-```
 
-### Model 1 with $\text{LogNormal}$ and $\sigma \sim \text{Exponential}(1)$
+- Still need to increase `max_treedepth` here ! 
 
-\begin{equation}
-  \begin{aligned}
-    h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
-    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
-    \alpha_{BLOCK} & \sim \mathcal{N}(0,1)\\
-    \alpha_{PROV} & \sim \mathcal{N}(0,1)\\
-    \beta_{age} & \sim \mathcal{N}(0,1) \\
-    \beta_{age2} & \sim \mathcal{N}(0,1)\\
-    \sigma & \sim \text{Exponential}(1)
-  \end{aligned}
-\end{equation}
 
-```{r mod13LognormalSampling}
-mod1_3_lognormal = stan_model("mod1_3_lognormal.stan")
-fit.mod1_3_lognormal <- sampling(mod1_3_lognormal, data = data.list, iter = 2000, 
-                                 cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod1_3_lognormal, 
-                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
+### Option 2
+
+```{r Vectorize2mNlogy}
+mNlogyVectorize2 = stan_model("mNlogyVectorize2.stan") 
+fit.mNlogyVectorize2 <- sampling(mNlogyVectorize2, data = data.list.mNlogy, iter = 2000,
+                        control=list(max_treedepth=14),
+                                 chains = 2, cores = 2, save_warmup = F) 
+broom::tidyMCMC(fit.mNlogyVectorize2, 
+                pars = c("beta_age", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
-  kable(caption = "Model 1 with $\\text{LogNormal}$ and $\\sigma \\sim \\text{Exponential}(1)$")
+  kable(caption = "Model mNlogyVectorize2 with a normal distribution and log(y)")
 ```
 
-```{r mod13LognormalPostPredict}
-y_rep <- as.matrix(fit.mod1_3_lognormal, pars = "y_rep")
-ppc_dens_overlay(y =data$height, 
-                 as.matrix(fit.mod1_3_lognormal, pars = "y_rep")[1:50, ]) +
-  theme_bw() +
-  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
+What does this model have a negative `lp_` ? Longer to run also, and low number of effective sample size. Why?
+
+
+> Let's compare the speed of the 5 models with a normal distribution with log(y)
+
+```{r comparingRunningTime}
+lapply(lapply(c(fit.mNlogy, fit.mNlogySigmaPrior,fit.mNlogyBetaAlphaPrior, fit.mNlogyVectorize1, fit.mNlogyVectorize2), 
+       get_elapsed_time), data.frame) %>% 
+  bind_rows(.id = "model") %>% 
+  mutate(model = recode_factor(model, 
+                               "1" = "Model mNlogy with $\\sigma \\sim \\text{HalfCauchy}(0,25)$",
+                               "2" = "Model mNlogySigmaPrior with $\\sigma \\sim \\text{Exponential}(1)$",
+                               "3" = "Model mNlogyBetaAlphaPrior with $\\beta$ and $\\alpha  \\sim \\mathcal{N}(0,1)$ ",
+                               "4" = "Model mNlogyVectorize1",
+                               "5" = "Model mNlogyVectorize2")) %>% 
+  mutate(total = warmup + sample) %>% 
+  arrange(total) %>% 
+  kable(caption = "Model speed comparison of models with a normal distribution and a log-transformed response variable.")
 ```
 
-## $\mathcal{Lognormal}$ distribution with $\mathcal{Logormal}$ priors
 
-### Model 1 with $\text{LogNormal}$ and $\sigma \sim \text{HalfCauchy}(0,1)$
+For the subsequent models, I will use the more informative priors of mNlogyBetaAlphaPrior. 
 
-\begin{equation}
-  \begin{aligned}
-    h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
-    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
-    \alpha_{BLOCK} & \sim \mathcal{LogNormal}(0,1)\\
-    \alpha_{PROV} & \sim \mathcal{LogNormal}(0,1)\\
-    \beta_{age} & \sim \mathcal{N}(0,1) \\
-    \beta_{age2} & \sim \mathcal{N}(0,1)\\
-    \sigma & \sim \text{HalfCauchy}(0,1)
-  \end{aligned}
-\end{equation}
 
-```{r mod1Lognormal2Sampling}
-mod1_lognormal2 = stan_model("mod1_lognormal2.stan")
-fit.mod1_lognormal2 <- sampling(mod1_lognormal2, data = data.list, iter = 2000,
-                               cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod1_lognormal2,
-                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
-  kable(caption = "Model 1 with $\\text{LogNormal}$ and $\\sigma \\sim \\text{HalfCauchy}(0,1)$")
-```
 
-```{r mod1Lognormal2PostPredict}
-ppc_dens_overlay(y = data$height,
-                 as.matrix(fit.mod1_lognormal2, pars = "y_rep")[1:50, ])  +
-  theme_bw() +
-  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
-```
 
-### Model 1 with $\text{LogNormal}$ and $\sigma \sim \text{Exponential}(1)$
-
-\begin{equation}
-  \begin{aligned}
-    h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
-    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
-    \alpha_{BLOCK} & \sim \mathcal{LogNormal}(0,1)\\
-    \alpha_{PROV} & \sim \mathcal{LogNormal}(0,1)\\
-    \beta_{age} & \sim \mathcal{N}(0,1) \\
-    \beta_{age2} & \sim \mathcal{N}(0,1)\\
-    \sigma & \sim \text{Exponential}(1)
-  \end{aligned}
-\end{equation}
-
-```{r mod13Lognormal2Sampling}
-mod1_3_lognormal2 = stan_model("mod1_3_lognormal2.stan")
-fit.mod1_3_lognormal2 <- sampling(mod1_3_lognormal2, data = data.list, iter = 2000,
-                                 cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod1_3_lognormal2,
-                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
-  kable(caption = "Model 1 with $\\text{LogNormal}$ and $\\sigma \\sim \\text{Exponential}(1)$")
-```
-
-```{r mod13Lognormal2PostPredict}
-y_rep <- as.matrix(fit.mod1_3_lognormal2, pars = "y_rep")
-ppc_dens_overlay(y =data$height,
-                 as.matrix(fit.mod1_3_lognormal2, pars = "y_rep")[1:50, ]) +
-  theme_bw() +
-  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
-```
-
-# **Multilevel models**
+# **Multilevel models with one-varying intercept**
 
 > Adaptive regularization
 
@@ -503,115 +624,92 @@ Links:
 
 - [Bayesian Inference 2019. Ville Hyvönen & Topias Tolonen. Chapter 6 Hierarchical models](https://vioshyvo.github.io/Bayesian_inference/hierarchical-models.html)
 
-## **One varying intercept** (provenance)
+We are going to 
+
+## Normal distribution with log(y)
 
 ### Centered parameterization
 
 P357 McElreath (first version).
 
+
+#### model mmNlogyC
+
+mmNlogyC (multi-level model with normal distribution and log(y) - centered paramerization)
+
+> Mathematical model
+
 \begin{equation}
   \begin{aligned}
-    h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
-    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} + \alpha_{PROV[p]}\\
+    \text{log}(h_{i}) & \sim \mathcal{N}(log(\mu_{i}),\sigma_{i})\\
+    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{PROV[p]}\\
     \alpha_{PROV} & \sim \mathcal{N}(\mu_{\alpha_{PROV}},\sigma_{\alpha_{PROV}})\\
+    \mu_{\alpha_{PROV}} & \sim \mathcal{N}(0,1)\\
+    \sigma_{\alpha_{PROV}}& \sim \text{Exponential}(1)\\
     \beta_{age} & \sim \mathcal{N}(0,1) \\
     \beta_{age2} & \sim \mathcal{N}(0,1)\\
-    \mu_{\alpha_{PROV}} & \sim \mathcal{N}(0,1)\\
-    \sigma_{\alpha_{PROV}} & \sim \text{HalfCauchy}(0,1)\\
-    \sigma & \sim \text{HalfCauchy}(0,1)
+    \sigma & \sim \text{Exponential}(1)
   \end{aligned}
 \end{equation}
 
-```{r datalistMod21}
-data.list_mod2_1 <- list(N=length(data$height),          # Number of observations
-                  y=data$height,                         # Response variables
+
+```{r ReducedDatalist}
+data.list.reduced <- list(N=length(data$height),         # Number of observations
+                  y=log(data$height),                    # Log(Response variable)
                   age=data$age.sc,                       # Tree age
                   nprov=length(unique(data$prov)),       # Number of provenances
                   prov=as.numeric(data$prov))            # Provenances
 ```
 
-```{r mod21Sampling}
-mod2_1 <- stan_model("mod2_1.stan")  
-fit.mod2_1 <- sampling(mod2_1, data = data.list_mod2_1, iter = 2000, chains = 2, 
+```{r SamplingmmNlogyC}
+mmNlogyC <- stan_model("mmNlogyC.stan")  
+fit.mmNlogyC <- sampling(mmNlogyC, data = data.list.reduced , iter = 2000, chains = 2, 
                                  cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod2_1,
+broom::tidyMCMC(fit.mmNlogyC,
                 pars = c("beta_age", "beta_age2", "mean_alpha_prov", "sigma_alpha_prov",
                          "sigma_y", "lp__"),
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
-  kable(caption = "Model 2 with Centered parameterization")
+  kable(caption = "One-varying intercept model mmNlogyC with centered parameterization")
 ```
 
-```{r mod21PostPredict}
-ppc_dens_overlay(y = data$height,
-                 as.matrix(fit.mod2_1, pars = "y_rep")[1:50, ]) + 
+This model has some divergent transitions, low number of effective sample size and R-hat not exactly equal to one.
+
+> Divergent transitions
+
+
+- To avoid divergent transitions, we can increase `adapt_delta`.. 
+
+McEleath (Second version) : "[...] the target acceptance rate is controlled by the `adapt_delta` control parameter. The default is 0.95, which means that it aims to attain a 95% acceptance rate. It tries this during the warmup phase, adjusting the step size of each leapfrog step (go back to Chapter 9 if these terms aren’t familiar). When `adapt_delta` is set high, it results in a smaller step size, which means a more accurate approximation of the curved surface. It also means more computation, which means a slower chain. Increasing adapt_delta can often, but not always, help with divergent transitions."
+
+- You can also try to add some information in your model, for instance with $\beta_{age} \sim \text{LogNormal}(0,1)$.
+
+- Or you can reparameterize your model with the **non-centered parameterization**. (Best option!!)
+
+
+
+```{r PostPredictmmNlogyC}
+ppc_dens_overlay(y = log(data$height),
+                 as.matrix(fit.mmNlogyC, pars = "y_rep")[1:50, ]) + 
   theme_bw() +
   theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
         axis.text = element_text(size=18), legend.position = c(0.8,0.6))
 ```
 
-```{r caterpillarMod21,fig.width=12}
-mcmc_trace(as.array(fit.mod2_1), pars = "alpha_prov[3]", np = nuts_params(fit.mod2_1)) + 
+```{r caterpillarmmNlogyC,fig.width=12}
+mcmc_trace(as.array(fit.mmNlogyC), pars = "alpha_prov[3]", np = nuts_params(fit.mmNlogyC)) + 
   xlab("Post-warmup iteration")
 ```
 
-```{r pairsPlotsMod21,fig.width=17, fig.height=10}
-mcmc_pairs(as.array(fit.mod2_1), np = nuts_params(fit.mod2_1), 
+```{r pairsPlotsmmNlogyC,fig.width=17, fig.height=10}
+mcmc_pairs(as.array(fit.mmNlogyC), np = nuts_params(fit.mmNlogyC), 
            pars = c("mean_alpha_prov","sigma_alpha_prov","alpha_prov[3]","beta_age","beta_age2"), 
            off_diag_args = list(size = 1, alpha = 1/3),
-           np_style = pairs_style_np(div_size=1, div_shape = 19))
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
 ```
 
 
-Why is this model poorly fitted?
 
-- Four points (four ages) is not enough to estimate a second degree polynomial? I tried to remove $\beta_{age2}$ but it hasn't changed much. This has reduced the number of divergent transitions. (to 11 divergent transitions). But R-hat was still very high. In particular, for $\mu_{\alpha_{PROV}}$ (R-hat = 1.53 !).
-
-- Too vague priors? 
-
-#### More informative priors
-
-\begin{equation}
-  \begin{aligned}
-    h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
-    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} + \alpha_{PROV[p]}\\
-    \alpha_{PROV} & \sim \mathcal{N}(\mu_{\alpha_{PROV}},\sigma_{\alpha_{PROV}})\\
-    \beta_{age} & \sim \text{LogNormal}(0,1) \\
-    \beta_{age2} & \sim \mathcal{N}(0,1)\\
-    \mu_{\alpha_{PROV}} & \sim \text{LogNormal}(0,1)\\
-    \sigma_{\alpha_{PROV}} & \sim Exponential(1)\\
-    \sigma & \sim Exponential(1)
-  \end{aligned}
-\end{equation}
-
-```{r mod21OtherpriorsSampling}
-mod2_1_otherpriors = stan_model("mod2_1_otherpriors.stan") 
-fit.mod2_1_otherpriors <- sampling(mod2_1_otherpriors, data = data.list_mod2_1, iter = 2000, 
-                                 cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod2_1_otherpriors,
-                pars = c("beta_age", "beta_age2", "mean_alpha_prov", "sigma_alpha_prov",
-                         "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
-  kable(caption = "Model 2 with Centered parameterization and more informative priors")
-```
-
-```{r mod21OtherpriorsPostPredict}
-ppc_dens_overlay(y = data$height,
-                 as.matrix(fit.mod2_1_otherpriors, pars = "y_rep")[1:50, ]) + 
-  theme_bw() + 
-  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
-```
-
-```{r caterpillarMod21Otherpriors, fig.width = 16}
-mcmc_trace(as.array(fit.mod2_1_otherpriors),
-           pars =c( "alpha_prov[3]","mean_alpha_prov"), 
-           np = nuts_params(fit.mod2_1_otherpriors)  ) + 
-  xlab("Post-warmup iteration")
-```
-
-This model is better. But still not ok, any suggestions? Let's try the non-centered parametrization. 
-
-### Normal non-centered parameterization
+### Non-centered parameterization
 
 Links: 
 
@@ -665,94 +763,70 @@ And there is currently no ex-ante way to know which will work better, and at wha
 
 ***
 
-> Normal Non-centered model equation
+
+#### model mmNlogyNC
+
+mmNlogyNC (multi-level model with normal distribution and log(y) - non-centered paramerization)
+
+> Mathematical model
 
 \begin{equation}
   \begin{aligned}
-    h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
-    \mu_{i} & = \alpha + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} + z_{PROV[p]}\sigma_{PROV}\\
-    \alpha & \sim \mathcal{N}(0,1) \\
+    \text{log}(h_{i}) & \sim \mathcal{N}(log(\mu_{i}),\sigma_{i})\\
+    \mu_{i} & = \alpha + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  z_{PROV[p]}\sigma_{PROV}\\
+    \alpha & \sim \mathcal{N}(0,1)\\
+    z_{PROV} & \sim \mathcal{N}(0,1)\\
+    \sigma_{\alpha_{PROV}}& \sim \text{Exponential}(1)\\
     \beta_{age} & \sim \mathcal{N}(0,1) \\
     \beta_{age2} & \sim \mathcal{N}(0,1)\\
-    z_{PROV[p]} & \sim \mathcal{N}(0,1)\\
-    \sigma_{PROV} & \sim \text{HalfCauchy}(0,1)\\
-    \sigma & \sim \text{HalfCauchy}(0,1)
-  \end{aligned}
-\end{equation}
-
-```{r mod21ncSampling}
-mod2_1_nc <- stan_model("mod2_1_nc.stan")
-fit.mod2_1_nc <- sampling(mod2_1_nc, data = data.list_mod2_1, iter = 2000, chains = 2,
-                          cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod2_1_nc,
-                pars = c("beta_age", "beta_age2", "z_prov", "sigma_prov",
-                         "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
-  kable(caption = "Model 2 with Normal Non Centered parameterization")
-```
-
-```{r mod21ncPostPredict}
-ppc_dens_overlay(y = data$height,
-                 as.matrix(fit.mod2_1_nc, pars = "y_rep")[1:50, ]) +
-  theme_bw() + 
-  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
-```
-
-I think I'm doing something wrong here... Let's try with more informative priors.
-
-
-#### More informative priors
-
-\begin{equation}
-  \begin{aligned}
-    h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\
-    \mu_{i} & = \alpha + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} + z_{PROV[p]}\sigma_{PROV}\\
-    \alpha & \sim \mathcal{N}(0,1) \\
-    \beta_{age} & \sim \text{LogNormal}(0,1) \\
-    \beta_{age2} & \sim \mathcal{N}(0,1)\\
-  z_{PROV[p]} & \sim \mathcal{N}(0,1)\\
-    \sigma_{PROV} & \sim \text{Exponential}(1)\\
     \sigma & \sim \text{Exponential}(1)
   \end{aligned}
 \end{equation}
 
-```{r mod21ncOtherpriorsSampling}
-mod2_1_nc_otherpriors <- stan_model("mod2_1_nc_otherpriors.stan")
-fit.mod2_1_nc_otherpriors <- sampling(mod2_1_nc_otherpriors, data = data.list_mod2_1, iter = 2000,
-                                      cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod2_1_nc_otherpriors,
+
+```{r SamplingmmNlogyNC}
+mmNlogyNC <- stan_model("mmNlogyNC.stan")
+fit.mmNlogyNC <- sampling(mmNlogyNC, data = data.list.reduced, iter = 2000, chains = 2,
+                          cores = 2, control=list(max_treedepth=14), save_warmup = F)
+broom::tidyMCMC(fit.mmNlogyNC,
                 pars = c("beta_age", "beta_age2", "z_prov", "sigma_prov",
                          "sigma_y", "lp__"),
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
-  kable(caption = "Model 2 with Normal Non Centered parameterization and more informative priors")
+  kable(caption = "One-varying intercept model mmNlogyNC with non-centered parameterization")
 ```
 
-```{r mod21ncOtherpriorsPostPredict}
-ppc_dens_overlay(y = data$height,
-                 as.matrix(fit.mod2_1_nc_otherpriors, pars = "y_rep")[1:50, ]) + 
+> No more divergent transitions! But still low effective sample size. 
+
+
+```{r PostPredictmmNlogyNC}
+ppc_dens_overlay(y = log(data$height),
+                 as.matrix(fit.mmNlogyNC, pars = "y_rep")[1:50, ]) +
   theme_bw() + 
   theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
         axis.text = element_text(size=18), legend.position = c(0.8,0.6))
 ```
 
-```{r caterpillarMod21ncOtherpriors, fig.width = 16}
-mcmc_trace(as.array(fit.mod2_1_nc_otherpriors), 
+```{r caterpillarmmNlogyNC, fig.width = 16}
+mcmc_trace(as.array(fit.mmNlogyNC), 
            pars =c( "alpha","sigma_prov"), 
-           np = nuts_params(fit.mod2_1_nc_otherpriors)) + 
+           np = nuts_params(fit.mmNlogyNC)) + 
   xlab("Post-warmup iteration")
 ```
 
-```{r pairsPlots, fig.width = 17, fig.height = 10}
-mcmc_pairs(as.array(fit.mod2_1_nc_otherpriors), np = nuts_params(fit.mod2_1_nc_otherpriors),
+```{r pairsPlotsmmNlogyNC, fig.width = 17, fig.height = 10}
+mcmc_pairs(as.array(fit.mmNlogyNC), np = nuts_params(fit.mmNlogyNC),
            pars = c("sigma_y","sigma_prov","alpha","beta_age","beta_age2"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
-A lot better!
 
-### Lognormal non-centered parameterization
+
+
+
+## Lognormal distribution
+
+### Non-centered parameterization
 
 ***
 
@@ -771,94 +845,83 @@ is equivalent to
 
 ***
 
-> Lognormal Non-centered model equation
+
+#### Model mmLogNnc
+
+mmLogNnc (multi-level LogNormal dsitribution - non-centered paramerization)
+
+> Mathematical model
 
 \begin{equation}
   \begin{aligned}
     h_{i} & \sim \text{LogNormal}(log(\mu_{i}),\sigma_{i})\\
     \mu_{i} & = e^{log(\alpha) + z_{PROV[p]}\sigma_{PROV}} + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} \\
-    \alpha & \sim \mathcal{logN}(0,1) \\
+    \alpha & \sim \text{LogNormal}(0,1) \\
     \beta_{age} & \sim \mathcal{N}(0,1) \\
     \beta_{age2} & \sim \mathcal{N}(0,1)\\
-    z_{PROV[p]} & \sim \mathcal{N}(0,1)\\
-    \sigma_{PROV} & \sim \text{HalfCauchy}(0,1)\\
-    \sigma & \sim \text{HalfCauchy}(0,1)
-  \end{aligned}
-\end{equation}
-
-```{r mod21lncSampling}
-mod2_1_lnc <- stan_model("mod2_1_lnc.stan")
-fit.mod2_1_lnc <- sampling(mod2_1_lnc, data = data.list_mod2_1, iter = 2000, chains = 2,
-                          cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod2_1_lnc,
-                pars = c("beta_age", "beta_age2", "z_prov", "sigma_prov",
-                         "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
-  kable(caption = "Model 2 with Lognormal Non Centered parameterization")
-```
-
-```{r mod21lncPostPredict}
-ppc_dens_overlay(y = data$height,
-                 as.matrix(fit.mod2_1_lnc, pars = "y_rep")[1:50, ]) +
-  theme_bw() + 
-  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
-```
-
-#### More informative priors
-
-\begin{equation}
-  \begin{aligned}
-    h_{i} & \sim \text{LogNormal}(log(\mu_{i}),\sigma_{i})\\
-    \mu_{i} & = e^{log(\alpha) + z_{PROV[p]}\sigma_{PROV}} \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} \\
-    \alpha & \sim \mathcal{logN}(0,1) \\
-    \beta_{age} & \sim \text{LogNormal}(0,1) \\
-    \beta_{age2} & \sim \mathcal{N}(0,1)\\
-  z_{PROV[p]} & \sim \mathcal{N}(0,1)\\
+    z_{PROV} & \sim \mathcal{N}(0,1)\\
     \sigma_{PROV} & \sim \text{Exponential}(1)\\
     \sigma & \sim \text{Exponential}(1)
   \end{aligned}
 \end{equation}
 
-```{r mod21lncOtherpriorsSampling}
-mod2_1_lnc_otherpriors <- stan_model("mod2_1_lnc_otherpriors.stan")
-fit.mod2_1_lnc_otherpriors <- sampling(mod2_1_lnc_otherpriors, data = data.list_mod2_1, 
-                                       iter = 2000,
-                                      cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mod2_1_lnc_otherpriors,
+```{r ReducedDatalistLogN}
+data.list.reduced.logN <- list(N=length(data$height),         # Number of observations
+                  y=data$height,                              # Response variable
+                  age=data$age.sc,                            # Tree age
+                  nprov=length(unique(data$prov)),            # Number of provenances
+                  prov=as.numeric(data$prov))                 # Provenances
+```
+
+```{r SamplingmmLogNnc}
+mmLogNnc<- stan_model("mmLogNnc.stan")
+fit.mmLogNnc <- sampling(mmLogNnc, data = data.list.reduced.logN, iter = 2000, chains = 2,
+                          cores = 2, control=list(max_treedepth=14), save_warmup = F)
+broom::tidyMCMC(fit.mmLogNnc,
                 pars = c("beta_age", "beta_age2", "z_prov", "sigma_prov",
                          "sigma_y", "lp__"),
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
-  kable(caption = "Model 2 with Lognormal Non Centered parameterization and more informative priors")
+  kable(caption = "One-varying intercept model mmLogNnc with Lognormal non-centered parameterization")
 ```
 
-```{r mod21lncOtherpriorsPostPredict}
+```{r PostPredictmmLogNnc}
 ppc_dens_overlay(y = data$height,
-                 as.matrix(fit.mod2_1_lnc_otherpriors, pars = "y_rep")[1:50, ]) + 
+                 as.matrix(fit.mmLogNnc, pars = "y_rep")[1:50, ]) +
   theme_bw() + 
   theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
         axis.text = element_text(size=18), legend.position = c(0.8,0.6))
 ```
 
-```{r caterpillarMod21lncOtherpriors, fig.width = 16}
-mcmc_trace(as.array(fit.mod2_1_lnc_otherpriors), 
+
+```{r caterpillarmmLogNnc, fig.width = 16}
+mcmc_trace(as.array(fit.mmLogNnc), 
            pars =c( "alpha","sigma_prov"), 
-           np = nuts_params(fit.mod2_1_lnc_otherpriors)) + 
+           np = nuts_params(fit.mmLogNnc)) + 
   xlab("Post-warmup iteration")
 ```
 
-```{r pairsPlotslnc, fig.width = 17, fig.height = 10}
-mcmc_pairs(as.array(fit.mod2_1_lnc_otherpriors), np = nuts_params(fit.mod2_1_lnc_otherpriors),
+```{r pairsPlotsmmLogNnc, fig.width = 17, fig.height = 10}
+mcmc_pairs(as.array(fit.mmLogNnc), np = nuts_params(fit.mmLogNnc),
            pars = c("sigma_y","sigma_prov","alpha","beta_age","beta_age2"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
+
+
+
+
+
+
 `r knitr::opts_chunk$set(eval = F)`
 
-## **Two varying intercepts** (prov and block)
 
-### Centered parameterization (what we shouldn't do)
+
+
+
+# **Two varying intercepts** (prov and block)
+
+## Centered parameterization (what we shouldn't do)
 
 \begin{equation}
 \begin{aligned}

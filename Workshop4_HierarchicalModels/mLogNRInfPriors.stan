@@ -11,25 +11,34 @@ data {                                                                         /
 
 
 parameters {                                                                   // unobserved variables
-  real beta_age;
-  vector[nprov] alpha_prov;
+  real<lower=0> beta_age;
+  real beta_age2;
+  vector[nprov] alpha_prov;                                           // Do not forget to define alpha_prov and alpha_block on R+ !
   vector[nblock] alpha_block;
   real<lower=0> sigma_y;
 }
 
 
 model{
+  real mu[N];
+  
+  //Priors
+  beta_age ~ lognormal(log(0.5), 1);
+  beta_age2 ~ normal(0, 1);
+  alpha_prov ~ normal(0, 1);
+  alpha_block ~ normal(0, 1);
+  sigma_y ~ exponential(1);
+  
+  // Likelihood
+  for (i in 1:N){
+    mu[i] = alpha_prov[prov[i]] + alpha_block[bloc[i]] + beta_age * age[i] + beta_age2 * square(age[i]);
+  }
+  y ~ lognormal(mu, sigma_y);                                            // mu is the median of the lognormal distribution
+}
 
-  vector[N] mu;
-
-//Priors
-  target += normal_lpdf(alpha_block | 0, 10);
-  target += normal_lpdf(alpha_prov | 0, 10);
-  target += normal_lpdf(beta_age | 0, 10);
-  target += cauchy_lpdf(sigma_y | 0, 25);
-
-// Likelihood
-  for (i in 1:N) mu[i] = alpha_prov[prov[i]] + alpha_block[bloc[i]] + beta_age * age[i];
-  target +=  normal_lpdf(y |mu, sigma_y);
+generated quantities {
+  vector[N] y_rep;
+  
+  for(i in 1:N)  y_rep[i] = lognormal_rng(alpha_prov[prov[i]] + alpha_block[bloc[i]] + beta_age * age[i] + beta_age2 * square(age[i]), sigma_y);
 }
 

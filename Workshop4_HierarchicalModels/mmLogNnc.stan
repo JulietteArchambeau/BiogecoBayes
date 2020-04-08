@@ -3,33 +3,30 @@ data {                                                                         /
   vector[N] y;                                                                 // Response variable
   vector[N] age;                                                               // Tree age
   int<lower=0> nprov;                                                          // Number of provenances
-  int<lower=0> nblock;                                                         // Number of blocks
   int<lower=0, upper=nprov> prov[N];                                           // Provenances
-  int<lower=0, upper=nblock> bloc[N];                                          // Blocks
 }
-
-
 
 parameters {                                                                   // unobserved variables
   real beta_age;
-  vector[nprov] alpha_prov;
-  vector[nblock] alpha_block;
+  real beta_age2;
+  real<lower=0> alpha;
+  vector[nprov] z_prov;
   real<lower=0> sigma_y;
+  real<lower=0> sigma_prov;
 }
 
-
 model{
+  beta_age ~ normal(0,1);
+  beta_age2 ~ normal(0,1);
+  alpha ~ lognormal(0,1);
+  z_prov ~ normal(0, 1);
+  sigma_y ~ exponential(1);
+  sigma_prov ~ exponential(1);
+  y ~ lognormal(log(exp(log(alpha) + z_prov[prov]*sigma_prov) + beta_age*age + beta_age2*square(age)), sigma_y);
+}
 
-  vector[N] mu;
-
-//Priors
-  target += normal_lpdf(alpha_block | 0, 10);
-  target += normal_lpdf(alpha_prov | 0, 10);
-  target += normal_lpdf(beta_age | 0, 10);
-  target += cauchy_lpdf(sigma_y | 0, 25);
-
-// Likelihood
-  for (i in 1:N) mu[i] = alpha_prov[prov[i]] + alpha_block[bloc[i]] + beta_age * age[i];
-  target +=  normal_lpdf(y |mu, sigma_y);
+generated quantities {
+  vector[N] y_rep;
+  for(i in 1:N)  y_rep[i] = lognormal_rng(log(exp(log(alpha) + z_prov[prov][i]*sigma_prov) + beta_age*age[i] + beta_age2*square(age)[i]), sigma_y);
 }
 
