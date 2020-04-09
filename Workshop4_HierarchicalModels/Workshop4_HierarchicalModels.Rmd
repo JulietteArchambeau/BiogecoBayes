@@ -142,9 +142,7 @@ First, we are going to try three different likehoods: the normal distribution, t
 
 ## Different distributions
 
-### Normal distribution
-
-#### Model mN
+### Normal distribution **mN**
 
 > Mathematical model
 
@@ -197,9 +195,7 @@ ppc_dens_overlay(y = data$height,
 > We can probably do better...
 
 
-### Normal distribution with log(y)
-
-#### Model mNlogy
+### Normal distribution with log(y) **mNlogy**
 
 > Mathematical model
 
@@ -254,10 +250,7 @@ ppc_dens_overlay(y =log(data$height),
 
 > A better fit than mN.
 
-
-### LogNormal distribution on R
-
-#### Model mLogNR
+### LogNormal distribution **mLogNR** 
 
 > Mathematical model
 
@@ -280,7 +273,7 @@ We are going to use the same data list as in the first model mN.
 ```{r SamplingmLogNR}
 mLogNR = stan_model("mLogNR.stan") 
 fit.mLogNR <- sampling(mLogNR, data = data.list, iter = 2000, 
-                               cores = 2, control=list(max_treedepth=14), save_warmup = F)
+                       chains = 2, control=list(max_treedepth=14), save_warmup = F)
 broom::tidyMCMC(fit.mLogNR, 
                 pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
@@ -295,52 +288,9 @@ ppc_dens_overlay(y = data$height,
         axis.text = element_text(size=18), legend.position = c(0.8,0.6))
 ```
 
-
-
-### LogNormal distribution on R+
-
-#### Model mLogNRplus
-
-> Mathematical model
-
-\begin{equation}
-  \begin{aligned}
-    h_{i} & \sim \text{LogNormal}(log(\mu_{i}),\sigma_{i})\\
-    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
-    \alpha_{BLOCK} & \sim \mathcal{N_{T}}(0,1)\\
-    \alpha_{PROV} & \sim \mathcal{N_{T}}(0,1)\\
-    \beta_{age} & \sim \mathcal{N}(0,10) \\
-    \beta_{age2} & \sim \mathcal{N}(0,10)\\
-    \sigma & \sim \text{HalfCauchy}(0,25)
-  \end{aligned}
-\end{equation}
-
-
-We are going to use the same data list as in the first model mN. 
-
-
-```{r SamplingmLogNRplus}
-mLogNRplus = stan_model("mLogNRplus.stan") 
-fit.mLogNRplus <- sampling(mLogNRplus, data = data.list, iter = 2000, 
-                               cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mLogNRplus, 
-                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
-  kable(caption = "Model mLogNRplus with a LogNormal distribution on R+")
-```
-
-```{r PostPredictmLogNRplus}
-ppc_dens_overlay(y = data$height,
-                 as.matrix(fit.mLogNRplus, pars = "y_rep")[1:50, ])  + 
-  theme_bw() + 
-  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
-```
-
-What's wrong here? We probably have to use more informative priors here. 
-
-
 ## More informative priors
+
+I use here the model mNlogy (normal distribution with log(y).
 
 > **Variance priors**
 
@@ -368,13 +318,7 @@ What's wrong here? We probably have to use more informative priors here.
 - We can also consider that $age$ is positively associated with height so we can add some information in our model and constrain $\beta$ to positive values, such as: $\beta_{age} \sim \text{LogNormal}(0,1)$ or $\beta_{age} \sim \text{Gamma}(?,?)$. 
 
 
-
-
-
-
-### Normal distribution with log(y)
-
-#### Model mNlogySigmaPrior
+### Exponential sigma **mNlogySigmaPrior**
 
 > Mathematical model
 
@@ -412,7 +356,7 @@ ppc_dens_overlay(y =log(data$height),
 ```
 
 
-#### Model mNlogyBetaAlphaPrior
+### More informative effects **mNlogyBetaAlphaPrior**
 
 
 > Mathematical model
@@ -449,95 +393,6 @@ ppc_dens_overlay(y =log(data$height),
   theme(legend.text=element_text(size=25), legend.title=element_text(size=18), 
         axis.text = element_text(size=18), legend.position = c(0.8,0.6))
 ```
-
-
-### LogNormal distribution on R
-
-
-#### Model mLogNRInfPriors
-
-> Mathematical model
-
-\begin{equation}
-  \begin{aligned}
-    h_{i} & \sim \text{LogNormal}(log(\mu_{i}),\sigma_{i})\\
-    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
-    \alpha_{BLOCK} & \sim \mathcal{N}(0,1)\\
-    \alpha_{PROV} & \sim \mathcal{N}(0,1)\\
-    \beta_{age} & \sim \text{LogNormal}(0,1) \\
-    \beta_{age2} & \sim \mathcal{N}(0,1)\\
-    \sigma & \sim \text{Exponential}(1)
-  \end{aligned}
-\end{equation}
-
-
-We use the same data list as in the first model mN. 
-
-
-```{r SamplingmLogNRInfPriors}
-mLogNRInfPriors = stan_model("mLogNRInfPriors.stan") 
-fit.mLogNRInfPriors <- sampling(mLogNRInfPriors, data = data.list, iter = 2000, 
-                               cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mLogNRInfPriors, 
-                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
-  kable(caption = "Model mLogNRInfPriors with a LogNormal distribution on R+")
-```
-
-```{r PostPredictmLogNRInfPriors}
-ppc_dens_overlay(y = data$height,
-                 as.matrix(fit.mLogNRInfPriors, pars = "y_rep")[1:50, ])  + 
-  theme_bw() + 
-  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
-```
-
-
-
-### LogNormal distribution on R+
-
-
-#### Model mLogNRplusInfPriors
-
-> Mathematical model
-
-\begin{equation}
-  \begin{aligned}
-    h_{i} & \sim \text{LogNormal}(log(\mu_{i}),\sigma_{i})\\
-    \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
-    \alpha_{BLOCK} & \sim \mathcal{N_{T}}(0,1)\\
-    \alpha_{PROV} & \sim \mathcal{N_{T}}(0,1)\\
-    \beta_{age} & \sim \text{LogNormal}(0,1) \\
-    \beta_{age2} & \sim \mathcal{N}(0,1)\\
-    \sigma & \sim \text{Exponential}(1)
-  \end{aligned}
-\end{equation}
-
-
-We use the same data list as in the first model mN. 
-
-
-```{r SamplingmLogNRplusInfPriors}
-mLogNRplusInfPriors = stan_model("mLogNRplusInfPriors.stan") 
-fit.mLogNRplusInfPriors <- sampling(mLogNRplusInfPriors, data = data.list, iter = 2000, 
-                               cores = 2, control=list(max_treedepth=14), save_warmup = F)
-broom::tidyMCMC(fit.mLogNRplusInfPriors, 
-                pars = c("beta_age", "beta_age2", "alpha_prov", "alpha_block", "sigma_y", "lp__"),
-                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>% 
-  kable(caption = "Model mLogNRplusInfPriors with a LogNormal distribution on R+")
-```
-
-```{r PostPredictmLogNRplusInfPriors}
-ppc_dens_overlay(y = data$height,
-                 as.matrix(fit.mLogNRplusInfPriors, pars = "y_rep")[1:50, ])  + 
-  theme_bw() + 
-  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
-```
-
-It's better than the model mLogNRplusInfPriors (without more informative priors), but there is still something wrong...
-
-
 
 
 ## Vectorized models
@@ -628,12 +483,9 @@ We are going to
 
 ## Normal distribution with log(y)
 
-### Centered parameterization
+### Centered parameterization **mmNlogyC**
 
 P357 McElreath (first version).
-
-
-#### model mmNlogyC
 
 mmNlogyC (multi-level model with normal distribution and log(y) - centered paramerization)
 
@@ -708,8 +560,7 @@ mcmc_pairs(as.array(fit.mmNlogyC), np = nuts_params(fit.mmNlogyC),
 ```
 
 
-
-### Non-centered parameterization
+### Non-centered parameterization **mmNlogyNC**
 
 Links: 
 
@@ -762,9 +613,6 @@ However, neither is universally better.
 And there is currently no ex-ante way to know which will work better, and at what amount of “data” that the performance of one or the other is better. However, one other reason to use the centered parameterization (if it is also scaled), is that the Stan HMC implementation tends to be more efficient if all parameters are on the scale.
 
 ***
-
-
-#### model mmNlogyNC
 
 mmNlogyNC (multi-level model with normal distribution and log(y) - non-centered paramerization)
 
@@ -826,7 +674,7 @@ mcmc_pairs(as.array(fit.mmNlogyNC), np = nuts_params(fit.mmNlogyNC),
 
 ## Lognormal distribution
 
-### Non-centered parameterization
+### Non-centered parameterization **mmLogNnc**
 
 ***
 
@@ -844,9 +692,6 @@ is equivalent to
 \end{equation}
 
 ***
-
-
-#### Model mmLogNnc
 
 mmLogNnc (multi-level LogNormal dsitribution - non-centered paramerization)
 
@@ -1220,7 +1065,7 @@ print(fit.mod2_4_otherpriors_adaptdelta, pars = c("beta_age","beta_age2",
 Longer to run, but it's ok now ! And similar to model `mod2_3_otherpriors` (model with centered parameterization and more informative priors).
 
 
-## **Varying intercepts and varying slopes**
+# **Varying intercepts and varying slopes**
 
 
 ```{r datalist_data_mod3}
@@ -1233,7 +1078,7 @@ data.list_mod3 <- list(N=length(data$height),          # Number of observations
                   bloc=as.numeric(data$block))           # Blocks
 ```
 
-### Centered parameterization
+## Centered parameterization
 
 
 \begin{equation}
@@ -1266,7 +1111,7 @@ h_{i} & \sim \text{LogNormal}(\mu_{i},\sigma_{i})\\[4pt]
 \end{aligned}
 \end{equation}
 
-#### `mod3_1`
+### `mod3_1`
 
 In this model, I followed the example from here: [Stan code of Statistical Rethinking. 13.3 Example: cross-classified chimpanzees with varying slopes](https://github.com/ssp3nc3r/rethinking/blob/master/chapter13.Rmd).
 
@@ -1319,7 +1164,7 @@ plot_grid(dens(Rho1[,1,2],xlim=c(-1,1),xlab="correlation" ,ylim=c(0,1.2),main="e
          dens(Rho4[,1,2],xlim=c(-1,1),xlab="correlation" ,ylim=c(0,1.2),main="eta=4"))
 ```
 
-#### `mod3_2`
+### `mod3_2`
 
 > Model with $\mathbf{R} \sim \text{LKJcorr(4)}$
 
@@ -1344,7 +1189,7 @@ ppc_dens_overlay(y =data$height,y_rep[1:50, ]) + theme_bw() + theme(legend.text=
 ```
 
 
-### Non-centered parameterization 
+## Non-centered parameterization 
 
 \begin{equation}
 \begin{aligned}
@@ -1375,7 +1220,7 @@ z_{\alpha_{BLOCK[p]}} & \sim \mathcal{N}(0,1)\\[4pt]
 
 
 
-#### Following McElreath
+### Following McElreath
 
 > Statistical rethinking (first version): `m13_6NC1` P405
 
@@ -1418,7 +1263,7 @@ mcmc_pairs(posterior_cp, np = np_cp, pars = c("alpha","beta_age","beta_age2","si
 
 Comment: I tried $\alpha \sim \mathcal{N}(0,1)$, chains didn't mix. Very high R-hat values and lots of divergent transitions.
 
-#### Following Sorensen
+### Following Sorensen
 
 [Sorensen et al. 2016. Listing 8.](http://jakewestfall.org/misc/SorensenEtAl.pdf)
 

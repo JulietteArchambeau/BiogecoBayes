@@ -31,7 +31,6 @@ model{
   target += cauchy_lpdf(sigma_y | 0, 25);
   
   // Likelihood
-  for (i in 1:N) mu[i] = alpha_prov[prov[i]] + alpha_block[bloc[i]] + beta_age * age[i] + beta_age *square(age)[i];
-  target +=  normal_lpdf(y |mu, sigma_y);
+  target +=  normal_lpdf(y |alpha_prov[prov] + alpha_block[bloc] + beta_age * age + beta_age *square(age), sigma_y);
 }
 
