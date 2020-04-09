@@ -8,8 +8,6 @@ data {                                                                         /
   int<lower=0, upper=nblock> bloc[N];                                          // Blocks
 }
 
-
-
 parameters {                                                                   // unobserved variables
   real beta_age;
   real beta_age2;
@@ -17,7 +15,6 @@ parameters {                                                                   /
   vector[nblock] alpha_block;
   real<lower=0> sigma_y;
 }
-
 
 model{
   real mu[N];

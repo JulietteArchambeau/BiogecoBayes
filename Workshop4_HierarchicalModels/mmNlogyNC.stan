@@ -28,6 +28,8 @@ model{
   sigma_y ~ exponential(1);
   sigma_prov ~ exponential(1);
   
+// Comment: more efficient implementation in stan of the normal N(0,1): std_normal()
+  
   
   // Likelihood
   for (i in 1:N){

@@ -11,11 +11,11 @@ data {                                                                         /
 
 
 parameters {                                                                   // unobserved variables
-  real beta_age;
-  real beta_age2;
-  vector[nprov] alpha_prov;
-  vector[nblock] alpha_block;
-  real<lower=0> sigma_y;
+  real beta_age;                                                               // Slope of age
+  real beta_age2;                                                              // Slope of age^2
+  vector[nprov] alpha_prov;                                                    // Intercepts of the provenance 
+  vector[nblock] alpha_block;                                                  // Intercepts of the blocks
+  real<lower=0> sigma_y;                                                       // Sd of the model
 }
 
 
