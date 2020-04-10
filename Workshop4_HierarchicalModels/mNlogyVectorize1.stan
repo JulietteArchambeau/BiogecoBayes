@@ -12,6 +12,7 @@ data {                                                                         /
 
 parameters {                                                                   // unobserved variables
   real beta_age;
+  real beta_age2;
   vector[nprov] alpha_prov;
   vector[nblock] alpha_block;
   real<lower=0> sigma_y;
@@ -19,23 +20,16 @@ parameters {                                                                   /
 
 
 model{
-  real mu[N];
-
-//Priors
+  
+  //Priors
   beta_age ~ normal(0, 10);
+  beta_age2 ~ normal(0, 10);
   alpha_prov ~ normal(0, 10);
   alpha_block ~ normal(0, 10);
   sigma_y ~ cauchy(0,25);
-
-// Likelihood
-  for (i in 1:N){
-  mu[i] = alpha_prov[prov[i]] + alpha_block[bloc[i]] + beta_age * age[i];
-  }
-  y ~ normal(mu, sigma_y);
+  
+  
+  // Likelihood
+  y ~ normal(alpha_prov[prov] + alpha_block[bloc] + beta_age * age + beta_age2*square(age), sigma_y);
 }
 
-generated quantities {
-  vector[N] y_rep;
-
-  for(i in 1:N)  y_rep[i] = normal_rng(alpha_prov[prov[i]] + alpha_block[bloc[i]] + beta_age * age[i], sigma_y);
-}

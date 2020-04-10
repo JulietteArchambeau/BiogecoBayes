@@ -11,35 +11,33 @@ data {                                                                         /
 
 
 parameters {                                                                   // unobserved variables
-  real beta_age;
-  real beta_age2;
-  vector[nprov] alpha_prov;
-  vector[nblock] alpha_block;
-  real<lower=0> sigma_y;
+  real beta_age;                                                               // Slope of age
+  real beta_age2;                                                              // Slope of age^2
+  vector[nprov] alpha_prov;                                                    // Intercepts of the provenance 
+  vector[nblock] alpha_block;                                                  // Intercepts of the blocks
+  real<lower=0> sigma_y;                                                       // Sd of the model
 }
 
 
 model{
   real mu[N];
-
-//Priors
-  beta_age ~ normal(0, 1);
-  beta_age2 ~ normal(0, 1);
-  alpha_prov ~ normal(0, 1);
-  alpha_block ~ normal(0, 1);
-  sigma_y ~ student_t(4,0,1);
-  //sigma_y ~ lognormal(0,1);
-  //sigma_y ~ cauchy(0,25); // In fact, it is Half-cauchy as sigma is constrained to be positive (see "parameter" block)
-
-// Likelihood
+  
+  //Priors
+  beta_age ~ normal(0, 10);
+  beta_age2 ~ normal(0, 10);
+  alpha_prov ~ normal(0, 10);
+  alpha_block ~ normal(0, 10);
+  sigma_y ~ cauchy(0,25);
+  
+  // Likelihood
   for (i in 1:N){
-  mu[i] = alpha_prov[prov[i]] + alpha_block[bloc[i]] + beta_age * age[i] + beta_age2 * age[i] * age[i];
+    mu[i] = alpha_prov[prov[i]] + alpha_block[bloc[i]] + beta_age * age[i] + beta_age2*square(age)[i];
   }
   y ~ normal(mu, sigma_y);
 }
 
 generated quantities {
   vector[N] y_rep;
-
+  
   for(i in 1:N)  y_rep[i] = normal_rng(alpha_prov[prov[i]] + alpha_block[bloc[i]] + beta_age * age[i] + beta_age2 * age[i] * age[i], sigma_y);
 }

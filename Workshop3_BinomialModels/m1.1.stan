@@ -9,10 +9,7 @@ parameters {                                       // unobserved variables
   real gamma; 
 }
 model {
-  for (k in 1:N){
-  y[k] ~ binomial(z[k], inv_logit(gamma*(temp[k]-mu_temp)));       // likelihood
-  //y[k] ~ bernoulli_logit(alpha+beta*temp[k]);       // likelihood -- does not work because not bernoulli of course!
-  }
+  y ~ binomial_logit(z, gamma*(temp - mu_temp)) ;
   mu_temp ~ normal(2, 10);        // prior of the mean temp
   gamma ~ normal(1, 10);          // prior of the slope
 }
