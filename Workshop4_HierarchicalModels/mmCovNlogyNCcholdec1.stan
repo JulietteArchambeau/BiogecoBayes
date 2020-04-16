@@ -33,11 +33,11 @@ v_prov = (diag_pre_multiply(sigma_prov,L_R_prov) * z_prov)';
 }
 
 model{
-  real mu[N];
-  
+    real mu[N];
+    
   //Priors
-  L_R_prov ~ lkj_corr_cholesky_lpdf(4);
-  to_vector(z_prov) ~ normal_lpdf(0,1); 
+  L_R_prov ~ lkj_corr_cholesky(4);
+  to_vector(z_prov) ~ normal(0,1); 
 // The z-score matrixes are assigned their prior using to_vector , because normal(0,1) applies to vectors, not matrixes. 
 // The function to_vector forces the normal(0,1) prior on each cell in the matrix of z-scores.
 
@@ -53,8 +53,8 @@ model{
   
   // Linear model
   for (i in 1:N){
-    mu[i] = alpha  + z_alpha_block[bloc[i]]*sigma_block + v_prov[prov[i],1] + v_prov[prov[i],2] * age[i] + beta_age*age[i] + beta_age2*square(age)[i];
-  }  
+  mu[i] = alpha  + z_alpha_block[bloc[i]]*sigma_block + v_prov[prov[i],1] + v_prov[prov[i],2] * age[i] + beta_age*age[i] + beta_age2*square(age)[i];
+  } 
   
   // Likelihood
   y ~ normal(mu, sigma_y);

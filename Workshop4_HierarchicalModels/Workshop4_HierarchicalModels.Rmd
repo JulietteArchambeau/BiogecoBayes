@@ -1292,11 +1292,14 @@ mcmc_pairs(as.array(fit.mmCovNlogyNCcholdec3), np = nuts_params(fit.mmCovNlogyNC
 
 > Effective sample size comparison
 
+
 ```{r nEffCompare}
-tibble("mmCovNlogyClkj4"=mean(summary(fit.mmCovNlogyClkj4)$summary[1:25,"n_eff"] ,na.rm = T),
-"mmCovlogyNC1"=mean(summary(fit.mmCovlogyNC1)$summary[1:25,"n_eff"] ,na.rm = T),
-"mmCovNlogyNCcholdec1"=mean(summary(fit.mmCovNlogyNCcholdec1)$summary[1:25,"n_eff"] ,na.rm = T)) %>% 
-  kable(caption = "Comparison of the effective sample size")
+tibble("mmCovNlogyClkj4"=summary(fit.mmCovNlogyClkj4)$summary[1:25,"n_eff"],
+"mmCovlogyNC1"=summary(fit.mmCovlogyNC1)$summary[1:25,"n_eff"],
+"mmCovNlogyNCcholdec1"=summary(fit.mmCovNlogyNCcholdec1)$summary[1:25,"n_eff"]) %>% 
+  tidyr::pivot_longer(everything(),names_to = "model", values_to = "n_eff") %>% 
+  ggplot(aes(x=model, y=n_eff)) + 
+  geom_boxplot() + theme_bw()
 ```
 
 

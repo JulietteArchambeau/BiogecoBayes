@@ -33,8 +33,8 @@ model{
 real mu[N];
 
 //Priors
-L_R_prov ~ lkj_corr_cholesky_lpdf(4);
-to_vector(z_prov) ~ normal_lpdf(0,1); 
+L_R_prov ~ lkj_corr_cholesky(4);
+to_vector(z_prov) ~ normal(0,1); 
 
 sigma_prov ~ exponential(1);
 
