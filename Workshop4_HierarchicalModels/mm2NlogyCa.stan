@@ -13,50 +13,47 @@ data {                                                                         /
 parameters {                                                                   // unobserved variables
   real beta_age;
   real beta_age2;
-  real alpha;
   
+  //Priors
+  vector[nprov] alpha_prov;
+  vector[nblock] alpha_block;
   real<lower=0> sigma_y;
-  real<lower=0> sigma_block;                                             // stddev among intercepts of the blocks 
-  vector[nblock] alpha_block;                                                  // average intercept of each block
   
-  matrix[2,nprov] z_u;
-  vector<lower=0>[2] sigma_u;
-  cholesky_factor_corr[2] L_u;
+  //Hyperpriors
+  real<lower=0> sigma_alpha_prov;
+  real mean_alpha_prov;
+  real<lower=0> sigma_alpha_block;
+  real mean_alpha_block;
   
 }
 
-transformed parameters {
-  matrix[2,nprov] u;
-  
-  u = diag_pre_multiply(sigma_u,L_u)*z_u;
-}
 
 model{
   real mu[N];
-
-//Priors
-  L_u ~ lkj_corr_cholesky(2);
-  to_vector(z_u) ~ normal(0,1);
   
-  alpha ~ normal(0,1);
+  //Priors
   beta_age ~ normal(0,1);
   beta_age2 ~ normal(0,1);
+  alpha_prov ~ normal(mean_alpha_prov, sigma_alpha_prov);
+  alpha_block ~ normal(mean_alpha_block, sigma_alpha_block);
+  sigma_y ~ exponential(1);
   
-  alpha_block ~ normal(0, sigma_block);
-  sigma_block ~ cauchy(0,1);
-  sigma_y ~ cauchy(0,1);
-
-// Likelihood
+  //Hyperpriors
+  sigma_alpha_prov ~ exponential(1);
+  mean_alpha_prov ~ normal(0,1);
+  sigma_alpha_block ~ exponential(1);
+  mean_alpha_block ~ normal(0,1);
+  
+  
+  // Likelihood
   for (i in 1:N){
-  mu[i] = alpha  + alpha_block[bloc[i]] + u[1,prov[i]] + u[2,prov[i]] * age[i] + beta_age * age[i] + beta_age2 * age[i] * age[i];
+    mu[i] = alpha_prov[prov[i]] + alpha_block[bloc[i]] + beta_age * age[i] + beta_age2*square(age)[i];
   }
-  y ~ lognormal(mu, sigma_y);
+  y ~ normal(mu, sigma_y);
 }
 
 generated quantities {
   vector[N] y_rep;
-
-  for(i in 1:N)  y_rep[i] = lognormal_rng(alpha  + alpha_block[bloc[i]] + u[1,prov[i]] + u[2,prov[i]] * age[i] + beta_age * age[i] + beta_age2 * age[i] * age[i], sigma_y);
+  
+  for(i in 1:N)  y_rep[i] = normal_rng(alpha_prov[prov[i]] + alpha_block[bloc[i]] +beta_age * age[i] + beta_age2*square(age)[i], sigma_y);
 }
-
-
