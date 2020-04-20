@@ -138,12 +138,12 @@ ggplot(data, aes(x=height, color=block)) +
 
 ## Centered parameterization 
 
-### Two global mean parameters **mm2NlogyCa**
+### Two global mean parameters **mm2NlogyCa** (not to do)
 
 
 \begin{equation}
 \begin{aligned}
-h_{i} & \sim \mathcal{n}(\mu_{i},\sigma_{i})\\
+\text{log}(h_{i}) & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
 \mu_{i} & = \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
 \beta_{age} & \sim \mathcal{N}(0,1) \\
 \beta_{age2} & \sim \mathcal{N}(0,1)\\
@@ -180,7 +180,7 @@ broom::tidyMCMC(fit.mm2NlogyCa,
                            "mean_alpha_block","sigma_alpha_block",
                            "sigma_y","lp__"),
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
-  kable(caption = "Two-varying intercept model mm2NlogyCa with centered parameterization")
+  kable(caption = "Two-varying intercepts model mm2NlogyCa with centered parameterization")
 ```
 
 ```{r PostPredictmm2NlogyCa}
@@ -199,7 +199,7 @@ mcmc_pairs(as.array(fit.mm2NlogyCa), np = nuts_params(fit.mm2NlogyCa),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
-McElreath: "[...] We can’t identify a separate mean for each varying intercept type, because both intercepts are added to the same linear prediction. So it is conventional to define varying intercepts with a mean of zero, so there’s no risk of accidentally creating hard-to-identify parameters." "If you do include a mean for each cluster type, it won’t be the end of the world, however."
+McElreath: "[...] We can’t identify a separate mean for each varying intercept type, because both intercepts are added to the same linear prediction. So it is conventional to define varying intercepts with a mean of zero, so there’s no risk of accidentally creating **hard-to-identify parameters**." "If you do include a mean for each cluster type, it won’t be the end of the world, however."
 
 
 
@@ -209,7 +209,7 @@ Same model but with one global mean parameter $\alpha$, and both of the varying 
 
 \begin{equation}
 \begin{aligned}
-h_{i} & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
+\text{log}(h_{i}) & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
 \mu_{i} & = \alpha + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  \alpha_{BLOCK[b]} + \alpha_{PROV[p]}\\
 \beta_{age} & \sim \mathcal{N}(0,1) \\
 \beta_{age2} & \sim \mathcal{N}(0,1)\\
@@ -232,10 +232,8 @@ broom::tidyMCMC(fit.mm2NlogyCb,
                            "sigma_alpha_prov","sigma_alpha_block",
                            "sigma_y","lp__"),
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
-  kable(caption = "Two-varying intercept model mm2NlogyCb with centered parameterization")
+  kable(caption = "Two-varying intercepts model mm2NlogyCb with centered parameterization")
 ```
-
-
 
 
 ```{r PostPredictmm2NlogyCb}
@@ -246,16 +244,19 @@ ppc_dens_overlay(y = log(data$height),
         axis.text = element_text(size=18), legend.position = c(0.8,0.6))
 ```
 
-```{r pairsPlotsmm2NlogyCb, fig.width = 17, fig.height = 10}
+```{r pairsPlotsmm2NlogyCb, fig.width = 17, fig.height = 8}
 mcmc_pairs(as.array(fit.mm2NlogyCb), np = nuts_params(fit.mm2NlogyCb),
            pars = c("alpha","sigma_alpha_prov","sigma_alpha_block","sigma_y"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
-> The funnel geometry
 
-The Hamiltonian Markov chain might explore the funnel neck less easily.
+> **The funnel geometry**
+
+What happens when some parameters are conditional on other parameters? Like here for instance with the **adaptive priors**: $\alpha_{PROV} \sim \mathcal{N}(0,\sigma_{\alpha_{PROV}})$ and $\alpha_{BLOCK} \sim \mathcal{N}(0,\sigma_{\alpha_{BLOCK}})$.
+
+
 
 ```{r pairsPlotsmm2NlogyCbFunnel, fig.width = 17, fig.height = 10}
 mcmc_pairs(as.array(fit.mm2NlogyCb), np = nuts_params(fit.mm2NlogyCb),
@@ -264,15 +265,31 @@ mcmc_pairs(as.array(fit.mm2NlogyCb), np = nuts_params(fit.mm2NlogyCb),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
+```{r pairsPlotsmm2NlogyCbFunnelBlocks, fig.width = 17, fig.height = 8}
+mcmc_pairs(as.array(fit.mm2NlogyCb), np = nuts_params(fit.mm2NlogyCb),
+           pars = c("alpha_block[1]","alpha_block[2]","alpha_block[3]","alpha_block[4]","sigma_alpha_block"), 
+           off_diag_args = list(size = 1, alpha = 1/3),
+           np_style = pairs_style_np(div_size=3, div_shape = 19))
+```
+
+What we observe is that when $\sigma_{\alpha_{PROV}}$ or $\sigma_{\alpha_{BLOCK}}$ get small, $\alpha_{PROV}$ or $\alpha_{BLOCK}$ contract. This very narrow valley is called the funnel.
+A big problem here is that there is no signle step size which can efficiently explore both of those regions of the posterior distribution. In the valley, we want very small step size.And in bigger areas, we want bigger step size to effectively explore it. This kind of posterior distribution are much more challenging, for all kind of samplers. Stan handles these posterior distributions quite well but when we increase the dimensionality like in hierarchical models, you have many parameters (here $\sigma_{\alpha_{PROV}}$ or $\sigma_{\alpha_{BLOCK}}$) that are conditional on one parameter (here $\alpha_{PROV}$ or $\alpha_{BLOCK}$). In this case, the Hamiltonian Markov chain might explore the funnel less easily. What can we do?
+
+- Increase adapt_delta control parameter  => better step size adaptation + slower exploration. 
+
+- re-parameterize!
+
+[McElreath](https://www.youtube.com/watch?v=ZG3Oe35R5sY)
 
 [Betancourt](https://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html)
 
-## Non-centered parameterization **mm2NlogyNC**
+
+## Non-centered parameterization **mm2NlogyNCa**
 
 
 \begin{equation}
 \begin{aligned}
-h_{i} & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
+\text{log}(h_{i}) & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\
 \mu_{i} & = \alpha + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  z_{BLOCK[b]}\sigma_{BLOCK} + z_{PROV[p]}\sigma_{PROV}\\
 \beta_{age} & \sim \mathcal{N}(0,1) \\
 \beta_{age2} & \sim \mathcal{N}(0,1)\\
@@ -287,57 +304,86 @@ z_{PROV} & \sim \mathcal{N}(0,1)\\
 
 
 
-```{r Samplingmm2NlogyNC}
-mm2NlogyNC = stan_model("mm2NlogyNC.stan")
-fit.mm2NlogyNC <- sampling(mm2NlogyNC, data = data.list.mm2, iter = 2000, chains = 2, cores = 2, 
+```{r Samplingmm2NlogyNCa}
+mm2NlogyNCa = stan_model("mm2NlogyNCa.stan")
+fit.mm2NlogyNCa <- sampling(mm2NlogyNCa, data = data.list.mm2, iter = 2000, chains = 2, cores = 2, 
                            control=list(max_treedepth=14))
-broom::tidyMCMC(fit.mm2NlogyNC,
+broom::tidyMCMC(fit.mm2NlogyNCa,
                  pars = c("beta_age","beta_age2",
                            "z_prov","z_block", "alpha",
                            "sigma_prov","sigma_block",
                            "sigma_y","lp__"),
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
-  kable(caption = "Two-varying intercept model mm2NlogyNC with centered parameterization")
+  kable(caption = "Two-varying intercepts model mm2NlogyNCa with non-centered parameterization")
 ```
 
 
-```{r PostPredictmm2NlogyNC}
+```{r PostPredictmm2NlogyNCa}
 ppc_dens_overlay(y = log(data$height),
-                 as.matrix(fit.mm2NlogyNC, pars = "y_rep")[1:50, ]) +
+                 as.matrix(fit.mm2NlogyNCa, pars = "y_rep")[1:50, ]) +
   theme_bw() + 
   theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
         axis.text = element_text(size=18), legend.position = c(0.8,0.6))
 ```
 
-```{r pairsPlotsmm2NlogyNC, fig.width = 17, fig.height = 10}
-mcmc_pairs(as.array(fit.mm2NlogyNC), np = nuts_params(fit.mm2NlogyNC),
+```{r pairsPlotsmm2NlogyNCa, fig.width = 17, fig.height = 8}
+mcmc_pairs(as.array(fit.mm2NlogyNCa), np = nuts_params(fit.mm2NlogyNCa),
            pars = c("alpha","sigma_prov","sigma_block","sigma_y"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
 
-```{r pairsPlotsmm2NlogyNCFunnel, fig.width = 17, fig.height = 10}
-mcmc_pairs(as.array(fit.mm2NlogyNC), np = nuts_params(fit.mm2NlogyNC),
+```{r pairsPlotsmm2NlogyNCaFunnel, fig.width = 17, fig.height = 10}
+mcmc_pairs(as.array(fit.mm2NlogyNCa), np = nuts_params(fit.mm2NlogyNCa),
            pars = c("z_prov[1]","z_prov[2]","z_prov[3]","z_prov[4]","z_prov[5]","sigma_prov"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
-
-
-> Increasing acceptance rate? 
-
-```{r mm2NlogyNCAdaptDelta, fig.width = 17, fig.height = 10}
-fit.mm2NlogyNC <- sampling(mm2NlogyNC, data = data.list.mm2, iter = 2000, chains = 2, cores = 2, 
-                           control=list(max_treedepth=14,adapt_delta=0.99))
-mcmc_pairs(as.array(fit.mm2NlogyNC), np = nuts_params(fit.mm2NlogyNC),
-           pars = c("z_prov[1]","z_prov[2]","z_prov[3]","z_prov[4]","z_prov[5]","sigma_prov"), 
+```{r pairsPlotsmm2NlogyNCaFunnelBlocks, fig.width = 17, fig.height = 8}
+mcmc_pairs(as.array(fit.mm2NlogyNCa), np = nuts_params(fit.mm2NlogyNCa),
+           pars = c("z_block[1]","z_block[2]","z_block[3]","z_block[4]","sigma_block"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
 
+### Same but with getting the intercepts back **mm2NlogyNCb**
+
+```{r Samplingmm2NlogyNCb}
+mm2NlogyNCb = stan_model("mm2NlogyNCb.stan")
+fit.mm2NlogyNCb <- sampling(mm2NlogyNCb, data = data.list.mm2, iter = 2000, chains = 2, cores = 2, 
+                           control=list(max_treedepth=14))
+broom::tidyMCMC(fit.mm2NlogyNCb,
+                 pars = c("beta_age","beta_age2",
+                           "alpha_prov","alpha_block", "alpha",
+                           "sigma_prov","sigma_block",
+                           "sigma_y","lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
+  kable(caption = "Two-varying intercepts model mm2NlogyNCb with non-centered parameterization")
+```
+
+```{r pairsPlotsmm2NlogyNCb, fig.width = 17, fig.height = 8}
+mcmc_pairs(as.array(fit.mm2NlogyNCb), np = nuts_params(fit.mm2NlogyNCb),
+           pars = c("alpha","sigma_prov","sigma_block","sigma_y"), 
+           off_diag_args = list(size = 1, alpha = 1/3),
+           np_style = pairs_style_np(div_size=3, div_shape = 19))
+```
+
+```{r pairsPlotsmm2NlogyNCbFunnel, fig.width = 17, fig.height = 10}
+mcmc_pairs(as.array(fit.mm2NlogyNCb), np = nuts_params(fit.mm2NlogyNCb),
+           pars = c("alpha_prov[1]","alpha_prov[2]","alpha_prov[3]","alpha_prov[4]","alpha_prov[5]","sigma_prov"), 
+           off_diag_args = list(size = 1, alpha = 1/3),
+           np_style = pairs_style_np(div_size=3, div_shape = 19))
+```
+
+```{r pairsPlotsmm2NlogyNCbFunnelBlocks, fig.width = 17, fig.height = 8}
+mcmc_pairs(as.array(fit.mm2NlogyNCb), np = nuts_params(fit.mm2NlogyNCb),
+           pars = c("alpha_block[1]","alpha_block[2]","alpha_block[3]","alpha_block[4]","sigma_block"), 
+           off_diag_args = list(size = 1, alpha = 1/3),
+           np_style = pairs_style_np(div_size=3, div_shape = 19))
+```
 
 # **Multilevel models with varying intercepts and slopes**
 
@@ -361,7 +407,7 @@ One important point however: provenances are likely to covary in their intercept
 
 \begin{equation}
 \begin{aligned}
-h_{i} & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\[4pt]
+\text{log}(h_{i}) & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\[4pt]
 \mu_{i} & = \alpha + \alpha_{BLOCK[b]} + \alpha_{PROV[p]} + \beta_{PROV[p]}age_{i} + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} \\[4pt]
 
 \begin{bmatrix}  \alpha_{PROV} \\  \beta_{PROV}  
@@ -371,8 +417,8 @@ h_{i} & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\[4pt]
           \mathbf{R}
           \begin{pmatrix} \sigma_{\alpha_{PROV}} & 0 \\ 0 & \sigma_{\beta_{PROV}} \end{pmatrix} \\[4pt]
           
-\alpha & \sim \text{LogNormal}(0,1)\\[4pt] 
-\beta_{age} & \sim \text{LogNormal}(0,1) \\[4pt]
+\alpha & \sim \mathcal{N}(0,1)\\[4pt] 
+\beta_{age} & \sim \mathcal{N}(0,1) \\[4pt]
 \beta_{age2} & \sim \mathcal{N}(0,1)\\[4pt]
 
 
@@ -398,25 +444,28 @@ This line states that each provenance has an intercept $\alpha_{PROV}$ and slope
 
 - $\mathbf{S} = \begin{pmatrix} \sigma_{\alpha_{PROV}} & 0 \\ 0 & \sigma_{\beta_{PROV}} \end{pmatrix} \mathbf{R} \begin{pmatrix} \sigma_{\alpha_{PROV}} & 0 \\ 0 & \sigma_{\beta_{PROV}} \end{pmatrix}$. 
 
-$\mathbf{S}$ is the covariance matrix and can be written by factoring it into separate standard deviations, $\sigma_{\alpha_{PROV}}$ and $\sigma_{\beta_{PROV}}$, and a correlation matrix $\mathbf{R}$. $\mathbf{R}$ can be written as follows:
+$\mathbf{S}$ is the covariance matrix and can be written by factoring it into separate standard deviations, $\sigma_{\alpha_{PROV}}$ and $\sigma_{\beta_{PROV}}$, and a correlation matrix $\mathbf{R}$, which can be written as follows:
 $$\mathbf{R} = \begin{pmatrix} 1 & \rho \\ \rho & 1 \end{pmatrix}$$
 where $\rho$ is the correlation between intercepts and slopes.
 
 - The rest of the model just defines fixed priors. The prior of $\mathbf{R}$ is the LKJcorr prior, with only one parameter to define it. In larger matrices, with additional varying slopes, the same LKJcorr prior will work. What LKJcorr(2) does is define a weakly informative prior on $\rho$ that is skeptical of extreme correlations near −1 or 1. You can think of it as a **regularizing prior for correlations**. This distribution has a single parameter, $\eta$, that controls how skeptical the prior is of large correlations in the matrix. When we use LKJcorr(1), the prior is flat over all valid correlation matrices. When the value is greater than 1, such as the 2 we used above, then extreme correlations are less likely.
 
-```{r VizualizePriorLKJcorr,fig.width=4,fig.height=3}
-Rho2 <- rlkjcorr( 1e4 , K=2 , eta=2 )
-Rho1 <- rlkjcorr( 1e4 , K=2 , eta=1 )
-Rho4 <- rlkjcorr( 1e4 , K=2 , eta=4 )
-plot_grid(dens(Rho1[,1,2],xlim=c(-1,1),xlab="correlation" ,ylim=c(0,1.2),main="eta=1"),
-         dens(Rho2[,1,2] , xlab="correlation" ,xlim=c(-1,1),ylim=c(0,1.2),main="eta=2"),
-         dens(Rho4[,1,2],xlim=c(-1,1),xlab="correlation" ,ylim=c(0,1.2),main="eta=4"))
+```{r VizualizePriorLKJcorr,fig.width=6,fig.height=5,echo=F}
+tibble("2"=rlkjcorr( 1e4 , K=2 , eta=2 )[,1,2],
+       "1" = rlkjcorr( 1e4 , K=2 , eta=1 )[,1,2],
+       "4" = rlkjcorr( 1e4 , K=2 , eta=4 )[,1,2]) %>% 
+       tidyr::pivot_longer(everything(),names_to = "Rho", values_to = "eta") %>% 
+  ggplot(aes(x=eta, color=Rho)) +
+  geom_density(size=1) +
+  theme_bw() + labs(color="Value of eta") + 
+  theme(legend.position = c(0.85,0.8))
 ```
 
+- [Stan's manual - Multivariate Priors for Hierarchical Models](https://mc-stan.org/docs/2_22/stan-users-guide/multivariate-hierarchical-priors-section.html)
 
-> So, how is it in Stan? 
+"The basic behavior of the LKJ correlation distribution is similar to that of a beta distribution. For $\eta=1$, the result is a **uniform distribution**. Despite being the identity over correlation matrices, the marginal distribution over the entries in that matrix (i.e., the correlations) is not uniform between -1 and 1. Rather, **it concentrates around zero as the dimensionality increases due to the complex constraints**. For $\eta > 1$, the density increasingly concentrates mass around the unit matrix, i.e., **favoring less correlation**. For  $\eta < 1$, it increasingly concentrates mass in the other direction, i.e., **favoring more correlation**. The LKJ prior may thus be used to control the expected amount of correlation among the parameters. For a discussion of decomposing a covariance prior into a prior on correlation matrices and an independent prior on scales, see Barnard, McCulloch, and Meng (2000)."
 
-The following model is based on: [Stan code of Statistical Rethinking. 13.3 Example: cross-classified chimpanzees with varying slopes](https://github.com/ssp3nc3r/rethinking/blob/master/chapter13.Rmd). But, take care, in this example, some priors are missing!
+- The following model is based on: [Stan code of Statistical Rethinking. 13.3 Example: cross-classified chimpanzees with varying slopes](https://github.com/ssp3nc3r/rethinking/blob/master/chapter13.Rmd). But, take care, in this example, some priors are missing!
 
 
 ```{r DatalistmmCov}
@@ -442,7 +491,6 @@ broom::tidyMCMC(fit.mmCovNlogyClkj2,
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
   kable(caption = "Multilevel model mmCovNlogyClkj2 with varying intercepts and slopes with centered parameterization")
 ```
-
 
 ```{r PostPredictmmCovNlogyClkj2}
 ppc_dens_overlay(y = log(data$height),
@@ -517,7 +565,7 @@ mcmc_pairs(as.array(fit.mmCovNlogyClkj4), np = nuts_params(fit.mmCovNlogyClkj4),
 
 \begin{equation}
 \begin{aligned}
-h_{i} & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\[4pt]
+\text{log}(h_{i}) & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\[4pt]
 \mu_{i} & = \alpha + z_{\alpha_{BLOCK[b]}}\sigma_{\alpha_{BLOCK}} + z_{\alpha_{PROV[p]}}\sigma_{\alpha_{PROV}} + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i} +  z_{\beta_{PROV[p]}}\sigma_{\beta_{PROV}}age_{i} \\[4pt]
 
 \begin{bmatrix}  z_{\alpha_{PROV}} \\  z_{\beta_{PROV}} 
@@ -568,14 +616,84 @@ ppc_dens_overlay(y = log(data$height),
 
 ```{r pairsPlotsmmCovNlogyNC1, fig.width = 17, fig.height = 10}
 mcmc_pairs(as.array(fit.mmCovlogyNC1), np = nuts_params(fit.mmCovlogyNC1),
-           pars = c("alpha","R_prov[1,2]","sigma_prov[1]","sigma_prov[2]","sigma_y"), 
+           pars = c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","z_alpha_prov[1]","z_beta_prov[1]","z_alpha_block[1]"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
 
+```{r caterpillarmmCovNlogyNC1, fig.width = 17, fig.height = 8}
+mcmc_trace(as.array(fit.mmCovlogyNC1), pars = c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","z_alpha_prov[1]","z_beta_prov[1]","z_alpha_block[1]"), 
+           np = nuts_params(fit.mmCovlogyNC1)) + 
+  xlab("Post-warmup iteration")
+```
+
+#### Same but with getting the intercepts back **mmCovNlogyNC2**
 
 
+
+```{r SamplingmmCovNlogyNC2}
+mmCovlogyNC2 = stan_model("mmCovNlogyNC2.stan")
+fit.mmCovlogyNC2 <- sampling(mmCovlogyNC2, data = data.list.mmCov, iter = 2000, chains = 2, cores = 2, 
+                           control=list(max_treedepth=14))
+broom::tidyMCMC(fit.mmCovlogyNC2,
+                 pars = c("beta_age","beta_age2","alpha",
+                          "alpha_block","sigma_block","alpha_prov",
+                          "beta_prov","R_prov","sigma_prov",
+                          "sigma_y","lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
+  kable(caption = "Multilevel model mmCovlogyNC2 with varying intercepts and slopes with non-centered parameterization")
+```
+
+```{r pairsPlotsmmCovNlogyNC2, fig.width = 17, fig.height = 10}
+mcmc_pairs(as.array(fit.mmCovlogyNC2), np = nuts_params(fit.mmCovlogyNC2),
+           pars = c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","alpha_prov[1]","beta_prov[1]","alpha_block[1]"), 
+           off_diag_args = list(size = 1, alpha = 1/3),
+           np_style = pairs_style_np(div_size=3, div_shape = 19))
+```
+
+
+```{r caterpillarmmCovNlogyNC2, fig.width = 17, fig.height = 8}
+mcmc_trace(as.array(fit.mmCovlogyNC2), pars = c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","alpha_prov[1]","beta_prov[1]","alpha_block[1]"), 
+           np = nuts_params(fit.mmCovlogyNC2)) + 
+  xlab("Post-warmup iteration")
+```
+
+
+#### More regularizing priors on scale parameters **mmCovNlogyNC3**
+
+\begin{equation}
+\begin{aligned}
+\sigma_{\beta_{PROV}} & \sim \text{Exponential}(1)\\[4pt]
+\sigma_{\alpha_{PROV}} & \sim \text{Exponential}(1)\\[4pt]
+\end{aligned}
+\end{equation}
+
+```{r SamplingmmCovNlogyNC3}
+mmCovlogyNC3 = stan_model("mmCovNlogyNC3.stan")
+fit.mmCovlogyNC3 <- sampling(mmCovlogyNC3, data = data.list.mmCov, iter = 2000, chains = 2, cores = 2, 
+                           control=list(max_treedepth=14))
+broom::tidyMCMC(fit.mmCovlogyNC3,
+                 pars = c("beta_age","beta_age2","alpha",
+                          "alpha_block","sigma_block","alpha_prov",
+                          "beta_prov","R_prov","sigma_prov",
+                          "sigma_y","lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
+  kable(caption = "Multilevel model mmCovlogyNC3 with varying intercepts and slopes with non-centered parameterization")
+```
+
+```{r pairsPlotsmmCovNlogyNC3, fig.width = 17, fig.height = 10}
+mcmc_pairs(as.array(fit.mmCovlogyNC3), np = nuts_params(fit.mmCovlogyNC3),
+           pars = c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","alpha_prov[1]","beta_prov[1]","alpha_block[1]"), 
+           off_diag_args = list(size = 1, alpha = 1/3),
+           np_style = pairs_style_np(div_size=3, div_shape = 19))
+```
+
+```{r caterpillarmmCovNlogyNC3, fig.width = 17, fig.height = 8}
+mcmc_trace(as.array(fit.mmCovlogyNC3), pars = c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","alpha_prov[1]","beta_prov[1]","alpha_block[1]"), 
+           np = nuts_params(fit.mmCovlogyNC3)) + 
+  xlab("Post-warmup iteration")
+```
 
 
 > Comment: The correlation is still in the matrix, **how can we take the correlation matrix out of the prior??**
@@ -584,10 +702,46 @@ mcmc_pairs(as.array(fit.mmCovlogyNC1), np = nuts_params(fit.mmCovlogyNC1),
 
 ### Cholesky decomposition version 
 
+- [Stan's manual: Optimization through Cholesky Factorization](https://mc-stan.org/docs/2_22/stan-users-guide/multivariate-hierarchical-priors-section.html)
+"An even better solution, both in terms of **efficiency** and **numerical stability**, is to parameterize the model directly in terms of Cholesky factors of correlation matrices using the multivariate version of the non-centered parameterization."
 
-McElreath (p457, Second version): "It is possible to further extend this non-centering strategy of taking parameters out of the prior. All that is left in the priors above is the correlation matrix, $\mathbf{R}$ . These too can be extracted by using a **Cholesky decomposition** of the correlation matrix. A Cholesky decomposition $\mathbf{L}$ is a way to represent a square, symmetric matrix like a correlation matrix $\mathbf{R}$ such that $\mathbf{R} = \mathbf{L}\mathbf{L}^\intercal$ . It is a marvelous fact that you can multiply $\mathbf{L}$ by a matrix of uncorrelated samples (z-scores) and end up with a matrix of correlated samples (the varying effects). This is the trick that lets us take the covariance matrix out of the prior. We just sample a matrix of uncorrelated z-scores and then multiply those by the Cholesky factor and the standard deviations to get the varying effects with the correct scale and correlation. It would be magic, except that it is just algebra.""
 
-> Let's look at three ways to write the same model. I think they are equivalent, it's just a question of writing.
+- McElreath (p457, Second version): "It is possible to further extend this non-centering strategy of taking parameters out of the prior. All that is left in the priors above is the correlation matrix, $\mathbf{R}$ . These too can be extracted by using a **Cholesky decomposition** of the correlation matrix. A Cholesky decomposition $\mathbf{L}$ is a way to represent a square, symmetric matrix like a correlation matrix $\mathbf{R}$ such that $\mathbf{R} = \mathbf{L}\mathbf{L}^\intercal$ . It is a marvelous fact that you can multiply $\mathbf{L}$ by a matrix of uncorrelated samples (z-scores) and end up with a matrix of correlated samples (the varying effects). This is the trick that lets us take the covariance matrix out of the prior. We just sample a matrix of uncorrelated z-scores and then multiply those by the Cholesky factor and the standard deviations to get the varying effects with the correct scale and correlation. It would be magic, except that it is just algebra."
+
+- Jim Savage [A few simple reparameterizations](http://modernstatisticalworkflow.blogspot.com/2017/07/a-few-simple-reparameterizations.html)
+
+\begin{equation}
+\begin{aligned}
+\text{log}(h_{i}) & \sim \mathcal{N}(\mu_{i},\sigma_{i})\\[4pt]
+\mu_{i} & = \alpha + z_{\alpha_{BLOCK[b]}}\sigma_{\alpha_{BLOCK}} + v_{\alpha_{PROV[p]}} + v_{\beta_{PROV[p]}}age_{i} + \beta_{age}age_{i} + \beta_{age2}age^{2}_{i}  \\[4pt]
+
+\begin{bmatrix}  v_{\alpha_{PROV}} \\  v_{\beta_{PROV}}
+    \end{bmatrix} & = \begin{pmatrix} \sigma_{\alpha_{PROV}} & 0 \\ 0 & \sigma_{\beta_{PROV}} \end{pmatrix}  \mathbf{L} \mathbf{L}^\intercal \begin{bmatrix}  z_{\alpha_{PROV}} \\  z_{\beta_{PROV}} \end{bmatrix} \\[4pt]
+    
+\begin{bmatrix}  z_{\alpha_{PROV}} \\  z_{\beta_{PROV}} 
+    \end{bmatrix} & \sim \mathcal{N}(0,1) \\[4pt]
+
+          
+          
+\beta_{age} & \sim \mathcal{N}(0,1) \\[4pt]
+\beta_{age2} & \sim \mathcal{N}(0,1)\\[4pt]
+\alpha & \sim \mathcal{N}(0,1)\\[4pt]
+
+z_{\alpha_{BLOCK}} & \sim \mathcal{N}(0,1)\\[4pt]
+\sigma_{\alpha_{BLOCK}} & \sim \text{Exponential}(1)\\[4pt]
+\sigma & \sim \text{Exponential}(1)\\[4pt]
+
+\sigma_{\beta_{PROV}} & \sim \text{Exponential}(1)\\[4pt]
+\sigma_{\alpha_{PROV}} & \sim \text{Exponential}(1)\\[4pt]
+
+
+\mathbf{R} = \mathbf{L} \mathbf{L}^\intercal &  \sim \text{LKJcorr(4)}
+
+\end{aligned}
+\end{equation}
+
+
+> Let's look at three ways to write the same model. I think they are equivalent, it's just a matter of writing.
 
 #### Option 1 **mmCovNlogyNCcholdec1**
 
@@ -603,7 +757,7 @@ broom::tidyMCMC(fit.mmCovNlogyNCcholdec1,
                           "v_prov","sigma_prov","R_prov",
                           "sigma_y","lp__"),
                 droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
-  kable(caption = "Multilevel model mmCovNlogyNCcholdec1 with varying intercepts and slopes with non-centered parameterization (Cholesky decomposition version")
+  kable(caption = "Multilevel model mmCovNlogyNCcholdec1 with varying intercepts and slopes with non-centered parameterization (Cholesky decomposition version)")
 ```
 
 ```{r pairsPlotsmmCovNlogyNCcholdec1, fig.width = 17, fig.height = 10}
@@ -663,29 +817,45 @@ mcmc_pairs(as.array(fit.mmCovNlogyNCcholdec3), np = nuts_params(fit.mmCovNlogyNC
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
-> Effective sample size comparison
+## Model quick comparison
+
+> Effective sample size 
 
 
-```{r nEffCompare}
-tibble("mmCovNlogyClkj4"=summary(fit.mmCovNlogyClkj4)$summary[1:25,"n_eff"],
+```{r nEffCompare, warning=F,message=F,echo=F,fig.width=20,fig.height=6}
+tibble(
+"mmCovNlogyClkj2"=summary(fit.mmCovNlogyClkj2)$summary[1:25,"n_eff"],
+"mmCovNlogyClkj4"=summary(fit.mmCovNlogyClkj4)$summary[1:25,"n_eff"],
 "mmCovlogyNC1"=summary(fit.mmCovlogyNC1)$summary[1:25,"n_eff"],
-"mmCovNlogyNCcholdec1"=summary(fit.mmCovNlogyNCcholdec1)$summary[1:25,"n_eff"]) %>% 
+"mmCovlogyNC2"=summary(fit.mmCovlogyNC2)$summary[1:25,"n_eff"],
+"mmCovlogyNC3"=summary(fit.mmCovlogyNC3)$summary[1:25,"n_eff"],
+"mmCovNlogyNCcholdec1"=summary(fit.mmCovNlogyNCcholdec1)$summary[1:25,"n_eff"],
+"mmCovNlogyNCcholdec2"=summary(fit.mmCovNlogyNCcholdec2)$summary[1:25,"n_eff"],
+"mmCovNlogyNCcholdec3"=summary(fit.mmCovNlogyNCcholdec3)$summary[1:25,"n_eff"]) %>% 
   tidyr::pivot_longer(everything(),names_to = "model", values_to = "n_eff") %>% 
   ggplot(aes(x=model, y=n_eff)) + 
-  geom_boxplot() + theme_bw()
+  geom_boxplot() + theme_bw() + labs(y="Effective sample size") +
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=18))
 ```
 
 
 > Running time
 
-```{r comparingRunningTimeMM}
-lapply(lapply(c(fit.mmCovNlogyClkj4, fit.mmCovlogyNC1,fit.mmCovNlogyNCcholdec1), 
+```{r comparingRunningTimeMM, echo=F}
+lapply(lapply(c(fit.mmCovNlogyClkj2,fit.mmCovNlogyClkj4, 
+                fit.mmCovlogyNC1,fit.mmCovlogyNC2,fit.mmCovlogyNC3,
+                fit.mmCovNlogyNCcholdec1,fit.mmCovNlogyNCcholdec2,fit.mmCovNlogyNCcholdec3), 
        get_elapsed_time), data.frame) %>% 
   bind_rows(.id = "model") %>% 
   mutate(model = recode_factor(model, 
-                               "1" = "Model mmCovNlogyClkj4 - centered",
-                               "2" = "Model mmCovlogyNC1 - non-centered",
-                               "3" = "Model mmCovNlogyNCcholdec1 - non-centered with the Cholesky decomposition")) %>% 
+                               "1" = "Model mmCovNlogyClkj2 - centered $\\text{LKJcorr(2)}$",
+                               "2" = "Model mmCovNlogyClkj4 - centered $\\text{LKJcorr(4)}$",
+                               "3" = "Model mmCovlogyNC1 - non-centered",
+                               "4" = "Model mmCovlogyNC2 - non-centered $\\sigma_{PROV} \\sim \\text{Exponential}(1)$",
+                               "5" = "Model mmCovlogyNC3 - non-centered $\\sigma_{PROV} \\sim \\mathcal{N}(0,1)$",
+                               "6" = "Model mmCovNlogyNCcholdec1 - non-centered with the Cholesky decomposition 1",
+                               "7" = "Model mmCovNlogyNCcholdec2 - non-centered with the Cholesky decomposition 2",
+                               "8" = "Model mmCovNlogyNCcholdec3 - non-centered with the Cholesky decomposition 3")) %>% 
   mutate(total = warmup + sample) %>% 
   arrange(total) %>% 
   kable(caption = "Model speed comparison of multilevels models with covarying intercepts and slopes")

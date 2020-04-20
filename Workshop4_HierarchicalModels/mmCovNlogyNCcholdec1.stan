@@ -21,7 +21,7 @@ parameters {                                                                   /
   
   vector<lower=0>[2] sigma_prov;                                               // sd among intercepts and slopes of the provenances
   matrix[2,nprov] z_prov;                                                      // z-score of the provenance intercepts and slopes
-  cholesky_factor_corr[2] L_R_prov;                                            // Cholesky correlation factors
+  cholesky_factor_corr[2] L_R_prov;                                            // Cholesky correlation factors:   R_prov = L_R_prov * L_R_prov'
 }
 
 transformed parameters {
@@ -36,7 +36,7 @@ model{
     real mu[N];
     
   //Priors
-  L_R_prov ~ lkj_corr_cholesky(4);
+  L_R_prov ~ lkj_corr_cholesky(4); //  implies L_R_prov * L_R_prov' ~ lkj_corr(4); 
   to_vector(z_prov) ~ normal(0,1); 
 // The z-score matrixes are assigned their prior using to_vector , because normal(0,1) applies to vectors, not matrixes. 
 // The function to_vector forces the normal(0,1) prior on each cell in the matrix of z-scores.

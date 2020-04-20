@@ -8,53 +8,56 @@ data {                                                                         /
   int<lower=0, upper=nblock> bloc[N];                                          // Blocks
 }
 
+
+
 parameters {                                                                   // unobserved variables
   real beta_age;
   real beta_age2;
   real alpha;
   real<lower=0> sigma_y;
-
-  vector[nblock] alpha_block;                                                  // block intercepts
+  
+  vector[nblock] z_alpha_block;                                                // z-score of block intercepts
   real<lower=0> sigma_block;                                                   // sd among intercepts of the blocks 
-
-  vector[nprov] alpha_prov;                                                    // prov intercepts
-  vector[nprov] beta_prov;                                                     // prov slopes (with age)
+  
+  vector[nprov] z_alpha_prov;                                                  // z-score of prov intercepts
+  vector[nprov] z_beta_prov;                                                   // z-score of prov slopes (with age)
   corr_matrix[2] R_prov;                                                       // correlation matrix R                               
   vector<lower=0>[2] sigma_prov;                                               // sd among intercepts and slopes of the provenances
-
 }
 
 transformed parameters {
-  vector[2] v_prov[nprov];                                                     // vector of provenance intercepts and slopes (that have to covary)
-  cov_matrix[2] S_prov;                                                        // covariance matrix S
+  vector[2] v_prov[nprov];
+  vector[nblock] alpha_block;
+  vector[nprov] alpha_prov;
+  vector[nprov] beta_prov;
   
-  for(j in 1:nprov) v_prov[j] = [alpha_prov[j], beta_prov[j]]';
-  S_prov = quad_form_diag(R_prov, sigma_prov);
+  alpha_block =  z_alpha_block*sigma_block;
+  alpha_prov = z_alpha_prov*sigma_prov[1];
+  beta_prov = z_beta_prov*sigma_prov[2];
   
-  // Stan's manual:  "The function quad_form_diag is defined so that quad_form_diag(R_prov, sigma_prov) is equivalent to diag_matrix(sigma_prov) * R_prov * diag_matrix(sigma_prov), 
-  // where diag_matrix(sigma_prov) returns the matrix with sigma_prov on the diagonal and zeroes off diagonal; the version using quad_form_diag should be faster."
+  for(j in 1:nprov) v_prov[j] = [z_alpha_prov[j], z_beta_prov[j]]';
 }
 
 model{
   real mu[N];
 
 //Priors
-  target += multi_normal_lpdf(v_prov|rep_vector(0, 2), S_prov);                //  two-dimensional Gaussian distribution with mean 0 and covariance matrix S. 
+  R_prov ~ lkj_corr(4);
+  sigma_prov ~ normal(0,1);
+  
+  target += multi_normal_lpdf(v_prov|rep_vector(0, 2), R_prov);
   
   alpha ~ normal(0,1);
   beta_age ~ normal(0,1);
   beta_age2 ~ normal(0,1);
   
-  alpha_block ~ normal(0, sigma_block);
+  z_alpha_block ~ normal(0,1);
   sigma_block ~ exponential(1);
   sigma_y ~ exponential(1);
-  sigma_prov ~ exponential(1);
-  
-  R_prov ~ lkj_corr(2);
 
 // Linear model
   for (i in 1:N){
-  mu[i] = alpha  + alpha_block[bloc[i]] + alpha_prov[prov[i]] + beta_prov[prov[i]] * age[i] + beta_age * age[i] + beta_age2*square(age)[i];
+  mu[i] = alpha  + alpha_block[bloc[i]] + alpha_prov[prov[i]] + beta_prov[prov[i]]* age[i] + beta_age*age[i] + beta_age2*square(age)[i];
   }  
   
 // Likelihood
@@ -64,8 +67,6 @@ model{
 generated quantities {
   vector[N] y_rep;
 
-  for(i in 1:N)  y_rep[i] = normal_rng(alpha  + alpha_block[bloc[i]] + alpha_prov[prov[i]] + beta_prov[prov[i]] * age[i] + beta_age * age[i] + beta_age2*square(age)[i], sigma_y);
+  for(i in 1:N)  y_rep[i] = normal_rng(alpha  + alpha_block[bloc[i]] + alpha_prov[prov[i]] + beta_prov[prov[i]]* age[i] + beta_age*age[i] + beta_age2*square(age)[i], sigma_y);
 }
-
-
 
