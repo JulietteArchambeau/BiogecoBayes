@@ -34,3 +34,6 @@ model{
   target +=  normal_lpdf(y |alpha_prov[prov] + alpha_block[bloc] + beta_age * age + beta_age *square(age), sigma_y);
 }
 
+generated quantities {
+  real y_rep[N] = normal_rng(alpha_prov[prov] + alpha_block[bloc] + beta_age * age + beta_age2*square(age), sigma_y);
+}

@@ -44,6 +44,8 @@ model{
 //Priors
   R_prov ~ lkj_corr(4);
   sigma_prov ~ exponential(1);
+  z_alpha_prov ~ normal(0,1);
+  z_beta_prov ~ normal(0,1);
   
   target += multi_normal_lpdf(v_prov|rep_vector(0, 2), R_prov);
   

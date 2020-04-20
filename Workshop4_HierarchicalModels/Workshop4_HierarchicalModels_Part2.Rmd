@@ -51,7 +51,7 @@ pre[class] {
 ```{r setup, include=FALSE}
 library(knitr)
 options(width = 300)
-knitr::opts_chunk$set(fig.width = 8, fig.height = 5, cache = TRUE)
+knitr::opts_chunk$set(fig.width = 5, fig.height = 4, cache = TRUE)
 library(rstan)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
@@ -62,6 +62,7 @@ library(ggplot2)
 color_scheme_set("green")
 library(tibble)
 library(cowplot)
+library(latex2exp)
 library(rethinking)
 library(loo)
 library(dplyr)
@@ -124,7 +125,7 @@ plot_grid(ggplot(data, aes(x=age,y=log(height))) +
             theme(axis.title=element_text(size=16)))
 ```
 
-```{r heightProvBlock, message = F, warning = F, fig.cap="Height distribution by Provenance and Block.", fig.width=14,fig.height=8}
+```{r heightProvBlock, message = F, warning = F, fig.cap="Height distribution by Provenance and Block.", fig.width=10,fig.height=6}
 ggplot(data, aes(x=height, color=block)) +
   geom_histogram(fill="white", alpha=0.5, position="identity") + 
   theme_bw()  +
@@ -188,10 +189,10 @@ ppc_dens_overlay(y = log(data$height),
                  as.matrix(fit.mm2NlogyCa, pars = "y_rep")[1:50, ]) +
   theme_bw() + 
   theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
+        axis.text = element_text(size=18), legend.position = c(0.8,0.8))
 ```
 
-```{r pairsPlotsmm2NlogyCa, fig.width = 17, fig.height = 10}
+```{r pairsPlotsmm2NlogyCa, fig.width = 12, fig.height = 6}
 mcmc_pairs(as.array(fit.mm2NlogyCa), np = nuts_params(fit.mm2NlogyCa),
            pars = c("mean_alpha_prov","sigma_alpha_prov",
                     "mean_alpha_block","sigma_alpha_block","sigma_y"), 
@@ -241,10 +242,10 @@ ppc_dens_overlay(y = log(data$height),
                  as.matrix(fit.mm2NlogyCb, pars = "y_rep")[1:50, ]) +
   theme_bw() + 
   theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
+        axis.text = element_text(size=18), legend.position = c(0.8,0.8))
 ```
 
-```{r pairsPlotsmm2NlogyCb, fig.width = 17, fig.height = 8}
+```{r pairsPlotsmm2NlogyCb, fig.width = 12, fig.height = 6}
 mcmc_pairs(as.array(fit.mm2NlogyCb), np = nuts_params(fit.mm2NlogyCb),
            pars = c("alpha","sigma_alpha_prov","sigma_alpha_block","sigma_y"), 
            off_diag_args = list(size = 1, alpha = 1/3),
@@ -258,14 +259,14 @@ What happens when some parameters are conditional on other parameters? Like here
 
 
 
-```{r pairsPlotsmm2NlogyCbFunnel, fig.width = 17, fig.height = 10}
+```{r pairsPlotsmm2NlogyCbFunnel, fig.width = 13, fig.height = 9}
 mcmc_pairs(as.array(fit.mm2NlogyCb), np = nuts_params(fit.mm2NlogyCb),
            pars = c("alpha_prov[1]","alpha_prov[2]","alpha_prov[3]","alpha_prov[4]","alpha_prov[5]","sigma_alpha_prov"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
-```{r pairsPlotsmm2NlogyCbFunnelBlocks, fig.width = 17, fig.height = 8}
+```{r pairsPlotsmm2NlogyCbFunnelBlocks, fig.width = 13, fig.height = 9}
 mcmc_pairs(as.array(fit.mm2NlogyCb), np = nuts_params(fit.mm2NlogyCb),
            pars = c("alpha_block[1]","alpha_block[2]","alpha_block[3]","alpha_block[4]","sigma_alpha_block"), 
            off_diag_args = list(size = 1, alpha = 1/3),
@@ -323,10 +324,10 @@ ppc_dens_overlay(y = log(data$height),
                  as.matrix(fit.mm2NlogyNCa, pars = "y_rep")[1:50, ]) +
   theme_bw() + 
   theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
+        axis.text = element_text(size=18), legend.position = c(0.85,0.85))
 ```
 
-```{r pairsPlotsmm2NlogyNCa, fig.width = 17, fig.height = 8}
+```{r pairsPlotsmm2NlogyNCa, fig.width = 12, fig.height = 6}
 mcmc_pairs(as.array(fit.mm2NlogyNCa), np = nuts_params(fit.mm2NlogyNCa),
            pars = c("alpha","sigma_prov","sigma_block","sigma_y"), 
            off_diag_args = list(size = 1, alpha = 1/3),
@@ -334,14 +335,14 @@ mcmc_pairs(as.array(fit.mm2NlogyNCa), np = nuts_params(fit.mm2NlogyNCa),
 ```
 
 
-```{r pairsPlotsmm2NlogyNCaFunnel, fig.width = 17, fig.height = 10}
+```{r pairsPlotsmm2NlogyNCaFunnel, fig.width = 13, fig.height = 9}
 mcmc_pairs(as.array(fit.mm2NlogyNCa), np = nuts_params(fit.mm2NlogyNCa),
            pars = c("z_prov[1]","z_prov[2]","z_prov[3]","z_prov[4]","z_prov[5]","sigma_prov"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
-```{r pairsPlotsmm2NlogyNCaFunnelBlocks, fig.width = 17, fig.height = 8}
+```{r pairsPlotsmm2NlogyNCaFunnelBlocks, fig.width = 13, fig.height = 9}
 mcmc_pairs(as.array(fit.mm2NlogyNCa), np = nuts_params(fit.mm2NlogyNCa),
            pars = c("z_block[1]","z_block[2]","z_block[3]","z_block[4]","sigma_block"), 
            off_diag_args = list(size = 1, alpha = 1/3),
@@ -364,21 +365,21 @@ broom::tidyMCMC(fit.mm2NlogyNCb,
   kable(caption = "Two-varying intercepts model mm2NlogyNCb with non-centered parameterization")
 ```
 
-```{r pairsPlotsmm2NlogyNCb, fig.width = 17, fig.height = 8}
+```{r pairsPlotsmm2NlogyNCb, fig.width = 12, fig.height = 6}
 mcmc_pairs(as.array(fit.mm2NlogyNCb), np = nuts_params(fit.mm2NlogyNCb),
            pars = c("alpha","sigma_prov","sigma_block","sigma_y"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
-```{r pairsPlotsmm2NlogyNCbFunnel, fig.width = 17, fig.height = 10}
+```{r pairsPlotsmm2NlogyNCbFunnel, fig.width = 12, fig.height = 6}
 mcmc_pairs(as.array(fit.mm2NlogyNCb), np = nuts_params(fit.mm2NlogyNCb),
            pars = c("alpha_prov[1]","alpha_prov[2]","alpha_prov[3]","alpha_prov[4]","alpha_prov[5]","sigma_prov"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
-```{r pairsPlotsmm2NlogyNCbFunnelBlocks, fig.width = 17, fig.height = 8}
+```{r pairsPlotsmm2NlogyNCbFunnelBlocks, fig.width = 12, fig.height = 6}
 mcmc_pairs(as.array(fit.mm2NlogyNCb), np = nuts_params(fit.mm2NlogyNCb),
            pars = c("alpha_block[1]","alpha_block[2]","alpha_block[3]","alpha_block[4]","sigma_block"), 
            off_diag_args = list(size = 1, alpha = 1/3),
@@ -450,14 +451,14 @@ where $\rho$ is the correlation between intercepts and slopes.
 
 - The rest of the model just defines fixed priors. The prior of $\mathbf{R}$ is the LKJcorr prior, with only one parameter to define it. In larger matrices, with additional varying slopes, the same LKJcorr prior will work. What LKJcorr(2) does is define a weakly informative prior on $\rho$ that is skeptical of extreme correlations near −1 or 1. You can think of it as a **regularizing prior for correlations**. This distribution has a single parameter, $\eta$, that controls how skeptical the prior is of large correlations in the matrix. When we use LKJcorr(1), the prior is flat over all valid correlation matrices. When the value is greater than 1, such as the 2 we used above, then extreme correlations are less likely.
 
-```{r VizualizePriorLKJcorr,fig.width=6,fig.height=5,echo=F}
+```{r VizualizePriorLKJcorr,fig.width=4,fig.height=4,echo=F}
 tibble("2"=rlkjcorr( 1e4 , K=2 , eta=2 )[,1,2],
        "1" = rlkjcorr( 1e4 , K=2 , eta=1 )[,1,2],
        "4" = rlkjcorr( 1e4 , K=2 , eta=4 )[,1,2]) %>% 
-       tidyr::pivot_longer(everything(),names_to = "Rho", values_to = "eta") %>% 
-  ggplot(aes(x=eta, color=Rho)) +
+       tidyr::pivot_longer(everything(),names_to = "eta", values_to = "correlation") %>% 
+  ggplot(aes(x=correlation, color=eta)) +
   geom_density(size=1) +
-  theme_bw() + labs(color="Value of eta") + 
+  theme_bw() + labs(color="Value of eta",x=TeX("Correlation $\\rho$")) + 
   theme(legend.position = c(0.85,0.8))
 ```
 
@@ -500,14 +501,14 @@ ppc_dens_overlay(y = log(data$height),
         axis.text = element_text(size=18), legend.position = c(0.8,0.6))
 ```
 
-```{r pairsPlotsmmCovNlogyClkj2, fig.width = 17, fig.height = 10}
+```{r pairsPlotsmmCovNlogyClkj2, fig.width = 13, fig.height = 6}
 mcmc_pairs(as.array(fit.mmCovNlogyClkj2), np = nuts_params(fit.mmCovNlogyClkj2),
            pars = c("alpha","R_prov[1,2]","sigma_prov[1]","sigma_prov[2]","sigma_y"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
-```{r pairsPlotsmmCovNlogyClkj2AlphaBeta, fig.width = 17, fig.height = 15}
+```{r pairsPlotsmmCovNlogyClkj2AlphaBeta, fig.width = 13, fig.height = 6}
 mcmc_pairs(as.array(fit.mmCovNlogyClkj2), np = nuts_params(fit.mmCovNlogyClkj2),
            pars = c("alpha_prov[1]","alpha_prov[2]","alpha_prov[3]","alpha_prov[4]","alpha_prov[5]",
                     "beta_prov[1]","beta_prov[2]","beta_prov[3]","beta_prov[4]","beta_prov[5]"), 
@@ -542,7 +543,7 @@ ppc_dens_overlay(y = log(data$height),
         axis.text = element_text(size=18), legend.position = c(0.8,0.6))
 ```
 
-```{r pairsPlotsmmCovNlogyClkj4, fig.width = 17, fig.height = 10}
+```{r pairsPlotsmmCovNlogyClkj4, fig.width = 13, fig.height = 6}
 mcmc_pairs(as.array(fit.mmCovNlogyClkj4), np = nuts_params(fit.mmCovNlogyClkj4),
            pars = c("alpha","R_prov[1,2]","sigma_prov[1]","sigma_prov[2]","sigma_y"), 
            off_diag_args = list(size = 1, alpha = 1/3),
@@ -593,7 +594,7 @@ z_{\alpha_{BLOCK}} & \sim \mathcal{N}(0,1)\\[4pt]
 Based on McEleath: "**Notice that each varying intercept and slope is multiplied by its corresponding scale parameter**, one of the standard deviations that ordinarily appears inside the multivariate Gaussian prior for these effects. This just undoes the standardization that is imposed in the prior. Inside the priors, there are no covariance matrices now. There are just correlation matrices, since the scale of each dimension has been migrated to the linear model. So these adaptive priors are essentially distributions of correlated z-scores."
 
 ```{r SamplingmmCovNlogyNC1}
-mmCovlogyNC1 = stan_model("mmCovNlogyNC1.stan")
+mmCovlogyNC1 = stan_model("mmCovNlogyNC1.stan") 
 fit.mmCovlogyNC1 <- sampling(mmCovlogyNC1, data = data.list.mmCov, iter = 2000, chains = 2, cores = 2, 
                            control=list(max_treedepth=14))
 broom::tidyMCMC(fit.mmCovlogyNC1,
@@ -607,24 +608,24 @@ broom::tidyMCMC(fit.mmCovlogyNC1,
 
 
 ```{r PostPredictmmCovNlogyNC1}
-ppc_dens_overlay(y = log(data$height),
+ppc_dens_overlay(y = log(data$height), 
                  as.matrix(fit.mmCovlogyNC1, pars = "y_rep")[1:50, ]) +
   theme_bw() + 
   theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
-        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
+        axis.text = element_text(size=18), legend.position = c(0.85,0.85))
 ```
 
-```{r pairsPlotsmmCovNlogyNC1, fig.width = 17, fig.height = 10}
-mcmc_pairs(as.array(fit.mmCovlogyNC1), np = nuts_params(fit.mmCovlogyNC1),
+```{r pairsPlotsmmCovNlogyNC1, fig.width = 13, fig.height = 8}
+mcmc_pairs(as.array(fit.mmCovlogyNC1), np = nuts_params(fit.mmCovlogyNC1), 
            pars = c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","z_alpha_prov[1]","z_beta_prov[1]","z_alpha_block[1]"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
 
-```{r caterpillarmmCovNlogyNC1, fig.width = 17, fig.height = 8}
+```{r caterpillarmmCovNlogyNC1, fig.width = 12, fig.height = 6}
 mcmc_trace(as.array(fit.mmCovlogyNC1), pars = c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","z_alpha_prov[1]","z_beta_prov[1]","z_alpha_block[1]"), 
-           np = nuts_params(fit.mmCovlogyNC1)) + 
+           np = nuts_params(fit.mmCovlogyNC1)) +  
   xlab("Post-warmup iteration")
 ```
 
@@ -633,7 +634,7 @@ mcmc_trace(as.array(fit.mmCovlogyNC1), pars = c("alpha","R_prov[1,2]","sigma_blo
 
 
 ```{r SamplingmmCovNlogyNC2}
-mmCovlogyNC2 = stan_model("mmCovNlogyNC2.stan")
+mmCovlogyNC2 = stan_model("mmCovNlogyNC2.stan") 
 fit.mmCovlogyNC2 <- sampling(mmCovlogyNC2, data = data.list.mmCov, iter = 2000, chains = 2, cores = 2, 
                            control=list(max_treedepth=14))
 broom::tidyMCMC(fit.mmCovlogyNC2,
@@ -645,18 +646,18 @@ broom::tidyMCMC(fit.mmCovlogyNC2,
   kable(caption = "Multilevel model mmCovlogyNC2 with varying intercepts and slopes with non-centered parameterization")
 ```
 
-```{r pairsPlotsmmCovNlogyNC2, fig.width = 17, fig.height = 10}
-mcmc_pairs(as.array(fit.mmCovlogyNC2), np = nuts_params(fit.mmCovlogyNC2),
+```{r pairsPlotsmmCovNlogyNC2, fig.width = 13, fig.height = 8}
+mcmc_pairs(as.array(fit.mmCovlogyNC2), np = nuts_params(fit.mmCovlogyNC2), 
            pars = c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","alpha_prov[1]","beta_prov[1]","alpha_block[1]"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
 
-```{r caterpillarmmCovNlogyNC2, fig.width = 17, fig.height = 8}
-mcmc_trace(as.array(fit.mmCovlogyNC2), pars = c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","alpha_prov[1]","beta_prov[1]","alpha_block[1]"), 
+```{r caterpillarmmCovNlogyNC2, fig.width = 13, fig.height = 8}
+mcmc_trace(as.array(fit.mmCovlogyNC2), pars =  c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","alpha_prov[1]","beta_prov[1]","alpha_block[1]"), 
            np = nuts_params(fit.mmCovlogyNC2)) + 
-  xlab("Post-warmup iteration")
+  xlab("Post-warmup iteration") 
 ```
 
 
@@ -682,14 +683,14 @@ broom::tidyMCMC(fit.mmCovlogyNC3,
   kable(caption = "Multilevel model mmCovlogyNC3 with varying intercepts and slopes with non-centered parameterization")
 ```
 
-```{r pairsPlotsmmCovNlogyNC3, fig.width = 17, fig.height = 10}
+```{r pairsPlotsmmCovNlogyNC3, fig.width = 15, fig.height = 8}
 mcmc_pairs(as.array(fit.mmCovlogyNC3), np = nuts_params(fit.mmCovlogyNC3),
            pars = c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","alpha_prov[1]","beta_prov[1]","alpha_block[1]"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
 ```
 
-```{r caterpillarmmCovNlogyNC3, fig.width = 17, fig.height = 8}
+```{r caterpillarmmCovNlogyNC3, fig.width = 15, fig.height = 8}
 mcmc_trace(as.array(fit.mmCovlogyNC3), pars = c("alpha","R_prov[1,2]","sigma_block","sigma_prov[1]","sigma_prov[2]","sigma_y","alpha_prov[1]","beta_prov[1]","alpha_block[1]"), 
            np = nuts_params(fit.mmCovlogyNC3)) + 
   xlab("Post-warmup iteration")
@@ -760,7 +761,7 @@ broom::tidyMCMC(fit.mmCovNlogyNCcholdec1,
   kable(caption = "Multilevel model mmCovNlogyNCcholdec1 with varying intercepts and slopes with non-centered parameterization (Cholesky decomposition version)")
 ```
 
-```{r pairsPlotsmmCovNlogyNCcholdec1, fig.width = 17, fig.height = 10}
+```{r pairsPlotsmmCovNlogyNCcholdec1, fig.width = 15, fig.height = 8}
 mcmc_pairs(as.array(fit.mmCovNlogyNCcholdec1), np = nuts_params(fit.mmCovNlogyNCcholdec1),
            pars = c("alpha","R_prov[1,2]","sigma_prov[1]","sigma_prov[2]","sigma_y"), 
            off_diag_args = list(size = 1, alpha = 1/3),
@@ -785,7 +786,7 @@ broom::tidyMCMC(fit.mmCovNlogyNCcholdec2,
   kable(caption = "Multilevel model mmCovNlogyNCcholdec2 with varying intercepts and slopes with non-centered parameterization (Cholesky decomposition version")
 ```
 
-```{r pairsPlotsmmCovNlogyNCcholdec2, fig.width = 17, fig.height = 10}
+```{r pairsPlotsmmCovNlogyNCcholdec2, fig.width = 15, fig.height = 8}
 mcmc_pairs(as.array(fit.mmCovNlogyNCcholdec2), np = nuts_params(fit.mmCovNlogyNCcholdec2),
            pars = c("alpha","R_prov[1,2]","sigma_prov[1]","sigma_prov[2]","sigma_y"), 
            off_diag_args = list(size = 1, alpha = 1/3),
@@ -810,11 +811,49 @@ broom::tidyMCMC(fit.mmCovNlogyNCcholdec3,
   kable(caption = "Multilevel model mmCovNlogyNCcholdec3 with varying intercepts and slopes with non-centered parameterization (Cholesky decomposition version")
 ```
 
-```{r pairsPlotsmmCovNlogyNCcholdec3, fig.width = 17, fig.height = 10}
+```{r pairsPlotsmmCovNlogyNCcholdec3, fig.width = 15, fig.height = 8}
 mcmc_pairs(as.array(fit.mmCovNlogyNCcholdec3), np = nuts_params(fit.mmCovNlogyNCcholdec3),
            pars = c("alpha","R_prov[1,2]","sigma_prov[1]","sigma_prov[2]","sigma_y"), 
            off_diag_args = list(size = 1, alpha = 1/3),
            np_style = pairs_style_np(div_size=3, div_shape = 19))
+```
+
+
+#### Option Sylvain **mmCovNlogyNCcholdec4**
+
+> Let's optimize our models. 
+
+
+```{r SamplingmmCovNlogyNCcholdec4}
+mmCovNlogyNCcholdec4= stan_model("mmCovNlogyNCcholdec4.stan")
+fit.mmCovNlogyNCcholdec4 <- sampling(mmCovNlogyNCcholdec4, data = data.list.mmCov, iter = 2000, chains = 2, cores = 2, 
+                           control=list(max_treedepth=14)) 
+broom::tidyMCMC(fit.mmCovNlogyNCcholdec4, 
+                 pars = c("beta","alpha",
+                          "z_alpha_block","sigma",
+                          "alpha_prov","beta_prov","R_prov",
+                          "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
+  kable(caption = "Multilevel model mmCovNlogyNCcholdec4 with varying intercepts and slopes with non-centered parameterization (Cholesky decomposition version")
+```
+
+A prior on a transformed parameter? We have to be careful with that:
+
+- https://www.rpubs.com/kaz_yos/stan_jacobian
+
+
+
+```{r SamplingmmCovNlogyNCcholdec5}
+mmCovNlogyNCcholdec5= stan_model("mmCovNlogyNCcholdec5.stan")
+fit.mmCovNlogyNCcholdec5 <- sampling(mmCovNlogyNCcholdec5, data = data.list.mmCov, iter = 2000, chains = 2, cores = 2, 
+                           control=list(max_treedepth=14)) 
+broom::tidyMCMC(fit.mmCovNlogyNCcholdec5, 
+                 pars = c("beta","alpha",
+                          "z_alpha_block","sigma",
+                          "alpha_prov","beta_prov","R_prov",
+                          "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
+  kable(caption = "Multilevel model mmCovNlogyNCcholdec5 with varying intercepts and slopes with non-centered parameterization (Cholesky decomposition version")
 ```
 
 ## Model quick comparison
@@ -822,7 +861,7 @@ mcmc_pairs(as.array(fit.mmCovNlogyNCcholdec3), np = nuts_params(fit.mmCovNlogyNC
 > Effective sample size 
 
 
-```{r nEffCompare, warning=F,message=F,echo=F,fig.width=20,fig.height=6}
+```{r nEffCompare, warning=F,message=F,echo=F,fig.width=20,fig.height=5}
 tibble(
 "mmCovNlogyClkj2"=summary(fit.mmCovNlogyClkj2)$summary[1:25,"n_eff"],
 "mmCovNlogyClkj4"=summary(fit.mmCovNlogyClkj4)$summary[1:25,"n_eff"],
