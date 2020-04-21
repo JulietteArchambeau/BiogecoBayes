@@ -819,9 +819,12 @@ mcmc_pairs(as.array(fit.mmCovNlogyNCcholdec3), np = nuts_params(fit.mmCovNlogyNC
 ```
 
 
-#### Option Sylvain **mmCovNlogyNCcholdec4**
+> Let's optimize our models!
 
-> Let's optimize our models. 
+#### Option Sylvain **mmCovNlogyNCcholdec4** 
+
+> prior on L_R_prov (but error message)
+
 
 
 ```{r SamplingmmCovNlogyNCcholdec4}
@@ -841,7 +844,9 @@ A prior on a transformed parameter? We have to be careful with that:
 
 - https://www.rpubs.com/kaz_yos/stan_jacobian
 
+#### Option Sylvain **mmCovNlogyNCcholdec5**  
 
+> prior on R_prov (safe solution, we are sure it's okay)
 
 ```{r SamplingmmCovNlogyNCcholdec5}
 mmCovNlogyNCcholdec5= stan_model("mmCovNlogyNCcholdec5.stan")
@@ -870,11 +875,13 @@ tibble(
 "mmCovlogyNC3"=summary(fit.mmCovlogyNC3)$summary[1:25,"n_eff"],
 "mmCovNlogyNCcholdec1"=summary(fit.mmCovNlogyNCcholdec1)$summary[1:25,"n_eff"],
 "mmCovNlogyNCcholdec2"=summary(fit.mmCovNlogyNCcholdec2)$summary[1:25,"n_eff"],
-"mmCovNlogyNCcholdec3"=summary(fit.mmCovNlogyNCcholdec3)$summary[1:25,"n_eff"]) %>% 
+"mmCovNlogyNCcholdec3"=summary(fit.mmCovNlogyNCcholdec3)$summary[1:25,"n_eff"],
+"mmCovNlogyNCcholdec4"=summary(fit.mmCovNlogyNCcholdec4)$summary[1:25,"n_eff"],
+"mmCovNlogyNCcholdec5"=summary(fit.mmCovNlogyNCcholdec5)$summary[1:25,"n_eff"]) %>% 
   tidyr::pivot_longer(everything(),names_to = "model", values_to = "n_eff") %>% 
   ggplot(aes(x=model, y=n_eff)) + 
   geom_boxplot() + theme_bw() + labs(y="Effective sample size") +
-  theme(axis.text = element_text(size=14),axis.title = element_text(size=18))
+  theme(axis.text = element_text(size=10),axis.title = element_text(size=18))
 ```
 
 
@@ -883,7 +890,7 @@ tibble(
 ```{r comparingRunningTimeMM, echo=F}
 lapply(lapply(c(fit.mmCovNlogyClkj2,fit.mmCovNlogyClkj4, 
                 fit.mmCovlogyNC1,fit.mmCovlogyNC2,fit.mmCovlogyNC3,
-                fit.mmCovNlogyNCcholdec1,fit.mmCovNlogyNCcholdec2,fit.mmCovNlogyNCcholdec3), 
+                fit.mmCovNlogyNCcholdec1,fit.mmCovNlogyNCcholdec2,fit.mmCovNlogyNCcholdec3,fit.mmCovNlogyNCcholdec4,fit.mmCovNlogyNCcholdec5), 
        get_elapsed_time), data.frame) %>% 
   bind_rows(.id = "model") %>% 
   mutate(model = recode_factor(model, 
@@ -894,7 +901,9 @@ lapply(lapply(c(fit.mmCovNlogyClkj2,fit.mmCovNlogyClkj4,
                                "5" = "Model mmCovlogyNC3 - non-centered $\\sigma_{PROV} \\sim \\mathcal{N}(0,1)$",
                                "6" = "Model mmCovNlogyNCcholdec1 - non-centered with the Cholesky decomposition 1",
                                "7" = "Model mmCovNlogyNCcholdec2 - non-centered with the Cholesky decomposition 2",
-                               "8" = "Model mmCovNlogyNCcholdec3 - non-centered with the Cholesky decomposition 3")) %>% 
+                               "8" = "Model mmCovNlogyNCcholdec3 - non-centered with the Cholesky decomposition 3",
+                               "9" = "Model mmCovNlogyNCcholdec4 - non-centered with the Cholesky decomposition 4 (Sylvain's optimization)",
+                               "10" = "Model mmCovNlogyNCcholdec5 - non-centered with the Cholesky decomposition 5 (Sylvain's optimization)")) %>% 
   mutate(total = warmup + sample) %>% 
   arrange(total) %>% 
   kable(caption = "Model speed comparison of multilevels models with covarying intercepts and slopes")
