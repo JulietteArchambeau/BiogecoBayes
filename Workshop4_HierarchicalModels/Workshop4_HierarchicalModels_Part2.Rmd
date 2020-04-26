@@ -861,6 +861,26 @@ broom::tidyMCMC(fit.mmCovNlogyNCcholdec5,
   kable(caption = "Multilevel model mmCovNlogyNCcholdec5 with varying intercepts and slopes with non-centered parameterization (Cholesky decomposition version")
 ```
 
+#### Option Sylvain **mmCovNlogyNCcholdec6** 
+
+> prior on L_R_prov (but error message)
+
+> To reduce the running time, we can also choose to not keep the warmup with `save_warmup = F` and we can also choose to not keep the parameters we are not interested in, such as `L_R_prov` with `include = F, parameters = c("L_R_prov","z_prov")`.
+
+
+
+```{r SamplingmmCovNlogyNCcholdec6}
+mmCovNlogyNCcholdec6= stan_model("mmCovNlogyNCcholdec6.stan")
+fit.mmCovNlogyNCcholdec6 <- sampling(mmCovNlogyNCcholdec6, data = data.list.mmCov, iter = 2000, chains = 2, cores = 2, save_warmup = F,
+                           control=list(max_treedepth=14),include = F, pars = c("L_R_prov","z_prov")) 
+broom::tidyMCMC(fit.mmCovNlogyNCcholdec6,
+                 pars = c("beta","alpha",
+                          "z_alpha_block","sigma","v_prov", "R_prov",
+                          "lp__"),
+                droppars = NULL, estimate.method = "median", ess = T, rhat = T, conf.int = T) %>%
+  kable(caption = "Multilevel model mmCovNlogyNCcholdec6 with varying intercepts and slopes with non-centered parameterization (Cholesky decomposition version")
+```
+
 ## Model quick comparison
 
 > Effective sample size 
@@ -890,7 +910,8 @@ tibble(
 ```{r comparingRunningTimeMM, echo=F}
 lapply(lapply(c(fit.mmCovNlogyClkj2,fit.mmCovNlogyClkj4, 
                 fit.mmCovlogyNC1,fit.mmCovlogyNC2,fit.mmCovlogyNC3,
-                fit.mmCovNlogyNCcholdec1,fit.mmCovNlogyNCcholdec2,fit.mmCovNlogyNCcholdec3,fit.mmCovNlogyNCcholdec4,fit.mmCovNlogyNCcholdec5), 
+                fit.mmCovNlogyNCcholdec1,fit.mmCovNlogyNCcholdec2,fit.mmCovNlogyNCcholdec3,fit.mmCovNlogyNCcholdec4,fit.mmCovNlogyNCcholdec5,
+                fit.mmCovNlogyNCcholdec6), 
        get_elapsed_time), data.frame) %>% 
   bind_rows(.id = "model") %>% 
   mutate(model = recode_factor(model, 
@@ -903,7 +924,8 @@ lapply(lapply(c(fit.mmCovNlogyClkj2,fit.mmCovNlogyClkj4,
                                "7" = "Model mmCovNlogyNCcholdec2 - non-centered with the Cholesky decomposition 2",
                                "8" = "Model mmCovNlogyNCcholdec3 - non-centered with the Cholesky decomposition 3",
                                "9" = "Model mmCovNlogyNCcholdec4 - non-centered with the Cholesky decomposition 4 (Sylvain's optimization)",
-                               "10" = "Model mmCovNlogyNCcholdec5 - non-centered with the Cholesky decomposition 5 (Sylvain's optimization)")) %>% 
+                               "10" = "Model mmCovNlogyNCcholdec5 - non-centered with the Cholesky decomposition 5 (Sylvain's optimization)",
+                               "11" = "Model mmCovNlogyNCcholdec6 - non-centered with the Cholesky decomposition 6 (Sylvain's optimization)")) %>% 
   mutate(total = warmup + sample) %>% 
   arrange(total) %>% 
   kable(caption = "Model speed comparison of multilevels models with covarying intercepts and slopes")
