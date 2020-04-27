@@ -1,0 +1,348 @@
+---
+title: "Workshop 5 -- Population dynamics and time series"
+author: "Frederic Barraquand"
+date: "March 21, 2020"
+output: 
+  html_document:
+      toc: true
+      toc_depth: 4
+      toc_float:
+        collapsed: false
+      theme: paper
+      highlight: textmate
+---
+
+```{r setup, include=FALSE}
+options(width = 300)
+knitr::opts_chunk$set(cache = TRUE)
+library(rstan)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+library(MASS)
+library(bayesplot)
+```
+
+## Exponential growth in a stochastic environment
+
+Let us start by a few reminders about population dynamics. The basis of population dynamics is exponential growth $\frac{dN(t)}{dt} = rN$. You can also note that this corresponds to a contant per capita growth rate (fitness of the average individual) $\frac{1}{N} \frac{dN(t)}{dt} = r$. By putting terms in $N$ on one side and terms in $t$ in the other, one can show that $N(t) = N(0) \exp(rt)$ or even $N(t+1) = N(t) \exp(r)$, often noted $N_{t+1} = N_t e^{r}$. 
+
+What on Earth could this highly theoretical construct have to do with time series, you might think? Well, here you go.
+
+Let's denote the log-abundance $x_t = \log(N_t)$. Now we have $x_{t+1} = x_t + r$. As it turns out, the stochastic model with environmental stochasticity has log-normal noise, so on the log-scale it is simply $x_{t+1} = x_t + r + \epsilon_t, \, \epsilon_t \sim \mathcal{N}(0,\sigma^2)$. This is the simplest model that can be fitted to time series data, and mathematically speaking this is a biaised random walk with mean $r$ (i.e., it is more likely to go up than down). An $r$ close to zero will indicate relative stability. 
+
+This model has all sorts of interesting properties due to the stochastic part, such as the fact that the probability of hitting zero, including with very positive $r$, can be very large if variance is large. Let's simulate and fit that model. 
+
+```{r simulating-data}
+set.seed(42)
+r=0.1
+tmax = 50
+x=x1=rep(0,tmax)
+for (t in 1:(tmax-1)){x[t+1] = x[t] + r + rnorm(1,0,sqrt(0.1))}
+for (t in 1:(tmax-1)){x1[t+1] = x1[t] + r + rnorm(1,0,sqrt(0.25))}
+minx=min(c(x,x1))
+maxx=max(c(x,x1))
+par(mfrow=c(2,1),pch=20)
+plot(1:tmax,x,type="o",ylim=c(minx,maxx))
+lines(1:tmax,x1,type="o",col="blue")
+plot(1:tmax,exp(x),type="o",ylim=c(exp(minx),exp(maxx)))
+lines(1:tmax,exp(x1),type="o",col="blue")
+```
+
+Data in a list:
+
+```{r data_m1}
+m10.data <- list(x=x, tmax = tmax)
+m11.data <- list(x=x1, tmax = tmax)
+```
+
+
+```{stan output.var="m1.1"}
+data {                                             // observed variables 
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variables
+ 
+}
+parameters {                                       // unobserved parameters
+  real r;
+  real<lower=0> sigma; 
+}
+model {
+
+  //priors
+  r ~ normal(0,1);
+  sigma ~ exponential(10);
+  
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(x[t] + r,sigma); // likelihood 
+  }
+
+}
+```
+
+```{r print_m1.0}
+fit.m1.0 <- sampling(m1.1, data = m10.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.0, probs = c(0.10, 0.5, 0.9))
+```
+
+Keeping in mind that $\sqrt{0.1} = 0.31$ and$\sqrt{0.25} = 0.5$. Let's do that with another dataset
+
+```{r print_m1.1}
+fit.m1.1 <- sampling(m1.1, data = m11.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.1, probs = c(0.10, 0.5, 0.9))
+```
+
+
+And again with two other datasets, to see if could have some bias here (or if it is just low precision).
+
+```{r print_m1.23}
+x2=x3=rep(0,tmax)
+for (t in 1:(tmax-1)){x2[t+1] = x2[t] + r + rnorm(1,0,sqrt(0.1))}
+for (t in 1:(tmax-1)){x3[t+1] = x3[t] + r + rnorm(1,0,sqrt(0.1))}
+
+m12.data <- list(x=x2, tmax = tmax)
+m13.data <- list(x=x3, tmax = tmax)
+
+fit.m1.2<- sampling(m1.1, data = m12.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.2, probs = c(0.10, 0.5, 0.9))
+
+fit.m1.3<- sampling(m1.1, data = m13.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.3, probs = c(0.10, 0.5, 0.9))
+```
+
+There does not seem to be bias on $\sigma$. Still uniform priors for the SD are often suggested to avoid issues. Let's try that. 
+
+```{stan output.var="m1.2"}
+data {                                             // observed variables 
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variables
+ 
+}
+parameters {                                       // unobserved parameters
+  real r;
+  real<lower=0> sigma; 
+}
+model {
+
+  //priors
+  r ~ normal(0,1);
+  sigma ~ uniform(0,1);                         //1 is a high variance, we're much below. 
+  
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(x[t] + r,sigma); // likelihood 
+  }
+
+}
+```
+
+We now fit the model to two datasets having $\sigma = \sqrt{0.1} = 0.31$ and one having $\sigma = \sqrt{0.25} = 0.5$ 
+
+```{r print_m1.4}
+
+fit.m1.4<- sampling(m1.2, data = m10.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.4, probs = c(0.10, 0.5, 0.9))
+
+fit.m1.5<- sampling(m1.2, data = m12.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.5, probs = c(0.10, 0.5, 0.9))
+
+### for the last one we take the sigma = 0.5 parameter set
+fit.m1.6<- sampling(m1.2, data = m11.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m1.6, probs = c(0.10, 0.5, 0.9))
+
+
+```
+
+Let's investigate the correlations then. All good. 
+
+```{r pairsPlotsm1.4}
+mcmc_pairs(as.array(fit.m1.4), np = nuts_params(fit.m1.4),
+           pars = c("r","sigma"), 
+           off_diag_args = list(size = 1, alpha = 1/3),
+           np_style = pairs_style_np(div_size=3, div_shape = 19))
+```
+
+What have we learned so far? 
+
+* Estimating a population growth rate can seem very hard on a highly variable, unregulated 50-year time series with one point per year, if we try to recover the **true** parameters (!). But there's no systematic bias nor identifiability issues.  
+* The likely cause of the issue is that for a highly variable stochastic process, the **realized** long-term growth rate can be very different from one time series to the next. This is useful to keep in mind for **any** realization of a highly variable stochastic process. A formal investigation of this might vary systematically time series length. 
+* Regulated populations, that we study next, tend to be **for the most part** a little less variable from one time series to the next (there are exceptions), but with possibly more complex relationships between parameters. 
+
+```{r realized-growth}
+
+mean(m10.data$x[2:tmax]-m10.data$x[1:(tmax-1)]) #realized mean growth rate dataset m10
+mean(m12.data$x[2:tmax]-m12.data$x[1:(tmax-1)]) #realized mean growth rate dataset m12
+minx=min(c(m10.data$x,m12.data$x))
+maxx=max(c(m10.data$x,m12.data$x))
+par(pch=20)
+plot(1:tmax,m10.data$x,type="o",ylim=c(minx,maxx),ylab="log(N)",xlab="Time")
+lines(1:tmax,m12.data$x,type="o",col="blue")
+
+```
+
+
+## Gompertz growth and the AR(1) process
+
+You might be shocked that the next chapter is not logistic growth? Well, from a statistical perspective:
+
+ * The Gompertz model is easier to fit, which has justified its uses in very many works on statistical population dynamics [as this now-classic monograph by Brian Dennis et al.](https://esajournals.onlinelibrary.wiley.com/doi/pdf/10.1890/0012-9615%282006%2976%5B323%3AEDDPNA%5D2.0.CO%3B2). 
+ * It actually [fits better than logistic equivalents in quite a number of cases, notably when abundance varies greatly](https://esajournals.onlinelibrary.wiley.com/doi/pdf/10.1890/0012-9658%281999%29080%5B0638%3ADDIVAM%5D2.0.CO%3B2?casa_token=alyuGar-ppkAAAAA:2CsODiUKJix1hdD9B-FdXUE-2NED8q4xLfFUQ8mICuO5RvF3ycEMFGXma6kjAfWFi_ppVOLfmseOFU_N). The discrete-time Gompertz model (with stochasticity) can be written 
+
+ $$N_{t+1} = N_t e^{a - \beta \log(N_t) + \epsilon_t}, \, \epsilon_t \sim \mathcal{N}(0,\sigma^2). $$
+
+which is rigorously equivalent to 
+
+ $$N_{t+1} = N_t e^{a} \frac{1}{N_t^{\beta}} \times \exp( \epsilon_t ). $$ 
+
+Usually this blows people's minds, we have to recall that $\beta \log(N_t) = \log(N_t^\beta)$ so that $\exp(\beta\log(N_t)) = \exp(\log(N_t^\beta)) = N_t^\beta$.  One of the important ideas about that model is that $b<1$ (usually) will mediate the effect of individuals at low vs high densities; as population size increase individuals have less of a negative effect. It is also an extraordinarily statistically convenient, because this equation is also equivalent to 
+
+ $$x_{t+1} = a - \beta x_t + \epsilon_t = a + b x_t  + \epsilon_t, \, \epsilon_t \sim \mathcal{N}(0,\sigma^2).$$
+
+Convenient, isn't it? Now we can use this versatile model to test whether population growth slows down when density increases, just by fitting a linear time series model. This is called the AR(1) model -- AutoRegressive model of order 1. It has a very famous continuous-time counterpart called the Ornstein-Uhlenbeck process, which has physical origins; you can think of it as a ball that's attracted to center with a pull strength proportional to the distance to the center. In a deterministic setting, the ball converges to the center ($x=a/(1-b)=a/\beta$ here). But random perturbations ($\epsilon_t$) make it oscillate around the center. 
+
+There are many applications and multivariate generalisations of this simple model in aquatic ecology, including fisheries.  [For much more on this an state-space models (in Stan as well), see the course by Eli Holmes, Eric Ward and Mark Sheuerell](https://nwfsc-timeseries.github.io/atsa/lectures.html). Here we will only cover the basic Gompertz growth, with only one state, the process state (no observation error). 
+
+[Simulation and stan fit -- showing correlations between parameters as well.]
+
+```{r simulating-data-gompertz}
+
+a=1
+b=0.8 # this is 1-beta, so the "pull strength" beta = 0.2 here (and if b=1, we have a random walk)
+tmax = 50
+x=x1=rep(0,tmax)
+for (t in 1:(tmax-1)){x[t+1] = a + b*x[t] + rnorm(1,0,sqrt(0.1))}
+for (t in 1:(tmax-1)){x1[t+1] = a + b*x[t] + rnorm(1,0,sqrt(0.25))}
+minx=min(c(x,x1))
+maxx=max(c(x,x1))
+par(mfrow=c(2,1),pch=20)
+plot(1:tmax,x,type="o",ylim=c(minx,maxx))
+lines(1:tmax,x1,type="o",col="blue")
+plot(1:tmax,exp(x),type="o",ylim=c(exp(minx),exp(maxx)))
+lines(1:tmax,exp(x1),type="o",col="blue")
+```
+
+Now let's fit that model
+
+```{stan output.var="m2.1"}
+data {                                             // observed variables 
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variables
+ 
+}
+parameters {                                       // unobserved parameters
+  real a;                                          //growth rate when log(N) = 0, not a true max with N=density
+  real b;
+  real<lower=0> sigma; 
+}
+model {
+
+  //priors
+  a ~ normal(0,1);
+  b ~ normal(0,1);
+  sigma ~ exponential(10);
+  
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(a+b*x[t],sigma); // likelihood 
+  }
+
+}
+```
+
+
+```{r data_m2}
+m20.data <- list(x=x, tmax = tmax)
+m21.data <- list(x=x1, tmax = tmax)
+```
+
+
+```{r print_m2.0}
+fit.m2.0 <- sampling(m2.1, data = m20.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m2.0, probs = c(0.10, 0.5, 0.9))
+```
+
+Keeping in mind that $\sqrt{0.1} = 0.31$ and$\sqrt{0.25} = 0.5$. Let's do that with another dataset
+
+```{r print_m2.1}
+fit.m2.1 <- sampling(m2.1, data = m21.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m2.1, probs = c(0.10, 0.5, 0.9))
+```
+
+Let's investigate the correlations.  
+
+```{r pairsPlotsm2.0}
+mcmc_pairs(as.array(fit.m2.0), np = nuts_params(fit.m2.0),
+           pars = c("a","b","sigma"), 
+           off_diag_args = list(size = 1, alpha = 1/3),
+           np_style = pairs_style_np(div_size=3, div_shape = 19))
+```
+
+Now, one of the ugly problems of population dynamics start rearing up its head. There's a correlation between $a$ and $b$ (it's not a dramatic one here, but it is annoying). It's not just something peculiar to that dataset, see the other one. 
+
+```{r pairsPlotsm2.1}
+mcmc_pairs(as.array(fit.m2.1), np = nuts_params(fit.m2.1),
+           pars = c("a","b","sigma"), 
+           off_diag_args = list(size = 1, alpha = 1/3),
+           np_style = pairs_style_np(div_size=3, div_shape = 19))
+```
+
+So, how to fix this? Most fixes involve some kind of re-parametrization or an informative prior (or in some cases, adding covariates to parameter). In that particular case, there's a very easy fix. We often use that model close to equilibrium, so we can use the transformation $\tilde{x} = x - \bar{x}$ to study only deviations of log-abundance to the mean log-abundance. This transforms the model into 
+
+$$ \tilde{x}_{t+1} = b \tilde{x}_t  + \epsilon_t, \, \epsilon_t \sim \mathcal{N}(0,\sigma^2).$$
+
+Parameter $a$ is then eliminated from the centered version of the model and we get rid of the problem. 
+
+[Adding covariates on the population growth rate -- may solve some identifiability problems on $a$]
+
+## Logistic growth
+
+Now we come to this revered, almost two-centuries old model. In continuous-time, $\frac{dN(t)}{dt} = rN(1-\frac{N}{K}) = rN- \gamma N^2$. It says that individual fitness declines linearly with population size (by contrast, in the Gompertz pop. model it declined logarithmically with population size). We could fit directly this model as an ODE. In fact, unlike many other models this one can be explicitely integrated (using some algebra) and one can derive that 
+
+$$ N(t)  = \frac{ N(0) e^{rt}}{1+ \frac{N(0)}{K} (e^{rt}-1) }$$
+
+or equivalently
+
+$$ N(t+1)  = \frac{ N(t) e^{r}}{1+ \frac{N(t)}{K} (e^{r}-1) }$$
+
+which is usually denoted 
+
+$$ N_{t+1}  = \frac{ N(t) R}{1+\alpha N(t) }$$ with the correspondance $R= e^r$ and competition coefficient $\alpha = \frac{e^{r}-1}{K}$ (instead of $\gamma = \frac{r}{K}$ in continuous-time). The discrete-time form is usually preferred, because most data we can have access is sampled from year to year or some other regular interval in time. 
+
+This model is rather popular in plant ecology nowadays, although usually called Beverton-Holt because of the origin of this functional form in fisheries science. We can introduce environmental stochasticity on the growth rate: 
+
+$$ N_{t+1}  = \frac{ N(t) e^{r+\epsilon_t}}{1+\alpha N(t) }.$$ Sometimes people write 
+
+$$ N(t+1)  = \frac{ N(t) e^{r+\epsilon_t}}{1+ \frac{N(t)}{K'} }$$ but $K'$ is a "false carrying capacity" here, in the sense that the true equilibrium pop size $N^* = K'(e^r-1)$ which can be much higher for large $r$. 
+
+Let's now simulate that model and fit it, with different parameterizations. We will try 
+
+* $(r,\alpha)$ 
+* $(r,K)$ 
+* $(r,K')$
+ 
+We consider two values of $r$ (0.1 and 2) and two levels of $\sigma^2$, 0.05 and 0.5. 
+
+[Simulations and fits here -- I am hoping that the various parameterizations will induce different qualities of fit and correlations between parameters. From previous fits I have, $(r,K)$ could a bit better in some cases than $(r,K')$ and perhaps $(r,\alpha)$ as well. NB in a multispecies competition model I am not sure this would extend and the formulation with blending $\alpha$ and $K$ has other, conceptual issues. ]
+
+## Other forms of discrete-time near-logistic growth
+
+We will consider here 
+
+* the Ricker model
+* the Theta-logistic or rather theta-Ricker model (other options are Hassell or MSS , I like that one btw https://link.springer.com/article/10.1007/s12080-008-0022-4 , but we might not have the time). There have been [some suggestions of problems with the Theta-Ricker](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/j.2041-210X.2010.00029.x), which [for some data can show multimodality in the likelihood](https://www.ncbi.nlm.nih.gov/pubmed/19739392)  but [solutions have been proposed using priors as well](https://coreybradshaw.files.wordpress.com/2013/01/delean-et-al-2013-meth-ecol-evol.pdf
+), which we could implement here. 
+
+Back to the basics of logistic growth in discrete time. Unlike what you will find in a number of textbooks, equations like $N_{t+1} = r' N_t (1 - N_t/K)$ are poor analogues to logistic growth (this one is called the logistic map, and although it has become famous for allowing all kinds of dynamical behaviour including chaos, it has the poor taste of allowing negative values). 
+
+A slightly better-behaved model, still quite far from the original logistic growth though, is the Ricker model $N_{t+1} =  N_t \exp(r(1 - N_t/K))$. The Ricker model has the good taste of allowing only positive values, and it can be derived from mechanistic individual based models as well. There are several such derivations (see [Kisdi and Geritz](https://www.ncbi.nlm.nih.gov/pubmed/15094020) and [Brannstorm and Sumpter](https://www.ncbi.nlm.nih.gov/pubmed/16191618)), but a very simple one comes from fish. Let's say that fish produces larvae. The production process is a stochastic exponential growth $e^{r+\epsilon_t}$. Then each larvae survives with a probability \exp(-\alpha N_t) that declines exponentially with $N_t$, reflecting that once there are already many fishes around eating larvae, probability cannot decline so much more. Now we have $N_{t+1} = N_t e^{r+\epsilon_t -\alpha N_t}$, which is the same Ricker model. You can think of the Ricker model as a logistic model with a delay in regulation that is the consequence of the discretization of time. 
+
+Here we will also try the two different parameterization, but we will vary $r$ some more (adding $r=3.5$) to make the model exhibit varied dynamics.  
+
+[Simulations and fits here -- first Ricker model for various kinds of dynamical behaviour, then theta-Ricker? Or theta-Ricker for the next session?]
+
+[I think there is ample material for a session 2...]
+
+### Some literature on more refined models
+
+A nice lifelike example, including more complex models such as models with delays https://onlinelibrary.wiley.com/doi/full/10.1111/j.1600-0587.2009.05604.x
+
+See also the very smart https://esajournals.onlinelibrary.wiley.com/doi/pdf/10.1002/ecs2.2215 
+
+
