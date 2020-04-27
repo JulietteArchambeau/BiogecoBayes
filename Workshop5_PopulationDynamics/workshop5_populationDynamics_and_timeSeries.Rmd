@@ -14,9 +14,9 @@ output:
 
 ```{r setup, include=FALSE}
 options(width = 300)
-knitr::opts_chunk$set(cache = TRUE)
+knitr::opts_chunk$set(cache = TRUE) ### wonder if that's not changing the size of the html https://bioinfo-fr.net/maitrisez-cache-de-rmarkdown
 library(rstan)
-rstan_options(auto_write = TRUE)
+rstan_options(auto_write = FALSE)
 options(mc.cores = parallel::detectCores())
 library(MASS)
 library(bayesplot)
