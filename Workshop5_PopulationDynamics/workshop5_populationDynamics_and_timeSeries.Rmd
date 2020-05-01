@@ -2,14 +2,17 @@
 title: "Workshop 5 -- Population dynamics and time series"
 author: "Frederic Barraquand"
 date: "March 21, 2020"
-output: 
+output:
   html_document:
-      toc: true
-      toc_depth: 4
-      toc_float:
-        collapsed: false
-      theme: paper
-      highlight: textmate
+    highlight: textmate
+    theme: paper
+    toc: yes
+    toc_depth: 4
+    toc_float:
+      collapsed: no
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
 ---
 
 ```{r setup, include=FALSE}
@@ -24,11 +27,11 @@ library(bayesplot)
 
 ## Exponential growth in a stochastic environment
 
-Let us start by a few reminders about population dynamics. The basis of population dynamics is exponential growth $\frac{dN(t)}{dt} = rN$. You can also note that this corresponds to a contant per capita growth rate (fitness of the average individual) $\frac{1}{N} \frac{dN(t)}{dt} = r$. By putting terms in $N$ on one side and terms in $t$ in the other, one can show that $N(t) = N(0) \exp(rt)$ or even $N(t+1) = N(t) \exp(r)$, often noted $N_{t+1} = N_t e^{r}$. 
+Let us start by a few reminders about population dynamics. The basis of population dynamics is exponential growth $\frac{dN(t)}{dt} = rN$. You can also note that this corresponds to a constant per capita growth rate (fitness of the average individual) $\frac{1}{N} \frac{dN(t)}{dt} = r$. By putting terms in $N$ on one side and terms in $t$ in the other, one can show that $N(t) = N(0) \exp(rt)$ or even $N(t+1) = N(t) \exp(r)$, often noted $N_{t+1} = N_t e^{r}$. 
 
 What on Earth could this highly theoretical construct have to do with time series, you might think? Well, here you go.
 
-Let's denote the log-abundance $x_t = \log(N_t)$. Now we have $x_{t+1} = x_t + r$. As it turns out, the stochastic model with environmental stochasticity has log-normal noise, so on the log-scale it is simply $x_{t+1} = x_t + r + \epsilon_t, \, \epsilon_t \sim \mathcal{N}(0,\sigma^2)$. This is the simplest model that can be fitted to time series data, and mathematically speaking this is a biaised random walk with mean $r$ (i.e., it is more likely to go up than down). An $r$ close to zero will indicate relative stability. 
+Let's denote the log-abundance $x_t = \log(N_t)$. Now we have $x_{t+1} = x_t + r$. As it turns out, the stochastic model with environmental stochasticity has log-normal noise, so on the log-scale it is simply $x_{t+1} = x_t + r + \epsilon_t, \, \epsilon_t \sim \mathcal{N}(0,\sigma^2)$. This is the simplest model that can be fitted to time series data, and mathematically speaking this is a biased random walk with mean $r$ (i.e., it is more likely to go up than down). An $r$ close to zero will indicate relative stability. 
 
 This model has all sorts of interesting properties due to the stochastic part, such as the fact that the probability of hitting zero, including with very positive $r$, can be very large if variance is large. Let's simulate and fit that model. 
 
@@ -79,14 +82,15 @@ model {
 }
 ```
 
-```{r print_m1.0}
+```{r print_m1.0,cache=T}
+
 fit.m1.0 <- sampling(m1.1, data = m10.data, iter = 1000, chains = 2, cores = 2)
 print(fit.m1.0, probs = c(0.10, 0.5, 0.9))
 ```
 
 Keeping in mind that $\sqrt{0.1} = 0.31$ and$\sqrt{0.25} = 0.5$. Let's do that with another dataset
 
-```{r print_m1.1}
+```{r print_m1.1,cache=T}
 fit.m1.1 <- sampling(m1.1, data = m11.data, iter = 1000, chains = 2, cores = 2)
 print(fit.m1.1, probs = c(0.10, 0.5, 0.9))
 ```
@@ -94,7 +98,7 @@ print(fit.m1.1, probs = c(0.10, 0.5, 0.9))
 
 And again with two other datasets, to see if could have some bias here (or if it is just low precision).
 
-```{r print_m1.23}
+```{r print_m1.23,cache=T}
 x2=x3=rep(0,tmax)
 for (t in 1:(tmax-1)){x2[t+1] = x2[t] + r + rnorm(1,0,sqrt(0.1))}
 for (t in 1:(tmax-1)){x3[t+1] = x3[t] + r + rnorm(1,0,sqrt(0.1))}
@@ -136,7 +140,7 @@ model {
 
 We now fit the model to two datasets having $\sigma = \sqrt{0.1} = 0.31$ and one having $\sigma = \sqrt{0.25} = 0.5$ 
 
-```{r print_m1.4}
+```{r print_m1.4,cache=T}
 
 fit.m1.4<- sampling(m1.2, data = m10.data, iter = 1000, chains = 2, cores = 2)
 print(fit.m1.4, probs = c(0.10, 0.5, 0.9))
@@ -192,7 +196,7 @@ which is rigorously equivalent to
 
  $$N_{t+1} = N_t e^{a} \frac{1}{N_t^{\beta}} \times \exp( \epsilon_t ). $$ 
 
-Usually this blows people's minds, we have to recall that $\beta \log(N_t) = \log(N_t^\beta)$ so that $\exp(\beta\log(N_t)) = \exp(\log(N_t^\beta)) = N_t^\beta$.  One of the important ideas about that model is that $b<1$ (usually) will mediate the effect of individuals at low vs high densities; as population size increase individuals have less of a negative effect. It is also an extraordinarily statistically convenient, because this equation is also equivalent to 
+Usually this blows people's minds, we have to recall that $\beta \log(N_t) = \log(N_t^\beta)$ so that $\exp(\beta\log(N_t)) = \exp(\log(N_t^\beta)) = N_t^\beta$.  One of the important ideas about that model is that $b<1$ (usually) will mediate the effect of individuals at low vs high densities; as population size increase individuals have less of a negative effect. It is also extraordinarily statistically convenient, because this equation is also equivalent to 
 
  $$x_{t+1} = a - \beta x_t + \epsilon_t = a + b x_t  + \epsilon_t, \, \epsilon_t \sim \mathcal{N}(0,\sigma^2).$$
 
@@ -253,14 +257,14 @@ m21.data <- list(x=x1, tmax = tmax)
 ```
 
 
-```{r print_m2.0}
+```{r print_m2.0,cache=T}
 fit.m2.0 <- sampling(m2.1, data = m20.data, iter = 1000, chains = 2, cores = 2)
 print(fit.m2.0, probs = c(0.10, 0.5, 0.9))
 ```
 
 Keeping in mind that $\sqrt{0.1} = 0.31$ and$\sqrt{0.25} = 0.5$. Let's do that with another dataset
 
-```{r print_m2.1}
+```{r print_m2.1,cache=T}
 fit.m2.1 <- sampling(m2.1, data = m21.data, iter = 1000, chains = 2, cores = 2)
 print(fit.m2.1, probs = c(0.10, 0.5, 0.9))
 ```
@@ -319,6 +323,376 @@ Let's now simulate that model and fit it, with different parameterizations. We w
  
 We consider two values of $r$ (0.1 and 2) and two levels of $\sigma^2$, 0.05 and 0.5. 
 
+```{r simulating-data-beverthon-holt_first_formula}
+
+set.seed(42)
+
+alpha=0.1
+Kprim=1/alpha #Kprim=10
+tmax=50
+
+####Let's start with r=0.1
+r=0.1
+R=exp(r) #1.0105
+K=(exp(r)-1)/alpha #K=1.05
+
+x_BH=x_BH1=rep(NA,tmax)
+x_BH[1]=x_BH1[1]=1
+for (t in 1:(tmax-1)){x_BH[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*x_BH[t]/(1+alpha*x_BH[t])}
+for (t in 1:(tmax-1)){x_BH1[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*x_BH1[t]/(1+alpha*x_BH1[t])}
+
+###
+
+par(mfrow=c(1,2),pch=20)
+plot(1:tmax,x_BH,type="o",ylim=range(c(x_BH,x_BH1)))
+lines(1:tmax,x_BH1,type="o",col="blue")
+legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
+
+
+####And go on with r=2
+r=2
+R=exp(r) #7.4
+K=(exp(r)-1)/alpha #K=63.9
+
+x_BH.2=x_BH1.2=rep(NA,tmax)
+x_BH.2[1]=x_BH1.2[1]=1
+for (t in 1:(tmax-1)){x_BH.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*x_BH.2[t]/(1+alpha*x_BH.2[t])}
+for (t in 1:(tmax-1)){x_BH1.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*x_BH1.2[t]/(1+alpha*x_BH1.2[t])}
+
+###
+
+plot(1:tmax,x_BH.2,type="o",ylim=range(c(x_BH.2,x_BH1.2)))
+lines(1:tmax,x_BH1.2,type="o",col="blue")
+legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
+
+```
+
+```{r data_m3}
+m30.data <- list(x=log(x_BH), tmax = tmax)
+m31.data <- list(x=log(x_BH1), tmax = tmax)
+m30.2.data <- list(x=log(x_BH.2), tmax = tmax)
+m31.2.data <- list(x=log(x_BH1.2), tmax = tmax)
+
+store_results=matrix(NA,nrow=12,ncol=5,dimnames=list(c("d0.m1","d1.m1","d0.2.m1","d1.2.m1","d0.m2","d1.m2","d0.2.m2","d1.2.m2","d0.m3","d1.m3","d0.2.m3","d1.2.m3"),c("r","alpha","sigma","cor(r,.)","likelihood")))
+```
+
+We start with a (r,$\alpha$) structure. 
+
+```{stan output.var="m3.1"}
+data {                                             // observed variables
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variable
+
+}
+parameters {                                       // unobserved parameters
+  real r;                                          // growth rate
+  real alpha;                                      // density-dependence
+  real<lower=0> sigma;
+}
+model {
+
+  //priors
+  r ~ normal(0,1);
+  alpha ~ normal(0,1);
+  sigma ~ exponential(10);
+
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(r+x[t]-log(1+alpha*exp(x[t])),sigma);
+  }
+}
+```
+
+How do the 4 models fit with this structure of the model?
+
+```{r print_m3.1_0,cache=T}
+fit.m3.1_0 <- sampling(m3.1, data = m30.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m3.1_0, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.1_0)
+store_results["d0.m1","r"]=mean(tmp$r)
+store_results["d0.m1","alpha"]=mean(tmp$alpha)
+store_results["d0.m1","sigma"]=mean(tmp$sigma)
+store_results["d0.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d0.m1","likelihood"]=mean(tmp$lp__)
+```
+
+The growth rate is highly underestimated, to the point that we could assume a negative growth. 
+
+```{r PlotSimum3.1_0}
+alpha_simu=mean(as.matrix(fit.m3.1_0,pars="alpha"))
+r_simu=mean(as.matrix(fit.m3.1_0,pars="r"))
+sigma_simu=mean(as.matrix(fit.m3.1_0,pars="sigma"))
+x_simu=rep(NA,tmax)
+x_simu[1]=1
+for (t in 1:(tmax-1)){x_simu[t+1] = (exp(r_simu+rnorm(1,0,sigma_simu)))*x_simu[t]/(1+alpha_simu*x_simu[t])}
+
+plot(1:tmax,x_simu,t="o")
+
+```
+
+```{r pairsPlotsm3.1_0}
+mcmc_pairs(as.array(fit.m3.1_0), np = nuts_params(fit.m3.1_0),
+           pars = c("r","alpha","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+```{r print_m3.1_1,cache=T}
+fit.m3.1_1 <- sampling(m3.1, data = m31.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.1_1, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.1_1)
+store_results["d1.m1","r"]=mean(tmp$r)
+store_results["d1.m1","alpha"]=mean(tmp$alpha)
+store_results["d1.m1","sigma"]=mean(tmp$sigma)
+store_results["d1.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d1.m1","likelihood"]=mean(tmp$lp__)
+```
+
+```{r PlotSimum3.1_1}
+alpha_simu=mean(as.matrix(fit.m3.1_1,pars="alpha"))
+r_simu=mean(as.matrix(fit.m3.1_1,pars="r"))
+sigma_simu=mean(as.matrix(fit.m3.1_1,pars="sigma"))
+x_simu=rep(NA,tmax)
+x_simu[1]=1
+for (t in 1:(tmax-1)){x_simu[t+1] = (exp(r_simu+rnorm(1,0,sigma_simu)))*x_simu[t]/(1+alpha_simu*x_simu[t])}
+
+plot(1:tmax,x_simu,t="o")
+
+```
+
+```{r pairsPlotsm3.1_1}
+mcmc_pairs(as.array(fit.m3.1_1), np = nuts_params(fit.m3.1_1),
+           pars = c("r","alpha","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+```{r print_m3.1_0.2,cache=T}
+fit.m3.1_0.2 <- sampling(m3.1, data = m30.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.1_0.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.1_0.2)
+store_results["d0.2.m1","r"]=mean(tmp$r)
+store_results["d0.2.m1","alpha"]=mean(tmp$alpha)
+store_results["d0.2.m1","sigma"]=mean(tmp$sigma)
+store_results["d0.2.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d0.2.m1","likelihood"]=mean(tmp$lp__)
+```
+
+```{r print_m3.1_1.2,cache=T}
+fit.m3.1_1.2 <- sampling(m3.1, data = m31.2.data, iter = 1000, chains = 2, cores = 2)# 2 divergent transitions, leaving that here but checking pairs
+print(fit.m3.1_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.1_1.2)
+store_results["d1.2.m1","r"]=mean(tmp$r)
+store_results["d1.2.m1","alpha"]=mean(tmp$alpha)
+store_results["d1.2.m1","sigma"]=mean(tmp$sigma)
+store_results["d1.2.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d1.2.m1","likelihood"]=mean(tmp$lp__)
+```
+
+```{r pairsPlotsm3.1_1.2}
+mcmc_pairs(as.array(fit.m3.1_1.2), np = nuts_params(fit.m3.1_1.2),
+           pars = c("r","alpha","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+Let's use the (r,K) formula.
+
+```{stan output.var="m3.2"}
+data {                                             // observed variables
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variables
+
+}
+parameters {                                       // unobserved parameters
+  real r;                                          // growth rate
+  real K;                                      // carrying capacity
+  real<lower=0> sigma;
+}
+model {
+
+  //priors
+  r ~ normal(0,1);
+  K ~ normal(0,1);
+  sigma ~ exponential(10);
+
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(r+x[t]-log(1+(exp(r)-1)*exp(x[t])/K),sigma);
+  }
+}
+```
+
+```{r print_m3.2_0,cache=T}
+fit.m3.2_0 <- sampling(m3.2, data = m30.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999)) #65 divergent transitions without correcting adapt_delta
+#print(fit.m3.2_0, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.2_0)
+store_results["d0.m2","r"]=mean(tmp$r)
+K=mean(tmp$K)
+alpha=exp(mean(tmp$r)-1)/K
+store_results["d0.m2","alpha"]=alpha
+store_results["d0.m2","sigma"]=mean(tmp$sigma)
+store_results["d0.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d0.m2","likelihood"]=mean(tmp$lp__)
+```
+
+```{r pairsPlotsm3.2_0}
+mcmc_pairs(as.array(fit.m3.2_0), np = nuts_params(fit.m3.2_0),
+           pars = c("r","K","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+```{r print_m3.2_1,cache=T}
+fit.m3.2_1 <- sampling(m3.2, data = m31.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999)) #97 divergent transitions  without correcting adapt_delta
+#print(fit.m3.2_1, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.2_1)
+K=mean(tmp$K)
+alpha=exp(mean(tmp$r)-1)/K
+store_results["d1.m2","r"]=mean(tmp$r)
+store_results["d1.m2","alpha"]=alpha
+store_results["d1.m2","sigma"]=mean(tmp$sigma)
+store_results["d1.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d1.m2","likelihood"]=mean(tmp$lp__)
+```
+
+```{r pairsPlotsm3.3_1}
+mcmc_pairs(as.array(fit.m3.2_1), np = nuts_params(fit.m3.2_1),
+           pars = c("r","K","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+```{r print_m3.2_0.2,cache=T}
+fit.m3.2_0.2 <- sampling(m3.2, data = m30.2.data, iter = 1000, chains = 2, cores = 2,control=list(adapt_delta=0.999)) #92 divergent transitions without correcting adapt_delta
+#print(fit.m3.2_0.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.2_0.2)
+K=mean(tmp$K)
+alpha=exp(mean(tmp$r)-1)/K
+store_results["d0.2.m2","r"]=mean(tmp$r)
+store_results["d0.2.m2","alpha"]=alpha
+store_results["d0.2.m2","sigma"]=mean(tmp$sigma)
+store_results["d0.2.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d0.2.m2","likelihood"]=mean(tmp$lp__)
+```
+
+
+```{r print_m3.2_1.2,cache=T}
+fit.m3.2_1.2 <- sampling(m3.2, data = m31.2.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999)) #128 divergent transitions without correcting 
+#print(fit.m3.1_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.2_1.2)
+K=mean(tmp$K)
+alpha=exp(mean(tmp$r)-1)/K
+store_results["d1.2.m2","r"]=mean(tmp$r)
+store_results["d1.2.m2","alpha"]=alpha
+store_results["d1.2.m2","sigma"]=mean(tmp$sigma)
+store_results["d1.2.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d1.2.m2","likelihood"]=mean(tmp$lp__)
+```
+```{r pairsPlotsm3.3_1}
+mcmc_pairs(as.array(fit.m3.2_1.2), np = nuts_params(fit.m3.2_1.2),
+           pars = c("r","K","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+And finally, the (r,K') structure.
+
+```{stan output.var="m3.3"}
+data {                                             // observed variables
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variables
+
+}
+parameters {                                       // unobserved parameters
+  real r;                                          // growth rate
+  real Kprim;                                      // proxy for carrying capacity
+  real<lower=0> sigma;
+}
+model {
+
+  //priors
+  r ~ normal(0,1);
+  Kprim ~ normal(0,1);
+  sigma ~ exponential(10);
+
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(r+x[t]-log(1+exp(x[t])/Kprim),sigma);
+  }
+}
+```
+
+```{r print_m3.3_0,cache=T}
+fit.m3.3_0 <- sampling(m3.3, data = m30.data, iter = 1000, chains = 2, cores = 2)
+#print(fit.m3.3_0, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.3_0)
+Kprim=mean(tmp$Kprim)
+alpha=1/Kprim
+store_results["d0.m3","r"]=mean(tmp$r)
+store_results["d0.m3","alpha"]=alpha
+store_results["d0.m3","sigma"]=mean(tmp$sigma)
+store_results["d0.m3","cor(r,.)"]=cor(tmp$r,tmp$Kprim)
+store_results["d0.m3","likelihood"]=mean(tmp$lp__)
+```
+
+```{r print_m3.3_1,cache=T}
+fit.m3.3_1 <- sampling(m3.3, data = m31.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+#print(fit.m3.3_1, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.3_1)
+Kprim=mean(tmp$Kprim)
+alpha=1/Kprim
+store_results["d1.m3","r"]=mean(tmp$r)
+store_results["d1.m3","alpha"]=alpha
+store_results["d1.m3","sigma"]=mean(tmp$sigma)
+store_results["d1.m3","cor(r,.)"]=cor(tmp$r,tmp$Kprim)
+store_results["d1.m3","likelihood"]=mean(tmp$lp__)
+```
+
+```{r print_m3.3_0.2,cache=T}
+fit.m3.3_0.2 <- sampling(m3.3, data = m30.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+#print(fit.m3.3_0.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.3_0.2)
+Kprim=mean(tmp$Kprim)
+alpha=1/Kprim
+store_results["d0.2.m3","r"]=mean(tmp$r)
+store_results["d0.2.m3","alpha"]=alpha
+store_results["d0.2.m3","sigma"]=mean(tmp$sigma)
+store_results["d0.2.m3","cor(r,.)"]=cor(tmp$r,tmp$Kprim)
+store_results["d0.2.m3","likelihood"]=mean(tmp$lp__)
+```
+
+```{r pairsPlotsm3.3_0.2}
+mcmc_pairs(as.array(fit.m3.3_0.2), np = nuts_params(fit.m3.3_0.2),
+           pars = c("r","Kprim","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+```{r print_m3.3_1.2,cache=T}
+fit.m3.3_1.2 <- sampling(m3.3, data = m31.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+#print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.3_1.2)
+Kprim=mean(tmp$Kprim)
+alpha=1/Kprim
+store_results["d1.2.m3","r"]=mean(tmp$r)
+store_results["d1.2.m3","alpha"]=alpha
+store_results["d1.2.m3","sigma"]=mean(tmp$sigma)
+store_results["d1.2.m3","cor(r,.)"]=cor(tmp$r,tmp$Kprim)
+store_results["d1.2.m3","likelihood"]=mean(tmp$lp__)
+```
+
+```{r pairsPlotsm3.3_1.2}
+mcmc_pairs(as.array(fit.m3.3_1.2), np = nuts_params(fit.m3.3_1.2),
+           pars = c("r","Kprim","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+Keeping in mind that r=0.1, r.2=2, alpha=0.1, sigma0=0.22 and sigma1=0.071
+
+```{r print_matrix_results,cache=T}
+print(store_results)
+```
+
+
 [Simulations and fits here -- I am hoping that the various parameterizations will induce different qualities of fit and correlations between parameters. From previous fits I have, $(r,K)$ could a bit better in some cases than $(r,K')$ and perhaps $(r,\alpha)$ as well. NB in a multispecies competition model I am not sure this would extend and the formulation with blending $\alpha$ and $K$ has other, conceptual issues. ]
 
 ## Other forms of discrete-time near-logistic growth
@@ -331,7 +705,7 @@ We will consider here
 
 Back to the basics of logistic growth in discrete time. Unlike what you will find in a number of textbooks, equations like $N_{t+1} = r' N_t (1 - N_t/K)$ are poor analogues to logistic growth (this one is called the logistic map, and although it has become famous for allowing all kinds of dynamical behaviour including chaos, it has the poor taste of allowing negative values). 
 
-A slightly better-behaved model, still quite far from the original logistic growth though, is the Ricker model $N_{t+1} =  N_t \exp(r(1 - N_t/K))$. The Ricker model has the good taste of allowing only positive values, and it can be derived from mechanistic individual based models as well. There are several such derivations (see [Kisdi and Geritz](https://www.ncbi.nlm.nih.gov/pubmed/15094020) and [Brannstorm and Sumpter](https://www.ncbi.nlm.nih.gov/pubmed/16191618)), but a very simple one comes from fish. Let's say that fish produces larvae. The production process is a stochastic exponential growth $e^{r+\epsilon_t}$. Then each larvae survives with a probability \exp(-\alpha N_t) that declines exponentially with $N_t$, reflecting that once there are already many fishes around eating larvae, probability cannot decline so much more. Now we have $N_{t+1} = N_t e^{r+\epsilon_t -\alpha N_t}$, which is the same Ricker model. You can think of the Ricker model as a logistic model with a delay in regulation that is the consequence of the discretization of time. 
+A slightly better-behaved model, still quite far from the original logistic growth though, is the Ricker model $N_{t+1} =  N_t \exp(r(1 - N_t/K))$. The Ricker model has the good taste of allowing only positive values, and it can be derived from mechanistic individual based models as well. There are several such derivations (see [Kisdi and Geritz](https://www.ncbi.nlm.nih.gov/pubmed/15094020) and [Brannstorm and Sumpter](https://www.ncbi.nlm.nih.gov/pubmed/16191618)), but a very simple one comes from fish. Let's say that fish produces larvae. The production process is a stochastic exponential growth $e^{r+\epsilon_t}$. Then each larvae survives with a probability $\exp(-\alpha N_t)$ that declines exponentially with $N_t$, reflecting that once there are already many fishes around eating larvae, probability cannot decline so much more. Now we have $N_{t+1} = N_t e^{r+\epsilon_t -\alpha N_t}$, which is the same Ricker model. You can think of the Ricker model as a logistic model with a delay in regulation that is the consequence of the discretization of time. 
 
 Here we will also try the two different parameterization, but we will vary $r$ some more (adding $r=3.5$) to make the model exhibit varied dynamics.  
 
