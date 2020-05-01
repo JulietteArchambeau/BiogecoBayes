@@ -415,7 +415,7 @@ store_results["d0.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
 store_results["d0.m1","likelihood"]=mean(tmp$lp__)
 ```
 
-The growth rate is highly underestimated, to the point that we could assume a negative growth. 
+Let's use the inferred parameters for another simulation and compare to the actual dataset. 
 
 ```{r PlotSimum3.1_0}
 alpha_simu=mean(as.matrix(fit.m3.1_0,pars="alpha"))
@@ -425,8 +425,8 @@ x_simu=rep(NA,tmax)
 x_simu[1]=1
 for (t in 1:(tmax-1)){x_simu[t+1] = (exp(r_simu+rnorm(1,0,sigma_simu)))*x_simu[t]/(1+alpha_simu*x_simu[t])}
 
-plot(1:tmax,x_simu,t="o")
-
+plot(1:tmax,x_simu,t="o",xlab="Time",ylim=range(c(x_simu,x_BH)))
+lines(1:tmax,x_BH,col="blue")
 ```
 
 ```{r pairsPlotsm3.1_0}
@@ -455,7 +455,8 @@ x_simu=rep(NA,tmax)
 x_simu[1]=1
 for (t in 1:(tmax-1)){x_simu[t+1] = (exp(r_simu+rnorm(1,0,sigma_simu)))*x_simu[t]/(1+alpha_simu*x_simu[t])}
 
-plot(1:tmax,x_simu,t="o")
+plot(1:tmax,x_simu,t="o",xlab="Time",ylim=range(c(x_simu,x_BH1)))
+lines(1:tmax,x_BH1,col="blue")
 
 ```
 
@@ -554,7 +555,7 @@ store_results["d1.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
 store_results["d1.m2","likelihood"]=mean(tmp$lp__)
 ```
 
-```{r pairsPlotsm3.3_1}
+```{r pairsPlotsm3.2_1}
 mcmc_pairs(as.array(fit.m3.2_1), np = nuts_params(fit.m3.2_1),
            pars = c("r","K","sigma"), 
            off_diag_args = list(size = 1,alpha=1),
@@ -686,7 +687,7 @@ mcmc_pairs(as.array(fit.m3.3_1.2), np = nuts_params(fit.m3.3_1.2),
            np_style = pairs_style_np(div_size=2, div_shape = 19))
 ```
 
-Keeping in mind that r=0.1, r.2=2, alpha=0.1, sigma0=0.22 and sigma1=0.071
+Keeping in mind that r=0.1, r.2=2, alpha=0.1, sigma0=0.22 and sigma1=0.71
 
 ```{r print_matrix_results,cache=T}
 print(store_results)
@@ -708,6 +709,50 @@ Back to the basics of logistic growth in discrete time. Unlike what you will fin
 A slightly better-behaved model, still quite far from the original logistic growth though, is the Ricker model $N_{t+1} =  N_t \exp(r(1 - N_t/K))$. The Ricker model has the good taste of allowing only positive values, and it can be derived from mechanistic individual based models as well. There are several such derivations (see [Kisdi and Geritz](https://www.ncbi.nlm.nih.gov/pubmed/15094020) and [Brannstorm and Sumpter](https://www.ncbi.nlm.nih.gov/pubmed/16191618)), but a very simple one comes from fish. Let's say that fish produces larvae. The production process is a stochastic exponential growth $e^{r+\epsilon_t}$. Then each larvae survives with a probability $\exp(-\alpha N_t)$ that declines exponentially with $N_t$, reflecting that once there are already many fishes around eating larvae, probability cannot decline so much more. Now we have $N_{t+1} = N_t e^{r+\epsilon_t -\alpha N_t}$, which is the same Ricker model. You can think of the Ricker model as a logistic model with a delay in regulation that is the consequence of the discretization of time. 
 
 Here we will also try the two different parameterization, but we will vary $r$ some more (adding $r=3.5$) to make the model exhibit varied dynamics.  
+
+```{r simulating-data-ricker}
+
+set.seed(42)
+
+alpha=0.1
+Kprim=1/alpha #Kprim=10
+tmax=50
+
+####Let's start with r=0.1
+r=0.1
+R=exp(r) #1.0105
+K=(exp(r)-1)/alpha #K=1.05
+
+x_BH=x_BH1=rep(NA,tmax)
+x_BH[1]=x_BH1[1]=1
+for (t in 1:(tmax-1)){x_BH[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*x_BH[t]/(1+alpha*x_BH[t])}
+for (t in 1:(tmax-1)){x_BH1[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*x_BH1[t]/(1+alpha*x_BH1[t])}
+
+###
+
+par(mfrow=c(1,2),pch=20)
+plot(1:tmax,x_BH,type="o",ylim=range(c(x_BH,x_BH1)))
+lines(1:tmax,x_BH1,type="o",col="blue")
+legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
+
+
+####And go on with r=2
+r=2
+R=exp(r) #7.4
+K=(exp(r)-1)/alpha #K=63.9
+
+x_BH.2=x_BH1.2=rep(NA,tmax)
+x_BH.2[1]=x_BH1.2[1]=1
+for (t in 1:(tmax-1)){x_BH.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*x_BH.2[t]/(1+alpha*x_BH.2[t])}
+for (t in 1:(tmax-1)){x_BH1.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*x_BH1.2[t]/(1+alpha*x_BH1.2[t])}
+
+###
+
+plot(1:tmax,x_BH.2,type="o",ylim=range(c(x_BH.2,x_BH1.2)))
+lines(1:tmax,x_BH1.2,type="o",col="blue")
+legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
+
+```
 
 [Simulations and fits here -- first Ricker model for various kinds of dynamical behaviour, then theta-Ricker? Or theta-Ricker for the next session?]
 
