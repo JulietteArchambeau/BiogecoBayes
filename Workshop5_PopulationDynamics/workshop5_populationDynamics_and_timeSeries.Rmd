@@ -524,7 +524,7 @@ model {
 
 ```{r print_m3.2_0,cache=T}
 fit.m3.2_0 <- sampling(m3.2, data = m30.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999)) #65 divergent transitions without correcting adapt_delta
-#print(fit.m3.2_0, probs = c(0.10, 0.5, 0.9))
+print(fit.m3.2_0, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m3.2_0)
 store_results["d0.m2","r"]=mean(tmp$r)
 K=mean(tmp$K)
@@ -544,7 +544,7 @@ mcmc_pairs(as.array(fit.m3.2_0), np = nuts_params(fit.m3.2_0),
 
 ```{r print_m3.2_1,cache=T}
 fit.m3.2_1 <- sampling(m3.2, data = m31.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999)) #97 divergent transitions  without correcting adapt_delta
-#print(fit.m3.2_1, probs = c(0.10, 0.5, 0.9))
+print(fit.m3.2_1, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m3.2_1)
 K=mean(tmp$K)
 alpha=exp(mean(tmp$r)-1)/K
@@ -564,7 +564,7 @@ mcmc_pairs(as.array(fit.m3.2_1), np = nuts_params(fit.m3.2_1),
 
 ```{r print_m3.2_0.2,cache=T}
 fit.m3.2_0.2 <- sampling(m3.2, data = m30.2.data, iter = 1000, chains = 2, cores = 2,control=list(adapt_delta=0.999)) #92 divergent transitions without correcting adapt_delta
-#print(fit.m3.2_0.2, probs = c(0.10, 0.5, 0.9))
+print(fit.m3.2_0.2, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m3.2_0.2)
 K=mean(tmp$K)
 alpha=exp(mean(tmp$r)-1)/K
@@ -578,7 +578,7 @@ store_results["d0.2.m2","likelihood"]=mean(tmp$lp__)
 
 ```{r print_m3.2_1.2,cache=T}
 fit.m3.2_1.2 <- sampling(m3.2, data = m31.2.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999)) #128 divergent transitions without correcting 
-#print(fit.m3.1_1.2, probs = c(0.10, 0.5, 0.9))
+print(fit.m3.2_1.2, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m3.2_1.2)
 K=mean(tmp$K)
 alpha=exp(mean(tmp$r)-1)/K
@@ -623,7 +623,7 @@ model {
 
 ```{r print_m3.3_0,cache=T}
 fit.m3.3_0 <- sampling(m3.3, data = m30.data, iter = 1000, chains = 2, cores = 2)
-#print(fit.m3.3_0, probs = c(0.10, 0.5, 0.9))
+print(fit.m3.3_0, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m3.3_0)
 Kprim=mean(tmp$Kprim)
 alpha=1/Kprim
@@ -636,7 +636,7 @@ store_results["d0.m3","likelihood"]=mean(tmp$lp__)
 
 ```{r print_m3.3_1,cache=T}
 fit.m3.3_1 <- sampling(m3.3, data = m31.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
-#print(fit.m3.3_1, probs = c(0.10, 0.5, 0.9))
+print(fit.m3.3_1, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m3.3_1)
 Kprim=mean(tmp$Kprim)
 alpha=1/Kprim
@@ -649,7 +649,7 @@ store_results["d1.m3","likelihood"]=mean(tmp$lp__)
 
 ```{r print_m3.3_0.2,cache=T}
 fit.m3.3_0.2 <- sampling(m3.3, data = m30.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
-#print(fit.m3.3_0.2, probs = c(0.10, 0.5, 0.9))
+print(fit.m3.3_0.2, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m3.3_0.2)
 Kprim=mean(tmp$Kprim)
 alpha=1/Kprim
@@ -669,7 +669,7 @@ mcmc_pairs(as.array(fit.m3.3_0.2), np = nuts_params(fit.m3.3_0.2),
 
 ```{r print_m3.3_1.2,cache=T}
 fit.m3.3_1.2 <- sampling(m3.3, data = m31.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
-#print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m3.3_1.2)
 Kprim=mean(tmp$Kprim)
 alpha=1/Kprim
@@ -715,43 +715,247 @@ Here we will also try the two different parameterization, but we will vary $r$ s
 set.seed(42)
 
 alpha=0.1
-Kprim=1/alpha #Kprim=10
 tmax=50
 
 ####Let's start with r=0.1
 r=0.1
-R=exp(r) #1.0105
-K=(exp(r)-1)/alpha #K=1.05
+K=r/alpha #K=1.
 
-x_BH=x_BH1=rep(NA,tmax)
-x_BH[1]=x_BH1[1]=1
-for (t in 1:(tmax-1)){x_BH[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*x_BH[t]/(1+alpha*x_BH[t])}
-for (t in 1:(tmax-1)){x_BH1[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*x_BH1[t]/(1+alpha*x_BH1[t])}
+x_R=x_R1=rep(NA,tmax)
+x_R[1]=x_R1[1]=1
+for (t in 1:(tmax-1)){x_R[t+1] = (x_R[t]*exp(r-alpha*x_R[t]+rnorm(1,0,sqrt(0.05))))}
+for (t in 1:(tmax-1)){x_R1[t+1] = (x_R1[t]*exp(r-alpha*x_R1[t]+rnorm(1,0,sqrt(0.5))))}
 
 ###
 
-par(mfrow=c(1,2),pch=20)
-plot(1:tmax,x_BH,type="o",ylim=range(c(x_BH,x_BH1)))
-lines(1:tmax,x_BH1,type="o",col="blue")
+par(mfrow=c(3,1),pch=20)
+plot(1:tmax,x_R,type="o",ylim=range(c(x_R,x_R1)),xlab="Time",main="r=0.1")
+lines(1:tmax,x_R1,type="o",col="blue")
 legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
 
 
 ####And go on with r=2
 r=2
-R=exp(r) #7.4
-K=(exp(r)-1)/alpha #K=63.9
+K=r/alpha #K=20
 
-x_BH.2=x_BH1.2=rep(NA,tmax)
-x_BH.2[1]=x_BH1.2[1]=1
-for (t in 1:(tmax-1)){x_BH.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*x_BH.2[t]/(1+alpha*x_BH.2[t])}
-for (t in 1:(tmax-1)){x_BH1.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*x_BH1.2[t]/(1+alpha*x_BH1.2[t])}
+x_R.2=x_R1.2=rep(NA,tmax)
+x_R.2[1]=x_R1.2[1]=1
+for (t in 1:(tmax-1)){x_R.2[t+1] = (x_R.2[t]*exp(r-alpha*x_R.2[t]+rnorm(1,0,sqrt(0.05))))}
+for (t in 1:(tmax-1)){x_R1.2[t+1] = (x_R1.2[t]*exp(r-alpha*x_R1.2[t]+rnorm(1,0,sqrt(0.5))))}
 
 ###
 
-plot(1:tmax,x_BH.2,type="o",ylim=range(c(x_BH.2,x_BH1.2)))
-lines(1:tmax,x_BH1.2,type="o",col="blue")
-legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
+plot(1:tmax,x_R.2,type="o",ylim=range(c(x_R.2,x_R1.2)),xlab="Time",main="r=2")
+lines(1:tmax,x_R1.2,type="o",col="blue")
 
+#And r=3.5
+r=3.5
+K=r/alpha #K=35
+
+x_R.3=x_R1.3=rep(NA,tmax)
+x_R.3[1]=x_R1.3[1]=1
+for (t in 1:(tmax-1)){x_R.3[t+1] = (x_R.3[t]*exp(r-alpha*x_R.3[t]+rnorm(1,0,sqrt(0.05))))}
+for (t in 1:(tmax-1)){x_R1.3[t+1] = (x_R1.3[t]*exp(r-alpha*x_R1.3[t]+rnorm(1,0,sqrt(0.5))))}
+
+###
+
+plot(1:tmax,x_R.3,type="o",ylim=range(c(x_R.3,x_R1.3)),xlab="Time",main="r=3")
+lines(1:tmax,x_R1.3,type="o",col="blue")
+
+m40.data <- list(x=log(x_R), tmax = tmax)
+m41.data <- list(x=log(x_R1), tmax = tmax)
+m40.2.data <- list(x=log(x_R.2), tmax = tmax)
+m41.2.data <- list(x=log(x_R1.2), tmax = tmax)
+m40.3.data <- list(x=log(x_R.3), tmax = tmax)
+m41.3.data <- list(x=log(x_R1.3), tmax = tmax)
+
+store_results=matrix(NA,nrow=12,ncol=5,dimnames=list(c("d0.m1","d1.m1","d0.2.m1","d1.2.m1","d0.3.m1","d1.3.m1","d0.m2","d1.m2","d0.2.m2","d1.2.m2","d0.3.m2","d1.3.m2"),c("r","alpha","sigma","cor(r,.)","likelihood")))
+
+```
+
+We first try the model (r,$alpha$).
+
+```{stan output.var="m4.1"}
+data {                                             // observed variables
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variables
+
+}
+parameters {                                       // unobserved parameters
+  real r;                                          // growth rate
+  real alpha;                                      // density-dependence
+  real<lower=0> sigma;
+}
+model {
+
+  //priors
+  r ~ normal(0,1);
+  alpha ~ normal(0,1);
+  sigma ~ exponential(10);
+
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(r+x[t]-alpha*exp(x[t]),sigma);
+  }
+}
+```
+
+```{r print_m4.1_0,cache=T}
+fit.m4.1_0 <- sampling(m4.1, data = m40.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m4.1_0, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.1_0)
+tmp_mean=lapply(tmp,mean)
+store_results["d0.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
+store_results["d0.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+```
+
+```{r print_m4.1_1,cache=T}
+fit.m4.1_1 <- sampling(m4.1, data = m41.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.1_1)
+tmp_mean=lapply(tmp,mean)
+store_results["d1.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
+store_results["d1.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+```
+
+```{r print_m4.1_0.2,cache=T}
+fit.m4.1_0.2 <- sampling(m4.1, data = m40.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.1_0.2)
+tmp_mean=lapply(tmp,mean)
+store_results["d0.2.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
+store_results["d0.2.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+```
+
+```{r print_m4.1_1.2,cache=T}
+fit.m4.1_1.2 <- sampling(m4.1, data = m41.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.1_1.2)
+tmp_mean=lapply(tmp,mean)
+store_results["d1.2.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
+store_results["d1.2.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+```
+
+```{r print_m4.1_0.3,cache=T}
+fit.m4.1_0.3 <- sampling(m4.1, data = m40.3.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.1_0.3)
+tmp_mean=lapply(tmp,mean)
+store_results["d0.3.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
+store_results["d0.3.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+```
+
+```{r print_m4.1_1.3,cache=T}
+fit.m4.1_1.3 <- sampling(m4.1, data = m41.3.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.1_1.3)
+tmp_mean=lapply(tmp,mean)
+store_results["d1.3.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
+store_results["d1.3.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+```
+
+Now we can consider the model (r,K).
+
+```{stan output.var="m4.2"}
+data {                                             // observed variables
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variables
+
+}
+parameters {                                       // unobserved parameters
+  real r;                                          // growth rate
+  real K;                                      // density-dependence
+  real<lower=0> sigma;
+}
+model {
+
+  //priors
+  r ~ normal(0,1);
+  K ~ normal(0,1);
+  sigma ~ exponential(10);
+
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(x[t]+r*(1-exp(x[t])/K),sigma);
+  }
+}
+```
+
+
+```{r print_m4.2_0,cache=T}
+fit.m4.2_0 <- sampling(m4.2, data = m40.data, iter = 1000, chains = 2, cores = 2,control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.2_0)
+tmp_mean=lapply(tmp,mean)
+store_results["d0.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
+store_results["d0.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+```
+
+```{r print_m4.2_1,cache=T}
+fit.m4.2_1 <- sampling(m4.2, data = m41.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.2_1)
+tmp_mean=lapply(tmp,mean)
+store_results["d1.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
+store_results["d1.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+```
+
+```{r pairsPlotsm4.2_1}
+mcmc_pairs(as.array(fit.m4.2_1), np = nuts_params(fit.m4.2_1),
+           pars = c("r","K","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+```{r print_m4.2_0.2,cache=T}
+fit.m4.2_0.2 <- sampling(m4.2, data = m40.2.data, iter = 10000, chains = 2, cores = 2,control=list(adapt_delta=0.999))
+print(fit.m4.2_0.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.2_0.2)
+tmp_mean=lapply(tmp,mean)
+store_results["d0.2.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
+store_results["d0.2.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+```
+
+```{r pairsPlotsm4.2_0.2}
+mcmc_pairs(as.array(fit.m4.2_0.2), np = nuts_params(fit.m4.2_0.2),
+           pars = c("r","K","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+```{r print_m4.2_1.2,cache=T}
+fit.m4.2_1.2 <- sampling(m4.2, data = m41.2.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999))
+print(fit.m4.2_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.2_1.2)
+tmp_mean=lapply(tmp,mean)
+store_results["d1.2.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
+store_results["d1.2.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+
+```
+
+```{r pairsPlotsm4.2_1.2}
+mcmc_pairs(as.array(fit.m4.2_1.2), np = nuts_params(fit.m4.2_1.2),
+           pars = c("r","K","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+Here, K is negative, which would imply a positive effect of density-dependence. This could be corrected in the model definition in stan. 
+
+```{r print_m4.2_0.3,cache=T}
+fit.m4.2_0.3 <- sampling(m4.2, data = m40.3.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m4.2_0.3, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.2_0.3)
+tmp_mean=lapply(tmp,mean)
+store_results["d0.3.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
+store_results["d0.3.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+```
+
+```{r print_m4.2_1.3,cache=T}
+fit.m4.2_1.3 <- sampling(m4.2, data = m41.3.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m4.2_1.3, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.2_1.3)
+tmp_mean=lapply(tmp,mean)
+store_results["d1.3.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
+store_results["d1.3.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
 ```
 
 [Simulations and fits here -- first Ricker model for various kinds of dynamical behaviour, then theta-Ricker? Or theta-Ricker for the next session?]
