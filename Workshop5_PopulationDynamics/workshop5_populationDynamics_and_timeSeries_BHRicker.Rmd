@@ -1,0 +1,711 @@
+---
+title: "Workshop 5 -- Population dynamics and time series -- Beverton-Holt & Ricker"
+author: "Frederic Barraquand & Coralie Picoche"
+date: "March 21, 2020"
+output:
+  html_document:
+    highlight: textmate
+    theme: paper
+    toc: yes
+    toc_depth: 4
+    toc_float:
+      collapsed: no
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+---
+
+```{r setup, include=FALSE}
+options(width = 300)
+knitr::opts_chunk$set(cache = TRUE) ### wonder if that's not changing the size of the html https://bioinfo-fr.net/maitrisez-cache-de-rmarkdown
+library(rstan)
+rstan_options(auto_write = FALSE)
+options(mc.cores = parallel::detectCores())
+library(MASS)
+library(bayesplot)
+library(knitr)
+```
+
+## Logistic growth
+
+Now we come to this revered, almost two-centuries old model. In continuous-time, $\frac{dN(t)}{dt} = rN(1-\frac{N}{K}) = rN- \gamma N^2$. It says that individual fitness declines linearly with population size (by contrast, in the Gompertz pop. model it declined logarithmically with population size). We could fit directly this model as an ODE. In fact, unlike many other models this one can be explicitely integrated (using some algebra) and one can derive that 
+
+$$ N(t)  = \frac{ N(0) e^{rt}}{1+ \frac{N(0)}{K} (e^{rt}-1) }$$
+
+or equivalently
+
+$$ N(t+1)  = \frac{ N(t) e^{r}}{1+ \frac{N(t)}{K} (e^{r}-1) }$$
+
+which is usually denoted 
+
+$$ N_{t+1}  = \frac{ N(t) R}{1+\alpha N(t) }$$ with the correspondance $R= e^r$ and competition coefficient $\alpha = \frac{e^{r}-1}{K}$ (instead of $\gamma = \frac{r}{K}$ in continuous-time). The discrete-time form is usually preferred, because most data we can have access is sampled from year to year or some other regular interval in time. 
+
+This model is rather popular in plant ecology nowadays, although usually called Beverton-Holt because of the origin of this functional form in fisheries science. We can introduce environmental stochasticity on the growth rate: 
+
+$$ N_{t+1}  = \frac{ N(t) e^{r+\epsilon_t}}{1+\alpha N(t) }.$$ Sometimes people write 
+
+$$ N(t+1)  = \frac{ N(t) e^{r+\epsilon_t}}{1+ \frac{N(t)}{K'} }$$ but $K'$ is a "false carrying capacity" here, in the sense that the true equilibrium pop size $N^* = K'(e^r-1)$ which can be much higher for large $r$. 
+
+Let's now simulate that model and fit it, with different parameterizations. We will try 
+
+* $(r,\alpha)$ 
+* $(r,K)$ 
+* $(r,K')$
+ 
+We consider two values of $r$ (0.1 and 2) and two levels of $\sigma^2$, 0.05 and 0.5. 
+
+### Simulations
+
+```{r simulating-data-beverthon-holt_first_formula}
+
+set.seed(42)
+
+alpha=0.1
+Kprim=1/alpha #Kprim=10
+tmax=50
+
+####Let's start with r=0.1
+r=0.1
+R=exp(r) #1.0105
+K=(exp(r)-1)/alpha #K=1.05
+
+x_BH=x_BH1=rep(NA,tmax)
+x_BH[1]=x_BH1[1]=1
+for (t in 1:(tmax-1)){x_BH[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*x_BH[t]/(1+alpha*x_BH[t])}
+for (t in 1:(tmax-1)){x_BH1[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*x_BH1[t]/(1+alpha*x_BH1[t])}
+
+###
+
+par(mfrow=c(1,2),pch=20)
+plot(1:tmax,x_BH,type="o",ylim=range(c(x_BH,x_BH1)),main="r=0.1")
+lines(1:tmax,x_BH1,type="o",col="blue")
+legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
+
+
+####And go on with r=2
+r=2
+R=exp(r) #7.4
+K=(exp(r)-1)/alpha #K=63.9
+
+x_BH.2=x_BH1.2=rep(NA,tmax)
+x_BH.2[1]=x_BH1.2[1]=1
+for (t in 1:(tmax-1)){x_BH.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*x_BH.2[t]/(1+alpha*x_BH.2[t])}
+for (t in 1:(tmax-1)){x_BH1.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*x_BH1.2[t]/(1+alpha*x_BH1.2[t])}
+
+###
+
+plot(1:tmax,x_BH.2,type="o",ylim=range(c(x_BH.2,x_BH1.2)),main="r=2")
+lines(1:tmax,x_BH1.2,type="o",col="blue")
+#legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
+
+```
+
+```{r data_m3}
+m30.data <- list(x=log(x_BH), tmax = tmax)
+m31.data <- list(x=log(x_BH1), tmax = tmax)
+m30.2.data <- list(x=log(x_BH.2), tmax = tmax)
+m31.2.data <- list(x=log(x_BH1.2), tmax = tmax)
+
+store_results=matrix(NA,nrow=12,ncol=5,dimnames=list(c("d0.m1","d1.m1","d0.2.m1","d1.2.m1","d0.m2","d1.m2","d0.2.m2","d1.2.m2","d0.m3","d1.m3","d0.2.m3","d1.2.m3"),c("r","alpha","sigma","cor(r,.)","likelihood")))
+```
+
+### (r,$\alpha$) structure
+
+```{stan output.var="m3.1"}
+data {                                             // observed variables
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variable
+
+}
+parameters {                                       // unobserved parameters
+  real r;                                          // growth rate
+  real alpha;                                      // density-dependence
+  real<lower=0> sigma;
+}
+model {
+
+  //priors
+  r ~ normal(0,1);
+  alpha ~ normal(0,1);
+  sigma ~ exponential(10);
+
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(r+x[t]-log(1+alpha*exp(x[t])),sigma);
+  }
+}
+```
+
+How do the 4 models fit with this structure of the model?
+
+```{r print_m3.1_0,cache=T}
+fit.m3.1_0 <- sampling(m3.1, data = m30.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m3.1_0, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.1_0)
+store_results["d0.m1","r"]=mean(tmp$r)
+store_results["d0.m1","alpha"]=mean(tmp$alpha)
+store_results["d0.m1","sigma"]=mean(tmp$sigma)
+store_results["d0.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d0.m1","likelihood"]=mean(tmp$lp__)
+```
+
+Let's use the inferred parameters for another simulation and compare to the actual dataset. 
+
+```{r PlotSimum3.1_0}
+alpha_simu=mean(as.matrix(fit.m3.1_0,pars="alpha"))
+r_simu=mean(as.matrix(fit.m3.1_0,pars="r"))
+sigma_simu=mean(as.matrix(fit.m3.1_0,pars="sigma"))
+x_simu=rep(NA,tmax)
+x_simu[1]=1
+for (t in 1:(tmax-1)){x_simu[t+1] = (exp(r_simu+rnorm(1,0,sigma_simu)))*x_simu[t]/(1+alpha_simu*x_simu[t])}
+
+plot(1:tmax,x_simu,t="o",xlab="Time",ylim=range(c(x_simu,x_BH)),pch=16)
+lines(1:tmax,x_BH,col="blue")
+legend("topright",c("Simulation","Estimation"),col=c("blue","black"),pch=c(NA,16),lty=1)
+```
+
+```{r pairsPlotsm3.1_0}
+mcmc_pairs(as.array(fit.m3.1_0), np = nuts_params(fit.m3.1_0),
+           pars = c("r","alpha","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+As observed in other models, growth rate and density-dependence are strongly correlated. 
+
+```{r print_m3.1_1,cache=T}
+fit.m3.1_1 <- sampling(m3.1, data = m31.data, iter = 10000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.1_1, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.1_1)
+store_results["d1.m1","r"]=mean(tmp$r)
+store_results["d1.m1","alpha"]=mean(tmp$alpha)
+store_results["d1.m1","sigma"]=mean(tmp$sigma)
+store_results["d1.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d1.m1","likelihood"]=mean(tmp$lp__)
+```
+
+Here, even after increasing the number of iterations per chain (ESS was too low with iter=1000), estimated r and $\alpha$ are three times higher than the simulated values when using $\sigma^2=0.5$. Neither true values for $r$ nor $\alpha$ are in the 10-90% interval of the estimates.
+
+```{r PlotSimum3.1_1}
+alpha_simu=mean(as.matrix(fit.m3.1_1,pars="alpha"))
+r_simu=mean(as.matrix(fit.m3.1_1,pars="r"))
+sigma_simu=mean(as.matrix(fit.m3.1_1,pars="sigma"))
+x_simu=rep(NA,tmax)
+x_simu[1]=1
+for (t in 1:(tmax-1)){x_simu[t+1] = (exp(r_simu+rnorm(1,0,sigma_simu)))*x_simu[t]/(1+alpha_simu*x_simu[t])}
+
+plot(1:tmax,x_simu,t="o",xlab="Time",ylim=range(c(x_simu,x_BH1)))
+lines(1:tmax,x_BH1,col="blue")
+legend("topleft",c("Simulation","Estimation"),col=c("blue","black"),pch=c(NA,16),lty=1)
+
+```
+
+The dynamics obtained with the estimates of the parameters are not that much different from the original ones.
+
+```{r pairsPlotsm3.1_1}
+mcmc_pairs(as.array(fit.m3.1_1), np = nuts_params(fit.m3.1_1),
+           pars = c("r","alpha","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+Let's apply the same model to the simulation with r=2.
+
+```{r print_m3.1_0.2,cache=T}
+fit.m3.1_0.2 <- sampling(m3.1, data = m30.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.1_0.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.1_0.2)
+store_results["d0.2.m1","r"]=mean(tmp$r)
+store_results["d0.2.m1","alpha"]=mean(tmp$alpha)
+store_results["d0.2.m1","sigma"]=mean(tmp$sigma)
+store_results["d0.2.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d0.2.m1","likelihood"]=mean(tmp$lp__)
+```
+
+```{r print_m3.1_1.2,cache=T}
+fit.m3.1_1.2 <- sampling(m3.1, data = m31.2.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m3.1_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.1_1.2)
+store_results["d1.2.m1","r"]=mean(tmp$r)
+store_results["d1.2.m1","alpha"]=mean(tmp$alpha)
+store_results["d1.2.m1","sigma"]=mean(tmp$sigma)
+store_results["d1.2.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d1.2.m1","likelihood"]=mean(tmp$lp__)
+```
+
+```{r pairsPlotsm3.1_1.2}
+mcmc_pairs(as.array(fit.m3.1_1.2), np = nuts_params(fit.m3.1_1.2),
+           pars = c("r","alpha","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+With r=2, the estimates seem closer to the simulated values. 
+
+### (r,K) structure
+
+```{stan output.var="m3.2"}
+data {                                             // observed variables
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variables
+
+}
+parameters {                                       // unobserved parameters
+  real r;                                          // growth rate
+  real K;                                      // carrying capacity
+  real<lower=0> sigma;
+}
+model {
+
+  //priors
+  r ~ normal(0,1);
+  K ~ normal(0,1);
+  sigma ~ exponential(10);
+
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(r+x[t]-log(1+(exp(r)-1)*exp(x[t])/K),sigma);
+  }
+}
+```
+
+```{r print_m3.2_0,cache=T}
+fit.m3.2_0 <- sampling(m3.2, data = m30.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999)) #65 divergent transitions without correcting adapt_delta
+print(fit.m3.2_0, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.2_0)
+store_results["d0.m2","r"]=mean(tmp$r)
+K=mean(tmp$K)
+alpha=(exp(mean(tmp$r))-1)/K
+store_results["d0.m2","alpha"]=alpha
+store_results["d0.m2","sigma"]=mean(tmp$sigma)
+store_results["d0.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d0.m2","likelihood"]=mean(tmp$lp__)
+```
+
+```{r pairsPlotsm3.2_0}
+mcmc_pairs(as.array(fit.m3.2_0), np = nuts_params(fit.m3.2_0),
+           pars = c("r","K","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+```{r print_m3.2_1,cache=T}
+fit.m3.2_1 <- sampling(m3.2, data = m31.data, iter = 10000, chains = 2, cores = 2, control=list(adapt_delta=0.999)) #97 divergent transitions  without correcting adapt_delta
+print(fit.m3.2_1, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.2_1)
+K=mean(tmp$K)
+alpha=(exp(mean(tmp$r))-1)/K
+store_results["d1.m2","r"]=mean(tmp$r)
+store_results["d1.m2","alpha"]=alpha
+store_results["d1.m2","sigma"]=mean(tmp$sigma)
+store_results["d1.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d1.m2","likelihood"]=mean(tmp$lp__)
+```
+
+```{r pairsPlotsm3.2_1}
+mcmc_pairs(as.array(fit.m3.2_1), np = nuts_params(fit.m3.2_1),
+           pars = c("r","K","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+[[I am not sure why the top and bottom panel of middle column does not show all values of K]]
+
+```{r print_m3.2_0.2,cache=T}
+fit.m3.2_0.2 <- sampling(m3.2, data = m30.2.data, iter = 10000, chains = 2, cores = 2,control=list(adapt_delta=0.999)) #92 divergent transitions without correcting adapt_delta
+print(fit.m3.2_0.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.2_0.2)
+K=mean(tmp$K)
+alpha=(exp(mean(tmp$r))-1)/K
+store_results["d0.2.m2","r"]=mean(tmp$r)
+store_results["d0.2.m2","alpha"]=alpha
+store_results["d0.2.m2","sigma"]=mean(tmp$sigma)
+store_results["d0.2.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d0.2.m2","likelihood"]=mean(tmp$lp__)
+```
+
+
+```{r print_m3.2_1.2,cache=T}
+fit.m3.2_1.2 <- sampling(m3.2, data = m31.2.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999)) #128 divergent transitions without correcting 
+print(fit.m3.2_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.2_1.2)
+K=mean(tmp$K)
+alpha=(exp(mean(tmp$r))-1)/K
+store_results["d1.2.m2","r"]=mean(tmp$r)
+store_results["d1.2.m2","alpha"]=alpha
+store_results["d1.2.m2","sigma"]=mean(tmp$sigma)
+store_results["d1.2.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d1.2.m2","likelihood"]=mean(tmp$lp__)
+```
+```{r pairsPlotsm3.3_1}
+mcmc_pairs(as.array(fit.m3.2_1.2), np = nuts_params(fit.m3.2_1.2),
+           pars = c("r","K","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+### (r,K') structure.
+
+```{stan output.var="m3.3"}
+data {                                             // observed variables
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variables
+
+}
+parameters {                                       // unobserved parameters
+  real r;                                          // growth rate
+  real Kprim;                                      // proxy for carrying capacity
+  real<lower=0> sigma;
+}
+model {
+
+  //priors
+  r ~ normal(0,1);
+  Kprim ~ normal(0,1);
+  sigma ~ exponential(10);
+
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(r+x[t]-log(1+exp(x[t])/Kprim),sigma);
+  }
+}
+```
+
+```{r print_m3.3_0,cache=T}
+fit.m3.3_0 <- sampling(m3.3, data = m30.data, iter = 1000, chains = 2, cores = 2)
+print(fit.m3.3_0, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.3_0)
+Kprim=mean(tmp$Kprim)
+alpha=1/Kprim
+store_results["d0.m3","r"]=mean(tmp$r)
+store_results["d0.m3","alpha"]=alpha
+store_results["d0.m3","sigma"]=mean(tmp$sigma)
+store_results["d0.m3","cor(r,.)"]=cor(tmp$r,tmp$Kprim)
+store_results["d0.m3","likelihood"]=mean(tmp$lp__)
+```
+
+```{r print_m3.3_1,cache=T}
+fit.m3.3_1 <- sampling(m3.3, data = m31.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_1, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.3_1)
+Kprim=mean(tmp$Kprim)
+alpha=1/Kprim
+store_results["d1.m3","r"]=mean(tmp$r)
+store_results["d1.m3","alpha"]=alpha
+store_results["d1.m3","sigma"]=mean(tmp$sigma)
+store_results["d1.m3","cor(r,.)"]=cor(tmp$r,tmp$Kprim)
+store_results["d1.m3","likelihood"]=mean(tmp$lp__)
+```
+
+```{r print_m3.3_0.2,cache=T}
+fit.m3.3_0.2 <- sampling(m3.3, data = m30.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_0.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.3_0.2)
+Kprim=mean(tmp$Kprim)
+alpha=1/Kprim
+store_results["d0.2.m3","r"]=mean(tmp$r)
+store_results["d0.2.m3","alpha"]=alpha
+store_results["d0.2.m3","sigma"]=mean(tmp$sigma)
+store_results["d0.2.m3","cor(r,.)"]=cor(tmp$r,tmp$Kprim)
+store_results["d0.2.m3","likelihood"]=mean(tmp$lp__)
+```
+
+```{r pairsPlotsm3.3_0.2}
+mcmc_pairs(as.array(fit.m3.3_0.2), np = nuts_params(fit.m3.3_0.2),
+           pars = c("r","Kprim","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+```{r print_m3.3_1.2,cache=T}
+fit.m3.3_1.2 <- sampling(m3.3, data = m31.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m3.3_1.2)
+Kprim=mean(tmp$Kprim)
+alpha=1/Kprim
+store_results["d1.2.m3","r"]=mean(tmp$r)
+store_results["d1.2.m3","alpha"]=alpha
+store_results["d1.2.m3","sigma"]=mean(tmp$sigma)
+store_results["d1.2.m3","cor(r,.)"]=cor(tmp$r,tmp$Kprim)
+store_results["d1.2.m3","likelihood"]=mean(tmp$lp__)
+```
+
+```{r pairsPlotsm3.3_1.2}
+mcmc_pairs(as.array(fit.m3.3_1.2), np = nuts_params(fit.m3.3_1.2),
+           pars = c("r","Kprim","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+### Summary
+
+```{r print_matrix_results,cache=T}
+rownames(store_results)=c("(r,alpha),r=0.1,sigma=0.2","(r,alpha),r=0.1,sigma=0.7","(r,alpha),r=2,sigma=0.2","(r,alpha),r=2,sigma=0.7","(r,K),r=0.1,sigma=0.2","(r,K),r=0.1,sigma=0.7","(r,K),r=2,sigma=0.2","(r,K),r=2,sigma=0.7","(r,Kprim),r=0.1,sigma=0.2","(r,Kprim),r=0.1,sigma=0.7","(r,Kprim),r=2,sigma=0.2","(r,Kprim),r=2,sigma=0.7")
+kable(format(store_results,digits=2))
+```
+
+
+
+## Other forms of discrete-time near-logistic growth
+
+Back to the basics of logistic growth in discrete time. Unlike what you will find in a number of textbooks, equations like $N_{t+1} = r' N_t (1 - N_t/K)$ are poor analogues to logistic growth (this one is called the logistic map, and although it has become famous for allowing all kinds of dynamical behaviour including chaos, it has the poor taste of allowing negative values). 
+
+A slightly better-behaved model, still quite far from the original logistic growth though, is the Ricker model $N_{t+1} =  N_t \exp(r(1 - N_t/K))$. The Ricker model has the good taste of allowing only positive values, and it can be derived from mechanistic individual based models as well. There are several such derivations (see [Kisdi and Geritz](https://www.ncbi.nlm.nih.gov/pubmed/15094020) and [Brannstorm and Sumpter](https://www.ncbi.nlm.nih.gov/pubmed/16191618)), but a very simple one comes from fish. Let's say that fish produces larvae. The production process is a stochastic exponential growth $e^{r+\epsilon_t}$. Then each larvae survives with a probability $\exp(-\alpha N_t)$ that declines exponentially with $N_t$, reflecting that once there are already many fishes around eating larvae, probability cannot decline so much more. Now we have $N_{t+1} = N_t e^{r+\epsilon_t -\alpha N_t}$, which is the same Ricker model. You can think of the Ricker model as a logistic model with a delay in regulation that is the consequence of the discretization of time. 
+
+Here we will also try the two different parameterization, but we will vary $r$ some more (adding $r=3.5$) to make the model exhibit varied dynamics.  
+
+### Simulations
+
+```{r simulating-data-ricker}
+
+set.seed(42)
+
+alpha=0.1
+tmax=50
+
+####Let's start with r=0.1
+r=0.1
+K=r/alpha #K=1.
+
+x_R=x_R1=rep(NA,tmax)
+x_R[1]=x_R1[1]=1
+for (t in 1:(tmax-1)){x_R[t+1] = (x_R[t]*exp(r-alpha*x_R[t]+rnorm(1,0,sqrt(0.05))))}
+for (t in 1:(tmax-1)){x_R1[t+1] = (x_R1[t]*exp(r-alpha*x_R1[t]+rnorm(1,0,sqrt(0.5))))}
+
+###
+
+par(mfrow=c(3,1),pch=20)
+plot(1:tmax,x_R,type="o",ylim=range(c(x_R,x_R1)),xlab="Time",main="r=0.1")
+lines(1:tmax,x_R1,type="o",col="blue")
+legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
+
+
+####And go on with r=2
+r=2
+K=r/alpha #K=20
+
+x_R.2=x_R1.2=rep(NA,tmax)
+x_R.2[1]=x_R1.2[1]=1
+for (t in 1:(tmax-1)){x_R.2[t+1] = (x_R.2[t]*exp(r-alpha*x_R.2[t]+rnorm(1,0,sqrt(0.05))))}
+for (t in 1:(tmax-1)){x_R1.2[t+1] = (x_R1.2[t]*exp(r-alpha*x_R1.2[t]+rnorm(1,0,sqrt(0.5))))}
+
+###
+
+plot(1:tmax,x_R.2,type="o",ylim=range(c(x_R.2,x_R1.2)),xlab="Time",main="r=2")
+lines(1:tmax,x_R1.2,type="o",col="blue")
+
+#And r=3.5
+r=3.5
+K=r/alpha #K=35
+
+x_R.3=x_R1.3=rep(NA,tmax)
+x_R.3[1]=x_R1.3[1]=1
+for (t in 1:(tmax-1)){x_R.3[t+1] = (x_R.3[t]*exp(r-alpha*x_R.3[t]+rnorm(1,0,sqrt(0.05))))}
+for (t in 1:(tmax-1)){x_R1.3[t+1] = (x_R1.3[t]*exp(r-alpha*x_R1.3[t]+rnorm(1,0,sqrt(0.5))))}
+
+###
+
+plot(1:tmax,x_R.3,type="o",ylim=range(c(x_R.3,x_R1.3)),xlab="Time",main="r=3")
+lines(1:tmax,x_R1.3,type="o",col="blue")
+
+m40.data <- list(x=log(x_R), tmax = tmax)
+m41.data <- list(x=log(x_R1), tmax = tmax)
+m40.2.data <- list(x=log(x_R.2), tmax = tmax)
+m41.2.data <- list(x=log(x_R1.2), tmax = tmax)
+m40.3.data <- list(x=log(x_R.3), tmax = tmax)
+m41.3.data <- list(x=log(x_R1.3), tmax = tmax)
+
+store_results=matrix(NA,nrow=12,ncol=5,dimnames=list(c("d0.m1","d1.m1","d0.2.m1","d1.2.m1","d0.3.m1","d1.3.m1","d0.m2","d1.m2","d0.2.m2","d1.2.m2","d0.3.m2","d1.3.m2"),c("r","alpha","sigma","cor(r,.)","likelihood")))
+
+```
+
+### (r,$alpha$) structure
+
+```{stan output.var="m4.1"}
+data {                                             // observed variables
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variables
+
+}
+parameters {                                       // unobserved parameters
+  real r;                                          // growth rate
+  real alpha;                                      // density-dependence
+  real<lower=0> sigma;
+}
+model {
+
+  //priors
+  r ~ normal(0,1);
+  alpha ~ normal(0,1);
+  sigma ~ exponential(10);
+
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(r+x[t]-alpha*exp(x[t]),sigma);
+  }
+}
+```
+
+```{r print_m4.1_0,cache=T}
+fit.m4.1_0 <- sampling(m4.1, data = m40.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m4.1_0, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.1_0)
+tmp_mean=lapply(tmp,mean)
+store_results["d0.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
+store_results["d0.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+```
+
+```{r print_m4.1_1,cache=T}
+fit.m4.1_1 <- sampling(m4.1, data = m41.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.1_1)
+tmp_mean=lapply(tmp,mean)
+store_results["d1.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
+store_results["d1.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+```
+
+```{r print_m4.1_0.2,cache=T}
+fit.m4.1_0.2 <- sampling(m4.1, data = m40.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.1_0.2)
+tmp_mean=lapply(tmp,mean)
+store_results["d0.2.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
+store_results["d0.2.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+```
+
+```{r print_m4.1_1.2,cache=T}
+fit.m4.1_1.2 <- sampling(m4.1, data = m41.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.1_1.2)
+tmp_mean=lapply(tmp,mean)
+store_results["d1.2.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
+store_results["d1.2.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+```
+
+```{r print_m4.1_0.3,cache=T}
+fit.m4.1_0.3 <- sampling(m4.1, data = m40.3.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.1_0.3)
+tmp_mean=lapply(tmp,mean)
+store_results["d0.3.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
+store_results["d0.3.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+```
+
+```{r print_m4.1_1.3,cache=T}
+fit.m4.1_1.3 <- sampling(m4.1, data = m41.3.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.1_1.3)
+tmp_mean=lapply(tmp,mean)
+store_results["d1.3.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
+store_results["d1.3.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+```
+
+### (r,K) structure
+
+```{stan output.var="m4.2"}
+data {                                             // observed variables
+  int<lower=1> tmax;                               // number of observations
+  vector[tmax] x;                                  // state variables
+
+}
+parameters {                                       // unobserved parameters
+  real r;                                          // growth rate
+  real K;                                      // density-dependence
+  real<lower=0> sigma;
+}
+model {
+
+  //priors
+  r ~ normal(0,1);
+  K ~ normal(0,1);
+  sigma ~ exponential(10);
+
+  for (t in 1:(tmax-1)){
+  x[t+1] ~ normal(x[t]+r*(1-exp(x[t])/K),sigma);
+  }
+}
+```
+
+
+```{r print_m4.2_0,cache=T}
+fit.m4.2_0 <- sampling(m4.2, data = m40.data, iter = 1000, chains = 2, cores = 2,control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.2_0)
+tmp_mean=lapply(tmp,mean)
+store_results["d0.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
+store_results["d0.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+```
+
+```{r print_m4.2_1,cache=T}
+fit.m4.2_1 <- sampling(m4.2, data = m41.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999))
+print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.2_1)
+tmp_mean=lapply(tmp,mean)
+store_results["d1.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
+store_results["d1.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+```
+
+```{r pairsPlotsm4.2_1}
+mcmc_pairs(as.array(fit.m4.2_1), np = nuts_params(fit.m4.2_1),
+           pars = c("r","K","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+```{r print_m4.2_0.2,cache=T}
+fit.m4.2_0.2 <- sampling(m4.2, data = m40.2.data, iter = 10000, chains = 2, cores = 2,control=list(adapt_delta=0.999))
+print(fit.m4.2_0.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.2_0.2)
+tmp_mean=lapply(tmp,mean)
+store_results["d0.2.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
+store_results["d0.2.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+```
+
+```{r pairsPlotsm4.2_0.2}
+mcmc_pairs(as.array(fit.m4.2_0.2), np = nuts_params(fit.m4.2_0.2),
+           pars = c("r","K","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+```{r print_m4.2_1.2,cache=T}
+fit.m4.2_1.2 <- sampling(m4.2, data = m41.2.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999))
+print(fit.m4.2_1.2, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.2_1.2)
+tmp_mean=lapply(tmp,mean)
+store_results["d1.2.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
+store_results["d1.2.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+
+```
+
+```{r pairsPlotsm4.2_1.2}
+mcmc_pairs(as.array(fit.m4.2_1.2), np = nuts_params(fit.m4.2_1.2),
+           pars = c("r","K","sigma"), 
+           off_diag_args = list(size = 1,alpha=1),
+           np_style = pairs_style_np(div_size=2, div_shape = 19))
+```
+
+Here, K is negative, which would imply a positive effect of density-dependence. This could be corrected in the model definition in stan. 
+
+```{r print_m4.2_0.3,cache=T}
+fit.m4.2_0.3 <- sampling(m4.2, data = m40.3.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999))
+print(fit.m4.2_0.3, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.2_0.3)
+tmp_mean=lapply(tmp,mean)
+store_results["d0.3.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
+store_results["d0.3.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+```
+
+```{r print_m4.2_1.3,cache=T}
+fit.m4.2_1.3 <- sampling(m4.2, data = m41.3.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999))
+print(fit.m4.2_1.3, probs = c(0.10, 0.5, 0.9))
+tmp=extract(fit.m4.2_1.3)
+tmp_mean=lapply(tmp,mean)
+store_results["d1.3.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
+store_results["d1.3.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+```
+
+### Summary
+
+```{r summary_4,cache=T}
+rownames(store_results)=c("(r,alpha),r=0.1,sigma=0.2","(r,alpha),r=0.1,sigma=0.7","(r,alpha),r=2,sigma=0.2","(r,alpha),r=2,sigma=0.7","(r,alpha),r=3.5,sigma=0.2","(r,alpha),r=3.5,sigma=0.7","(r,K),r=0.1,sigma=0.2","(r,K),r=0.1,sigma=0.7","(r,K),r=2,sigma=0.2","(r,K),r=2,sigma=0.7","(r,K),r=3.5,sigma=0.2","(r,K),r=3.5,sigma=0.7")
+kable(format(store_results,digits=2))
+```
+
+
