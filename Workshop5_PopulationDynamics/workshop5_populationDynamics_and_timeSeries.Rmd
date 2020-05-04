@@ -375,7 +375,6 @@ One might ask: why is the model written like this? Well, let's use $x=\log(N)$ t
 
 $$x_{t+1} = \log \left(\frac{N_t e^{r+\epsilon_t}}{1+\alpha N_t} \right)  = x_t + r + \epsilon_t - \log(1 + \alpha e ^{x_t})$$. 
 
-How do the 4 parameterizations work with this structure of the model?
 
 ```{r print_m3.1_0,cache=T}
 fit.m3.1_0 <- sampling(m3.1, data = m30.data, iter = 1000, chains = 2, cores = 2)
@@ -903,7 +902,7 @@ store_results["d1.3.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 ### Summary
 
 ```{r summary_4,cache=T,echo=F}
-rownames(store_results)=c("(r,alpha),r=0.1,sigma=0.2","(r,alpha),r=0.1,sigma=0.7","(r,alpha),r=2,sigma=0.2","(r,alpha),r=2,sigma=0.7","(r,K),r=0.1,sigma=0.2","(r,K),r=0.1,sigma=0.7","(r,K),r=2,sigma=0.2","(r,K),r=2,sigma=0.7","(r,Kprim),r=0.1,sigma=0.2","(r,Kprim),r=0.1,sigma=0.7","(r,Kprim),r=2,sigma=0.2","(r,Kprim),r=2,sigma=0.7")
+rownames(store_results)=c("(r,alpha),r=0.1,sigma=0.2","(r,alpha),r=0.1,sigma=0.7","(r,alpha),r=2,sigma=0.2","(r,alpha),r=2,sigma=0.7","(r,alpha),r=3.5,sigma=0.2","(r,alpha),r=3.5,sigma=0.7","(r,K),r=0.1,sigma=0.2","(r,K),r=0.1,sigma=0.7","(r,K),r=2,sigma=0.2","(r,K),r=2,sigma=0.7","(r,K),r=3.5,sigma=0.2","(r,K),r=3.5,sigma=0.7")
 kable(format(store_results,digits=2))
 ```
 
