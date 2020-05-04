@@ -44,7 +44,7 @@ for (t in 1:(tmax-1)){x[t+1] = x[t] + r + rnorm(1,0,sqrt(0.1))}
 for (t in 1:(tmax-1)){x1[t+1] = x1[t] + r + rnorm(1,0,sqrt(0.25))}
 minx=min(c(x,x1))
 maxx=max(c(x,x1))
-par(mfrow=c(2,1),pch=20)
+par(mfrow=c(1,2),pch=20)
 plot(1:tmax,x,type="o",ylim=c(minx,maxx))
 lines(1:tmax,x1,type="o",col="blue")
 plot(1:tmax,exp(x),type="o",ylim=c(exp(minx),exp(maxx)))
@@ -216,7 +216,7 @@ for (t in 1:(tmax-1)){x[t+1] = a + b*x[t] + rnorm(1,0,sqrt(0.1))}
 for (t in 1:(tmax-1)){x1[t+1] = a + b*x[t] + rnorm(1,0,sqrt(0.25))}
 minx=min(c(x,x1))
 maxx=max(c(x,x1))
-par(mfrow=c(2,1),pch=20)
+par(mfrow=c(1,2),pch=20)
 plot(1:tmax,x,type="o",ylim=c(minx,maxx))
 lines(1:tmax,x1,type="o",col="blue")
 plot(1:tmax,exp(x),type="o",ylim=c(exp(minx),exp(maxx)))
