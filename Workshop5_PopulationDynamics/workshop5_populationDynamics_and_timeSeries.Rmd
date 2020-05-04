@@ -1,6 +1,6 @@
 ---
 title: "Workshop 5 -- Population dynamics and time series"
-author: "Frederic Barraquand"
+author: "Frederic Barraquand and Coralie Picoche"
 date: "March 21, 2020"
 output:
   html_document:
@@ -17,7 +17,7 @@ output:
 
 ```{r setup, include=FALSE}
 options(width = 300)
-knitr::opts_chunk$set(cache = TRUE) ### wonder if that's not changing the size of the html https://bioinfo-fr.net/maitrisez-cache-de-rmarkdown
+knitr::opts_chunk$set(cache = FALSE) ### wonder if that's not changing the size of the html https://bioinfo-fr.net/maitrisez-cache-de-rmarkdown
 library(rstan)
 rstan_options(auto_write = FALSE)
 options(mc.cores = parallel::detectCores())
@@ -336,16 +336,16 @@ r=0.1
 R=exp(r) #1.0105
 K=(exp(r)-1)/alpha #K=1.05
 
-x_BH=x_BH1=rep(NA,tmax)
-x_BH[1]=x_BH1[1]=1
-for (t in 1:(tmax-1)){x_BH[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*x_BH[t]/(1+alpha*x_BH[t])}
-for (t in 1:(tmax-1)){x_BH1[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*x_BH1[t]/(1+alpha*x_BH1[t])}
+N_BH=N_BH1=rep(NA,tmax)
+N_BH[1]=N_BH1[1]=1
+for (t in 1:(tmax-1)){N_BH[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*N_BH[t]/(1+alpha*N_BH[t])}
+for (t in 1:(tmax-1)){N_BH1[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*N_BH1[t]/(1+alpha*N_BH1[t])}
 
 ###
 
 par(mfrow=c(1,2),pch=20)
-plot(1:tmax,x_BH,type="o",ylim=range(c(x_BH,x_BH1)))
-lines(1:tmax,x_BH1,type="o",col="blue")
+plot(1:tmax,N_BH,type="o",ylim=range(c(N_BH,N_BH1)))
+lines(1:tmax,N_BH1,type="o",col="blue")
 legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
 
 
@@ -354,26 +354,26 @@ r=2
 R=exp(r) #7.4
 K=(exp(r)-1)/alpha #K=63.9
 
-x_BH.2=x_BH1.2=rep(NA,tmax)
-x_BH.2[1]=x_BH1.2[1]=1
-for (t in 1:(tmax-1)){x_BH.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*x_BH.2[t]/(1+alpha*x_BH.2[t])}
-for (t in 1:(tmax-1)){x_BH1.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*x_BH1.2[t]/(1+alpha*x_BH1.2[t])}
+N_BH.2=N_BH1.2=rep(NA,tmax)
+N_BH.2[1]=N_BH1.2[1]=1
+for (t in 1:(tmax-1)){N_BH.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*N_BH.2[t]/(1+alpha*N_BH.2[t])}
+for (t in 1:(tmax-1)){N_BH1.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*N_BH1.2[t]/(1+alpha*N_BH1.2[t])}
 
 ###
 
-plot(1:tmax,x_BH.2,type="o",ylim=range(c(x_BH.2,x_BH1.2)))
-lines(1:tmax,x_BH1.2,type="o",col="blue")
+plot(1:tmax,N_BH.2,type="o",ylim=range(c(N_BH.2,N_BH1.2)))
+lines(1:tmax,N_BH1.2,type="o",col="blue")
 legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
 
 ```
 
 ```{r data_m3}
-m30.data <- list(x=log(x_BH), tmax = tmax)
-m31.data <- list(x=log(x_BH1), tmax = tmax)
-m30.2.data <- list(x=log(x_BH.2), tmax = tmax)
-m31.2.data <- list(x=log(x_BH1.2), tmax = tmax)
+m30.data <- list(x=log(N_BH), tmax = tmax)
+m31.data <- list(x=log(N_BH1), tmax = tmax)
+m30.2.data <- list(x=log(N_BH.2), tmax = tmax)
+m31.2.data <- list(x=log(N_BH1.2), tmax = tmax)
 
-store_results=matrix(NA,nrow=12,ncol=5,dimnames=list(c("d0.m1","d1.m1","d0.2.m1","d1.2.m1","d0.m2","d1.m2","d0.2.m2","d1.2.m2","d0.m3","d1.m3","d0.2.m3","d1.2.m3"),c("r","alpha","sigma","cor(r,.)","likelihood")))
+store_results=matrix(NA,nrow=12,ncol=5,dimnames=list(c("d0.m1","d1.m1","d0.2.m1","d1.2.m1","d0.m2","d1.m2","d0.2.m2","d1.2.m2","d0.m3","d1.m3","d0.2.m3","d1.2.m3"),c("r","alpha","sigma","cor(r,DD)","likelihood")))
 ```
 
 We start with a (r,$\alpha$) structure. 
@@ -386,14 +386,14 @@ data {                                             // observed variables
 }
 parameters {                                       // unobserved parameters
   real r;                                          // growth rate
-  real alpha;                                      // density-dependence
+  real<lower=0> alpha;                             // density-dependence
   real<lower=0> sigma;
 }
 model {
 
   //priors
   r ~ normal(0,1);
-  alpha ~ normal(0,1);
+  alpha ~ exponential(10);
   sigma ~ exponential(10);
 
   for (t in 1:(tmax-1)){
@@ -402,7 +402,7 @@ model {
 }
 ```
 
-How do the 4 models fit with this structure of the model?
+How do the 4 parameterizations work with this structure of the model?
 
 ```{r print_m3.1_0,cache=T}
 fit.m3.1_0 <- sampling(m3.1, data = m30.data, iter = 1000, chains = 2, cores = 2)
@@ -411,7 +411,7 @@ tmp=extract(fit.m3.1_0)
 store_results["d0.m1","r"]=mean(tmp$r)
 store_results["d0.m1","alpha"]=mean(tmp$alpha)
 store_results["d0.m1","sigma"]=mean(tmp$sigma)
-store_results["d0.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d0.m1","cor(r,DD)"]=cor(tmp$r,tmp$alpha)
 store_results["d0.m1","likelihood"]=mean(tmp$lp__)
 ```
 
@@ -421,12 +421,12 @@ Let's use the inferred parameters for another simulation and compare to the actu
 alpha_simu=mean(as.matrix(fit.m3.1_0,pars="alpha"))
 r_simu=mean(as.matrix(fit.m3.1_0,pars="r"))
 sigma_simu=mean(as.matrix(fit.m3.1_0,pars="sigma"))
-x_simu=rep(NA,tmax)
-x_simu[1]=1
-for (t in 1:(tmax-1)){x_simu[t+1] = (exp(r_simu+rnorm(1,0,sigma_simu)))*x_simu[t]/(1+alpha_simu*x_simu[t])}
+N_simu=rep(NA,tmax)
+N_simu[1]=1
+for (t in 1:(tmax-1)){N_simu[t+1] = (exp(r_simu+rnorm(1,0,sigma_simu)))*N_simu[t]/(1+alpha_simu*N_simu[t])}
 
-plot(1:tmax,x_simu,t="o",xlab="Time",ylim=range(c(x_simu,x_BH)))
-lines(1:tmax,x_BH,col="blue")
+plot(1:tmax,N_simu,t="o",xlab="Time",ylim=range(c(N_simu,N_BH)))
+lines(1:tmax,N_BH,col="blue")
 ```
 
 ```{r pairsPlotsm3.1_0}
@@ -443,7 +443,7 @@ tmp=extract(fit.m3.1_1)
 store_results["d1.m1","r"]=mean(tmp$r)
 store_results["d1.m1","alpha"]=mean(tmp$alpha)
 store_results["d1.m1","sigma"]=mean(tmp$sigma)
-store_results["d1.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d1.m1","cor(r,DD)"]=cor(tmp$r,tmp$alpha)
 store_results["d1.m1","likelihood"]=mean(tmp$lp__)
 ```
 
@@ -451,12 +451,12 @@ store_results["d1.m1","likelihood"]=mean(tmp$lp__)
 alpha_simu=mean(as.matrix(fit.m3.1_1,pars="alpha"))
 r_simu=mean(as.matrix(fit.m3.1_1,pars="r"))
 sigma_simu=mean(as.matrix(fit.m3.1_1,pars="sigma"))
-x_simu=rep(NA,tmax)
-x_simu[1]=1
-for (t in 1:(tmax-1)){x_simu[t+1] = (exp(r_simu+rnorm(1,0,sigma_simu)))*x_simu[t]/(1+alpha_simu*x_simu[t])}
+N_simu=rep(NA,tmax)
+N_simu[1]=1
+for (t in 1:(tmax-1)){N_simu[t+1] = (exp(r_simu+rnorm(1,0,sigma_simu)))*N_simu[t]/(1+alpha_simu*N_simu[t])}
 
-plot(1:tmax,x_simu,t="o",xlab="Time",ylim=range(c(x_simu,x_BH1)))
-lines(1:tmax,x_BH1,col="blue")
+plot(1:tmax,N_simu,t="o",xlab="Time",ylim=range(c(N_simu,N_BH1)))
+lines(1:tmax,N_BH1,col="blue")
 
 ```
 
@@ -474,7 +474,7 @@ tmp=extract(fit.m3.1_0.2)
 store_results["d0.2.m1","r"]=mean(tmp$r)
 store_results["d0.2.m1","alpha"]=mean(tmp$alpha)
 store_results["d0.2.m1","sigma"]=mean(tmp$sigma)
-store_results["d0.2.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d0.2.m1","cor(r,DD)"]=cor(tmp$r,tmp$alpha)
 store_results["d0.2.m1","likelihood"]=mean(tmp$lp__)
 ```
 
@@ -485,7 +485,7 @@ tmp=extract(fit.m3.1_1.2)
 store_results["d1.2.m1","r"]=mean(tmp$r)
 store_results["d1.2.m1","alpha"]=mean(tmp$alpha)
 store_results["d1.2.m1","sigma"]=mean(tmp$sigma)
-store_results["d1.2.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d1.2.m1","cor(r,DD)"]=cor(tmp$r,tmp$alpha)
 store_results["d1.2.m1","likelihood"]=mean(tmp$lp__)
 ```
 
@@ -506,14 +506,14 @@ data {                                             // observed variables
 }
 parameters {                                       // unobserved parameters
   real r;                                          // growth rate
-  real K;                                      // carrying capacity
+  real<lower=0> K;                                 // carrying capacity
   real<lower=0> sigma;
 }
 model {
 
   //priors
   r ~ normal(0,1);
-  K ~ normal(0,1);
+  K ~ exponential(1);                             //exponential(10) not working well
   sigma ~ exponential(10);
 
   for (t in 1:(tmax-1)){
@@ -531,7 +531,7 @@ K=mean(tmp$K)
 alpha=exp(mean(tmp$r)-1)/K
 store_results["d0.m2","alpha"]=alpha
 store_results["d0.m2","sigma"]=mean(tmp$sigma)
-store_results["d0.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d0.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 store_results["d0.m2","likelihood"]=mean(tmp$lp__)
 ```
 
@@ -551,7 +551,7 @@ alpha=exp(mean(tmp$r)-1)/K
 store_results["d1.m2","r"]=mean(tmp$r)
 store_results["d1.m2","alpha"]=alpha
 store_results["d1.m2","sigma"]=mean(tmp$sigma)
-store_results["d1.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d1.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 store_results["d1.m2","likelihood"]=mean(tmp$lp__)
 ```
 
@@ -571,7 +571,7 @@ alpha=exp(mean(tmp$r)-1)/K
 store_results["d0.2.m2","r"]=mean(tmp$r)
 store_results["d0.2.m2","alpha"]=alpha
 store_results["d0.2.m2","sigma"]=mean(tmp$sigma)
-store_results["d0.2.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d0.2.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 store_results["d0.2.m2","likelihood"]=mean(tmp$lp__)
 ```
 
@@ -585,7 +585,7 @@ alpha=exp(mean(tmp$r)-1)/K
 store_results["d1.2.m2","r"]=mean(tmp$r)
 store_results["d1.2.m2","alpha"]=alpha
 store_results["d1.2.m2","sigma"]=mean(tmp$sigma)
-store_results["d1.2.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d1.2.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 store_results["d1.2.m2","likelihood"]=mean(tmp$lp__)
 ```
 ```{r pairsPlotsm3.3_1}
@@ -605,14 +605,14 @@ data {                                             // observed variables
 }
 parameters {                                       // unobserved parameters
   real r;                                          // growth rate
-  real Kprim;                                      // proxy for carrying capacity
+  real<lower=0> Kprim;                            // proxy for carrying capacity
   real<lower=0> sigma;
 }
 model {
 
   //priors
   r ~ normal(0,1);
-  Kprim ~ normal(0,1);
+  Kprim ~ exponential(10);
   sigma ~ exponential(10);
 
   for (t in 1:(tmax-1)){
@@ -630,7 +630,7 @@ alpha=1/Kprim
 store_results["d0.m3","r"]=mean(tmp$r)
 store_results["d0.m3","alpha"]=alpha
 store_results["d0.m3","sigma"]=mean(tmp$sigma)
-store_results["d0.m3","cor(r,.)"]=cor(tmp$r,tmp$Kprim)
+store_results["d0.m3","cor(r,DD)"]=cor(tmp$r,tmp$Kprim)
 store_results["d0.m3","likelihood"]=mean(tmp$lp__)
 ```
 
@@ -643,7 +643,7 @@ alpha=1/Kprim
 store_results["d1.m3","r"]=mean(tmp$r)
 store_results["d1.m3","alpha"]=alpha
 store_results["d1.m3","sigma"]=mean(tmp$sigma)
-store_results["d1.m3","cor(r,.)"]=cor(tmp$r,tmp$Kprim)
+store_results["d1.m3","cor(r,DD)"]=cor(tmp$r,tmp$Kprim)
 store_results["d1.m3","likelihood"]=mean(tmp$lp__)
 ```
 
@@ -656,7 +656,7 @@ alpha=1/Kprim
 store_results["d0.2.m3","r"]=mean(tmp$r)
 store_results["d0.2.m3","alpha"]=alpha
 store_results["d0.2.m3","sigma"]=mean(tmp$sigma)
-store_results["d0.2.m3","cor(r,.)"]=cor(tmp$r,tmp$Kprim)
+store_results["d0.2.m3","cor(r,DD)"]=cor(tmp$r,tmp$Kprim)
 store_results["d0.2.m3","likelihood"]=mean(tmp$lp__)
 ```
 
@@ -676,7 +676,7 @@ alpha=1/Kprim
 store_results["d1.2.m3","r"]=mean(tmp$r)
 store_results["d1.2.m3","alpha"]=alpha
 store_results["d1.2.m3","sigma"]=mean(tmp$sigma)
-store_results["d1.2.m3","cor(r,.)"]=cor(tmp$r,tmp$Kprim)
+store_results["d1.2.m3","cor(r,DD)"]=cor(tmp$r,tmp$Kprim)
 store_results["d1.2.m3","likelihood"]=mean(tmp$lp__)
 ```
 
@@ -689,12 +689,12 @@ mcmc_pairs(as.array(fit.m3.3_1.2), np = nuts_params(fit.m3.3_1.2),
 
 Keeping in mind that r=0.1, r.2=2, alpha=0.1, sigma0=0.22 and sigma1=0.71
 
-```{r print_matrix_results,cache=T}
+```{r print_matriN_Results,cache=T}
 print(store_results)
 ```
 
 
-[Simulations and fits here -- I am hoping that the various parameterizations will induce different qualities of fit and correlations between parameters. From previous fits I have, $(r,K)$ could a bit better in some cases than $(r,K')$ and perhaps $(r,\alpha)$ as well. NB in a multispecies competition model I am not sure this would extend and the formulation with blending $\alpha$ and $K$ has other, conceptual issues. ]
+Fairly different qualities of fit and correlations between parameters. Note FB: From previous fits I had, $(r,K)$ could a bit better in some cases than $(r,K')$ and perhaps $(r,\alpha)$ (in terms of reducing the $(r,K)$ correlation), but the estimation of the density-dependence was worse with $(r,K)$ here. ]
 
 ## Other forms of discrete-time near-logistic growth
 
@@ -721,16 +721,16 @@ tmax=50
 r=0.1
 K=r/alpha #K=1.
 
-x_R=x_R1=rep(NA,tmax)
-x_R[1]=x_R1[1]=1
-for (t in 1:(tmax-1)){x_R[t+1] = (x_R[t]*exp(r-alpha*x_R[t]+rnorm(1,0,sqrt(0.05))))}
-for (t in 1:(tmax-1)){x_R1[t+1] = (x_R1[t]*exp(r-alpha*x_R1[t]+rnorm(1,0,sqrt(0.5))))}
+N_R=N_R1=rep(NA,tmax)
+N_R[1]=N_R1[1]=1
+for (t in 1:(tmax-1)){N_R[t+1] = (N_R[t]*exp(r-alpha*N_R[t]+rnorm(1,0,sqrt(0.05))))}
+for (t in 1:(tmax-1)){N_R1[t+1] = (N_R1[t]*exp(r-alpha*N_R1[t]+rnorm(1,0,sqrt(0.5))))}
 
 ###
 
 par(mfrow=c(3,1),pch=20)
-plot(1:tmax,x_R,type="o",ylim=range(c(x_R,x_R1)),xlab="Time",main="r=0.1")
-lines(1:tmax,x_R1,type="o",col="blue")
+plot(1:tmax,N_R,type="o",ylim=range(c(N_R,N_R1)),xlab="Time",main="r=0.1")
+lines(1:tmax,N_R1,type="o",col="blue")
 legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
 
 
@@ -738,38 +738,38 @@ legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(
 r=2
 K=r/alpha #K=20
 
-x_R.2=x_R1.2=rep(NA,tmax)
-x_R.2[1]=x_R1.2[1]=1
-for (t in 1:(tmax-1)){x_R.2[t+1] = (x_R.2[t]*exp(r-alpha*x_R.2[t]+rnorm(1,0,sqrt(0.05))))}
-for (t in 1:(tmax-1)){x_R1.2[t+1] = (x_R1.2[t]*exp(r-alpha*x_R1.2[t]+rnorm(1,0,sqrt(0.5))))}
+N_R.2=N_R1.2=rep(NA,tmax)
+N_R.2[1]=N_R1.2[1]=1
+for (t in 1:(tmax-1)){N_R.2[t+1] = (N_R.2[t]*exp(r-alpha*N_R.2[t]+rnorm(1,0,sqrt(0.05))))}
+for (t in 1:(tmax-1)){N_R1.2[t+1] = (N_R1.2[t]*exp(r-alpha*N_R1.2[t]+rnorm(1,0,sqrt(0.5))))}
 
 ###
 
-plot(1:tmax,x_R.2,type="o",ylim=range(c(x_R.2,x_R1.2)),xlab="Time",main="r=2")
-lines(1:tmax,x_R1.2,type="o",col="blue")
+plot(1:tmax,N_R.2,type="o",ylim=range(c(N_R.2,N_R1.2)),xlab="Time",main="r=2")
+lines(1:tmax,N_R1.2,type="o",col="blue")
 
 #And r=3.5
 r=3.5
 K=r/alpha #K=35
 
-x_R.3=x_R1.3=rep(NA,tmax)
-x_R.3[1]=x_R1.3[1]=1
-for (t in 1:(tmax-1)){x_R.3[t+1] = (x_R.3[t]*exp(r-alpha*x_R.3[t]+rnorm(1,0,sqrt(0.05))))}
-for (t in 1:(tmax-1)){x_R1.3[t+1] = (x_R1.3[t]*exp(r-alpha*x_R1.3[t]+rnorm(1,0,sqrt(0.5))))}
+N_R.3=N_R1.3=rep(NA,tmax)
+N_R.3[1]=N_R1.3[1]=1
+for (t in 1:(tmax-1)){N_R.3[t+1] = (N_R.3[t]*exp(r-alpha*N_R.3[t]+rnorm(1,0,sqrt(0.05))))}
+for (t in 1:(tmax-1)){N_R1.3[t+1] = (N_R1.3[t]*exp(r-alpha*N_R1.3[t]+rnorm(1,0,sqrt(0.5))))}
 
 ###
 
-plot(1:tmax,x_R.3,type="o",ylim=range(c(x_R.3,x_R1.3)),xlab="Time",main="r=3")
-lines(1:tmax,x_R1.3,type="o",col="blue")
+plot(1:tmax,N_R.3,type="o",ylim=range(c(N_R.3,N_R1.3)),xlab="Time",main="r=3")
+lines(1:tmax,N_R1.3,type="o",col="blue")
 
-m40.data <- list(x=log(x_R), tmax = tmax)
-m41.data <- list(x=log(x_R1), tmax = tmax)
-m40.2.data <- list(x=log(x_R.2), tmax = tmax)
-m41.2.data <- list(x=log(x_R1.2), tmax = tmax)
-m40.3.data <- list(x=log(x_R.3), tmax = tmax)
-m41.3.data <- list(x=log(x_R1.3), tmax = tmax)
+m40.data <- list(x=log(N_R), tmax = tmax)
+m41.data <- list(x=log(N_R1), tmax = tmax)
+m40.2.data <- list(x=log(N_R.2), tmax = tmax)
+m41.2.data <- list(x=log(N_R1.2), tmax = tmax)
+m40.3.data <- list(x=log(N_R.3), tmax = tmax)
+m41.3.data <- list(x=log(N_R1.3), tmax = tmax)
 
-store_results=matrix(NA,nrow=12,ncol=5,dimnames=list(c("d0.m1","d1.m1","d0.2.m1","d1.2.m1","d0.3.m1","d1.3.m1","d0.m2","d1.m2","d0.2.m2","d1.2.m2","d0.3.m2","d1.3.m2"),c("r","alpha","sigma","cor(r,.)","likelihood")))
+store_results=matrix(NA,nrow=12,ncol=5,dimnames=list(c("d0.m1","d1.m1","d0.2.m1","d1.2.m1","d0.3.m1","d1.3.m1","d0.m2","d1.m2","d0.2.m2","d1.2.m2","d0.3.m2","d1.3.m2"),c("r","alpha","sigma","cor(r,DD)","likelihood")))
 
 ```
 
@@ -783,14 +783,14 @@ data {                                             // observed variables
 }
 parameters {                                       // unobserved parameters
   real r;                                          // growth rate
-  real alpha;                                      // density-dependence
+  real<lower=0> alpha;                            // density-dependence
   real<lower=0> sigma;
 }
 model {
 
   //priors
   r ~ normal(0,1);
-  alpha ~ normal(0,1);
+  alpha ~ exponential(10);
   sigma ~ exponential(10);
 
   for (t in 1:(tmax-1)){
@@ -805,52 +805,52 @@ print(fit.m4.1_0, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m4.1_0)
 tmp_mean=lapply(tmp,mean)
 store_results["d0.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
-store_results["d0.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d0.m1","cor(r,DD)"]=cor(tmp$r,tmp$alpha)
 ```
 
 ```{r print_m4.1_1,cache=T}
 fit.m4.1_1 <- sampling(m4.1, data = m41.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
-print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+print(fit.m4.1_1 , probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m4.1_1)
 tmp_mean=lapply(tmp,mean)
 store_results["d1.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
-store_results["d1.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d1.m1","cor(r,DD)"]=cor(tmp$r,tmp$alpha)
 ```
 
 ```{r print_m4.1_0.2,cache=T}
 fit.m4.1_0.2 <- sampling(m4.1, data = m40.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
-print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+print(fit.m4.1_0.2 , probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m4.1_0.2)
 tmp_mean=lapply(tmp,mean)
 store_results["d0.2.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
-store_results["d0.2.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d0.2.m1","cor(r,DD)"]=cor(tmp$r,tmp$alpha)
 ```
 
 ```{r print_m4.1_1.2,cache=T}
 fit.m4.1_1.2 <- sampling(m4.1, data = m41.2.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
-print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+print(fit.m4.1_1.2, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m4.1_1.2)
 tmp_mean=lapply(tmp,mean)
 store_results["d1.2.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
-store_results["d1.2.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d1.2.m1","cor(r,DD)"]=cor(tmp$r,tmp$alpha)
 ```
 
 ```{r print_m4.1_0.3,cache=T}
 fit.m4.1_0.3 <- sampling(m4.1, data = m40.3.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
-print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+print(fit.m4.1_0.3, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m4.1_0.3)
 tmp_mean=lapply(tmp,mean)
 store_results["d0.3.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
-store_results["d0.3.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d0.3.m1","cor(r,DD)"]=cor(tmp$r,tmp$alpha)
 ```
 
 ```{r print_m4.1_1.3,cache=T}
 fit.m4.1_1.3 <- sampling(m4.1, data = m41.3.data, iter = 1000, chains = 2, cores = 2)# control=list(adapt_delta=0.999))
-print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+print(fit.m4.1_1.3, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m4.1_1.3)
 tmp_mean=lapply(tmp,mean)
 store_results["d1.3.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
-store_results["d1.3.m1","cor(r,.)"]=cor(tmp$r,tmp$alpha)
+store_results["d1.3.m1","cor(r,DD)"]=cor(tmp$r,tmp$alpha)
 ```
 
 Now we can consider the model (r,K).
@@ -863,14 +863,14 @@ data {                                             // observed variables
 }
 parameters {                                       // unobserved parameters
   real r;                                          // growth rate
-  real K;                                      // density-dependence
+  real<lower=0> K;                                // density-dependence
   real<lower=0> sigma;
 }
 model {
 
   //priors
   r ~ normal(0,1);
-  K ~ normal(0,1);
+  K ~ exponential(10);
   sigma ~ exponential(10);
 
   for (t in 1:(tmax-1)){
@@ -882,20 +882,20 @@ model {
 
 ```{r print_m4.2_0,cache=T}
 fit.m4.2_0 <- sampling(m4.2, data = m40.data, iter = 1000, chains = 2, cores = 2,control=list(adapt_delta=0.999))
-print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+print(fit.m4.2_0, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m4.2_0)
 tmp_mean=lapply(tmp,mean)
 store_results["d0.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
-store_results["d0.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d0.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 ```
 
 ```{r print_m4.2_1,cache=T}
 fit.m4.2_1 <- sampling(m4.2, data = m41.data, iter = 1000, chains = 2, cores = 2, control=list(adapt_delta=0.999))
-print(fit.m3.3_1.2, probs = c(0.10, 0.5, 0.9))
+print(fit.m4.2_1, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m4.2_1)
 tmp_mean=lapply(tmp,mean)
 store_results["d1.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
-store_results["d1.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d1.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 ```
 
 ```{r pairsPlotsm4.2_1}
@@ -911,7 +911,7 @@ print(fit.m4.2_0.2, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m4.2_0.2)
 tmp_mean=lapply(tmp,mean)
 store_results["d0.2.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
-store_results["d0.2.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d0.2.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 ```
 
 ```{r pairsPlotsm4.2_0.2}
@@ -927,7 +927,7 @@ print(fit.m4.2_1.2, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m4.2_1.2)
 tmp_mean=lapply(tmp,mean)
 store_results["d1.2.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
-store_results["d1.2.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d1.2.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 
 ```
 
@@ -946,7 +946,7 @@ print(fit.m4.2_0.3, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m4.2_0.3)
 tmp_mean=lapply(tmp,mean)
 store_results["d0.3.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
-store_results["d0.3.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d0.3.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 ```
 
 ```{r print_m4.2_1.3,cache=T}
@@ -955,12 +955,10 @@ print(fit.m4.2_1.3, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m4.2_1.3)
 tmp_mean=lapply(tmp,mean)
 store_results["d1.3.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
-store_results["d1.3.m2","cor(r,.)"]=cor(tmp$r,tmp$K)
+store_results["d1.3.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 ```
 
-[Simulations and fits here -- first Ricker model for various kinds of dynamical behaviour, then theta-Ricker? Or theta-Ricker for the next session?]
-
-[I think there is ample material for a session 2...]
+[theta-Ricker for the next session? ample material for a session 2...]
 
 ### Some literature on more refined models
 
