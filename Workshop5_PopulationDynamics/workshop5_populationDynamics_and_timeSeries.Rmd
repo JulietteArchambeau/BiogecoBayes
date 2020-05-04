@@ -27,7 +27,7 @@ library(bayesplot)
 
 ## Exponential growth in a stochastic environment
 
-Let us start by a few reminders about population dynamics. The basis of population dynamics is exponential growth $\frac{dN(t)}{dt} = rN$. You can also note that this corresponds to a constant per capita growth rate (fitness of the average individual) $\frac{1}{N} \frac{dN(t)}{dt} = r$. By putting terms in $N$ on one side and terms in $t$ in the other, one can show that $N(t) = N(0) \exp(rt)$ or even $N(t+1) = N(t) \exp(r)$, often noted $N_{t+1} = N_t e^{r}$. 
+Let us start by a few reminders about population dynamics. The basis of population dynamics is exponential growth $\frac{dN(t)}{dt} = rN$. You can also note that this corresponds to a constant per capita growth rate (fitness of the average individual) $\frac{1}{N} \frac{dN(t)}{dt} = r$. By putting terms in $N$ on one side and terms in $t$ on the other, one can show that $N(t) = N(0) \exp(rt)$ or even $N(t+1) = N(t) \exp(r)$, often noted $N_{t+1} = N_t e^{r}$. 
 
 What on Earth could this highly theoretical construct have to do with time series, you might think? Well, here you go.
 
@@ -196,15 +196,13 @@ which is rigorously equivalent to
 
  $$N_{t+1} = N_t e^{a} \frac{1}{N_t^{\beta}} \times \exp( \epsilon_t ). $$ 
 
-Usually this blows people's minds, we have to recall that $\beta \log(N_t) = \log(N_t^\beta)$ so that $\exp(\beta\log(N_t)) = \exp(\log(N_t^\beta)) = N_t^\beta$.  One of the important ideas about that model is that $b<1$ (usually) will mediate the effect of individuals at low vs high densities; as population size increase individuals have less of a negative effect. It is also extraordinarily statistically convenient, because this equation is also equivalent to 
+Usually this blows people's minds, we have to recall that $\beta \log(N_t) = \log(N_t^\beta)$ so that $\exp(\beta\log(N_t)) = \exp(\log(N_t^\beta)) = N_t^\beta$.  One of the important ideas about that model is that $b<1$ (usually) will mediate the effect of individuals at low vs high densities; as population size increases individuals have less of a negative effect. It is also extraordinarily statistically convenient, because this equation is also equivalent to 
 
  $$x_{t+1} = a - \beta x_t + \epsilon_t = a + b x_t  + \epsilon_t, \, \epsilon_t \sim \mathcal{N}(0,\sigma^2).$$
 
 Convenient, isn't it? Now we can use this versatile model to test whether population growth slows down when density increases, just by fitting a linear time series model. This is called the AR(1) model -- AutoRegressive model of order 1. It has a very famous continuous-time counterpart called the Ornstein-Uhlenbeck process, which has physical origins; you can think of it as a ball that's attracted to center with a pull strength proportional to the distance to the center. In a deterministic setting, the ball converges to the center ($x=a/(1-b)=a/\beta$ here). But random perturbations ($\epsilon_t$) make it oscillate around the center. 
 
 There are many applications and multivariate generalisations of this simple model in aquatic ecology, including fisheries.  [For much more on this an state-space models (in Stan as well), see the course by Eli Holmes, Eric Ward and Mark Sheuerell](https://nwfsc-timeseries.github.io/atsa/lectures.html). Here we will only cover the basic Gompertz growth, with only one state, the process state (no observation error). 
-
-[Simulation and stan fit -- showing correlations between parameters as well.]
 
 ```{r simulating-data-gompertz}
 
@@ -293,11 +291,11 @@ $$ \tilde{x}_{t+1} = b \tilde{x}_t  + \epsilon_t, \, \epsilon_t \sim \mathcal{N}
 
 Parameter $a$ is then eliminated from the centered version of the model and we get rid of the problem. 
 
-[Adding covariates on the population growth rate -- may solve some identifiability problems on $a$]
+[Future step: Adding covariates on the population growth rate with this model? May solve some identifiability problems while revealing potentially others. ]
 
 ## Logistic growth
 
-Now we come to this revered, almost two-centuries old model. In continuous-time, $\frac{dN(t)}{dt} = rN(1-\frac{N}{K}) = rN- \gamma N^2$. It says that individual fitness declines linearly with population size (by contrast, in the Gompertz pop. model it declined logarithmically with population size). We could fit directly this model as an ODE. In fact, unlike many other models this one can be explicitely integrated (using some algebra) and one can derive that 
+Now we come to this revered, almost two-centuries old model. In continuous-time, $\frac{dN(t)}{dt} = rN(1-\frac{N}{K}) = rN- \gamma N^2$. It says that individual fitness declines linearly with population size (by contrast, in the Gompertz pop. model it declined logarithmically with population size). We could fit directly this model as an ODE, [using special tools to do that](https://mc-stan.org/events/stancon2017-notebooks/stancon2017-margossian-gillespie-ode.html). But, unlike many other ODE models this one can be explicitely integrated (using some algebra) and one can derive that 
 
 $$ N(t)  = \frac{ N(0) e^{rt}}{1+ \frac{N(0)}{K} (e^{rt}-1) }$$
 
@@ -307,7 +305,7 @@ $$ N(t+1)  = \frac{ N(t) e^{r}}{1+ \frac{N(t)}{K} (e^{r}-1) }$$
 
 which is usually denoted 
 
-$$ N_{t+1}  = \frac{ N(t) R}{1+\alpha N(t) }$$ with the correspondance $R= e^r$ and competition coefficient $\alpha = \frac{e^{r}-1}{K}$ (instead of $\gamma = \frac{r}{K}$ in continuous-time). The discrete-time form is usually preferred, because most data we can have access is sampled from year to year or some other regular interval in time. 
+$$ N_{t+1}  = \frac{ N(t) R}{1+\alpha N(t) }$$ with the correspondance $R= e^r$ and competition coefficient $\alpha = \frac{e^{r}-1}{K}$ (instead of $\gamma = \frac{r}{K}$ in continuous-time). The discrete-time form is usually preferred, because most data we can have access is sampled from year to year or some other regular interval in time. And it can be fitted to data like the previous Gompertz model (although not by linear regression, since the model is nonlinear even when written with $x=\log(N)$).  
 
 This model is rather popular in plant ecology nowadays, although usually called Beverton-Holt because of the origin of this functional form in fisheries science. We can introduce environmental stochasticity on the growth rate: 
 
@@ -402,6 +400,11 @@ model {
 }
 ```
 
+
+One might ask: why is the model written like this? Well, let's use $x=\log(N)$ then the BH model reads
+
+$$x_{t+1} = \log(\frac{N_t e^{r+\epsilon_t}}{1+\alpha N_t})  = x_t + r + \epsilon_t - \log(1 + \alpha e ^{x_t}) + $$. 
+
 How do the 4 parameterizations work with this structure of the model?
 
 ```{r print_m3.1_0,cache=T}
@@ -432,7 +435,7 @@ lines(1:tmax,N_BH,col="blue")
 ```{r pairsPlotsm3.1_0}
 mcmc_pairs(as.array(fit.m3.1_0), np = nuts_params(fit.m3.1_0),
            pars = c("r","alpha","sigma"), 
-           off_diag_args = list(size = 1,alpha=1),
+           off_diag_args = list(size = 1,alpha=1/3),
            np_style = pairs_style_np(div_size=2, div_shape = 19))
 ```
 
@@ -463,7 +466,7 @@ lines(1:tmax,N_BH1,col="blue")
 ```{r pairsPlotsm3.1_1}
 mcmc_pairs(as.array(fit.m3.1_1), np = nuts_params(fit.m3.1_1),
            pars = c("r","alpha","sigma"), 
-           off_diag_args = list(size = 1,alpha=1),
+           off_diag_args = list(size = 1,alpha=1/3),
            np_style = pairs_style_np(div_size=2, div_shape = 19))
 ```
 
@@ -492,7 +495,7 @@ store_results["d1.2.m1","likelihood"]=mean(tmp$lp__)
 ```{r pairsPlotsm3.1_1.2}
 mcmc_pairs(as.array(fit.m3.1_1.2), np = nuts_params(fit.m3.1_1.2),
            pars = c("r","alpha","sigma"), 
-           off_diag_args = list(size = 1,alpha=1),
+           off_diag_args = list(size = 1,alpha=1/3),
            np_style = pairs_style_np(div_size=2, div_shape = 19))
 ```
 
@@ -538,7 +541,7 @@ store_results["d0.m2","likelihood"]=mean(tmp$lp__)
 ```{r pairsPlotsm3.2_0}
 mcmc_pairs(as.array(fit.m3.2_0), np = nuts_params(fit.m3.2_0),
            pars = c("r","K","sigma"), 
-           off_diag_args = list(size = 1,alpha=1),
+           off_diag_args = list(size = 1,alpha=1/3),
            np_style = pairs_style_np(div_size=2, div_shape = 19))
 ```
 
@@ -558,7 +561,7 @@ store_results["d1.m2","likelihood"]=mean(tmp$lp__)
 ```{r pairsPlotsm3.2_1}
 mcmc_pairs(as.array(fit.m3.2_1), np = nuts_params(fit.m3.2_1),
            pars = c("r","K","sigma"), 
-           off_diag_args = list(size = 1,alpha=1),
+           off_diag_args = list(size = 1,alpha=1/3),
            np_style = pairs_style_np(div_size=2, div_shape = 19))
 ```
 
@@ -591,7 +594,7 @@ store_results["d1.2.m2","likelihood"]=mean(tmp$lp__)
 ```{r pairsPlotsm3.3_1}
 mcmc_pairs(as.array(fit.m3.2_1.2), np = nuts_params(fit.m3.2_1.2),
            pars = c("r","K","sigma"), 
-           off_diag_args = list(size = 1,alpha=1),
+           off_diag_args = list(size = 1,alpha=1/3),
            np_style = pairs_style_np(div_size=2, div_shape = 19))
 ```
 
@@ -728,7 +731,7 @@ for (t in 1:(tmax-1)){N_R1[t+1] = (N_R1[t]*exp(r-alpha*N_R1[t]+rnorm(1,0,sqrt(0.
 
 ###
 
-par(mfrow=c(3,1),pch=20)
+par(mfrow=c(2,2),pch=20)
 plot(1:tmax,N_R,type="o",ylim=range(c(N_R,N_R1)),xlab="Time",main="r=0.1")
 lines(1:tmax,N_R1,type="o",col="blue")
 legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
@@ -773,7 +776,7 @@ store_results=matrix(NA,nrow=12,ncol=5,dimnames=list(c("d0.m1","d1.m1","d0.2.m1"
 
 ```
 
-We first try the model (r,$alpha$).
+We first try the model with parameterization $(r,\alpha)$.
 
 ```{stan output.var="m4.1"}
 data {                                             // observed variables
@@ -853,7 +856,7 @@ store_results["d1.3.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
 store_results["d1.3.m1","cor(r,DD)"]=cor(tmp$r,tmp$alpha)
 ```
 
-Now we can consider the model (r,K).
+Now we can consider the model with parameterization $(r,K)$.
 
 ```{stan output.var="m4.2"}
 data {                                             // observed variables
