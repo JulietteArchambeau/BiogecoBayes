@@ -1,3 +1,5 @@
+
+
 ---
 title: "Workshop 5 -- Population dynamics and time series"
 author: "Frederic Barraquand and Coralie Picoche"
@@ -23,6 +25,8 @@ rstan_options(auto_write = FALSE)
 options(mc.cores = parallel::detectCores())
 library(MASS)
 library(bayesplot)
+library(knitr)
+
 ```
 
 ## Exponential growth in a stochastic environment
@@ -33,7 +37,7 @@ What on Earth could this highly theoretical construct have to do with time serie
 
 Let's denote the log-abundance $x_t = \log(N_t)$. Now we have $x_{t+1} = x_t + r$. As it turns out, the stochastic model with environmental stochasticity has log-normal noise, so on the log-scale it is simply $x_{t+1} = x_t + r + \epsilon_t, \, \epsilon_t \sim \mathcal{N}(0,\sigma^2)$. This is the simplest model that can be fitted to time series data, and mathematically speaking this is a biased random walk with mean $r$ (i.e., it is more likely to go up than down). An $r$ close to zero will indicate relative stability. 
 
-This model has all sorts of interesting properties due to the stochastic part, such as the fact that the probability of hitting zero, including with very positive $r$, can be very large if variance is large. Let's simulate and fit that model. 
+This model has all sorts of interesting properties due to the stochastic part, such as the fact that the probability of hitting zero, including with very positive $r$, can be very large if the variance is large. Let's simulate and fit that model. 
 
 ```{r simulating-data}
 set.seed(42)
@@ -70,7 +74,6 @@ parameters {                                       // unobserved parameters
   real<lower=0> sigma; 
 }
 model {
-
   //priors
   r ~ normal(0,1);
   sigma ~ exponential(10);
@@ -78,12 +81,10 @@ model {
   for (t in 1:(tmax-1)){
   x[t+1] ~ normal(x[t] + r,sigma); // likelihood 
   }
-
 }
 ```
 
 ```{r print_m1.0,cache=T}
-
 fit.m1.0 <- sampling(m1.1, data = m10.data, iter = 1000, chains = 2, cores = 2)
 print(fit.m1.0, probs = c(0.10, 0.5, 0.9))
 ```
@@ -102,13 +103,10 @@ And again with two other datasets, to see if could have some bias here (or if it
 x2=x3=rep(0,tmax)
 for (t in 1:(tmax-1)){x2[t+1] = x2[t] + r + rnorm(1,0,sqrt(0.1))}
 for (t in 1:(tmax-1)){x3[t+1] = x3[t] + r + rnorm(1,0,sqrt(0.1))}
-
 m12.data <- list(x=x2, tmax = tmax)
 m13.data <- list(x=x3, tmax = tmax)
-
 fit.m1.2<- sampling(m1.1, data = m12.data, iter = 1000, chains = 2, cores = 2)
 print(fit.m1.2, probs = c(0.10, 0.5, 0.9))
-
 fit.m1.3<- sampling(m1.1, data = m13.data, iter = 1000, chains = 2, cores = 2)
 print(fit.m1.3, probs = c(0.10, 0.5, 0.9))
 ```
@@ -126,7 +124,6 @@ parameters {                                       // unobserved parameters
   real<lower=0> sigma; 
 }
 model {
-
   //priors
   r ~ normal(0,1);
   sigma ~ uniform(0,1);                         //1 is a high variance, we're much below. 
@@ -134,25 +131,19 @@ model {
   for (t in 1:(tmax-1)){
   x[t+1] ~ normal(x[t] + r,sigma); // likelihood 
   }
-
 }
 ```
 
 We now fit the model to two datasets having $\sigma = \sqrt{0.1} = 0.31$ and one having $\sigma = \sqrt{0.25} = 0.5$ 
 
 ```{r print_m1.4,cache=T}
-
 fit.m1.4<- sampling(m1.2, data = m10.data, iter = 1000, chains = 2, cores = 2)
 print(fit.m1.4, probs = c(0.10, 0.5, 0.9))
-
 fit.m1.5<- sampling(m1.2, data = m12.data, iter = 1000, chains = 2, cores = 2)
 print(fit.m1.5, probs = c(0.10, 0.5, 0.9))
-
 ### for the last one we take the sigma = 0.5 parameter set
 fit.m1.6<- sampling(m1.2, data = m11.data, iter = 1000, chains = 2, cores = 2)
 print(fit.m1.6, probs = c(0.10, 0.5, 0.9))
-
-
 ```
 
 Let's investigate the correlations then. All good. 
@@ -171,7 +162,6 @@ What have we learned so far?
 * Regulated populations, that we study next, tend to be **for the most part** a little less variable from one time series to the next (there are exceptions), but with possibly more complex relationships between parameters. 
 
 ```{r realized-growth}
-
 mean(m10.data$x[2:tmax]-m10.data$x[1:(tmax-1)]) #realized mean growth rate dataset m10
 mean(m12.data$x[2:tmax]-m12.data$x[1:(tmax-1)]) #realized mean growth rate dataset m12
 minx=min(c(m10.data$x,m12.data$x))
@@ -179,7 +169,6 @@ maxx=max(c(m10.data$x,m12.data$x))
 par(pch=20)
 plot(1:tmax,m10.data$x,type="o",ylim=c(minx,maxx),ylab="log(N)",xlab="Time")
 lines(1:tmax,m12.data$x,type="o",col="blue")
-
 ```
 
 
@@ -196,16 +185,15 @@ which is rigorously equivalent to
 
  $$N_{t+1} = N_t e^{a} \frac{1}{N_t^{\beta}} \times \exp( \epsilon_t ). $$ 
 
-Usually this blows people's minds, we have to recall that $\beta \log(N_t) = \log(N_t^\beta)$ so that $\exp(\beta\log(N_t)) = \exp(\log(N_t^\beta)) = N_t^\beta$.  One of the important ideas about that model is that $b<1$ (usually) will mediate the effect of individuals at low vs high densities; as population size increases individuals have less of a negative effect. It is also extraordinarily statistically convenient, because this equation is also equivalent to 
+Usually this blows people's minds, we have to recall that $\beta \log(N_t) = \log(N_t^\beta)$ so that $\exp(\beta\log(N_t)) = \exp(\log(N_t^\beta)) = N_t^\beta$.  One of the important ideas about that model is that $\beta<1$ (usually) will mediate the effect of individuals at low vs high densities; as population size increases individuals have less of a negative effect. It is also extraordinarily statistically convenient, because this equation is equivalent to 
 
- $$x_{t+1} = a - \beta x_t + \epsilon_t = a + b x_t  + \epsilon_t, \, \epsilon_t \sim \mathcal{N}(0,\sigma^2).$$
+ $$x_{t+1} = x_t + a - \beta x_t + \epsilon_t = a + b x_t  + \epsilon_t, \, \epsilon_t \sim \mathcal{N}(0,\sigma^2).$$
 
 Convenient, isn't it? Now we can use this versatile model to test whether population growth slows down when density increases, just by fitting a linear time series model. This is called the AR(1) model -- AutoRegressive model of order 1. It has a very famous continuous-time counterpart called the Ornstein-Uhlenbeck process, which has physical origins; you can think of it as a ball that's attracted to center with a pull strength proportional to the distance to the center. In a deterministic setting, the ball converges to the center ($x=a/(1-b)=a/\beta$ here). But random perturbations ($\epsilon_t$) make it oscillate around the center. 
 
 There are many applications and multivariate generalisations of this simple model in aquatic ecology, including fisheries.  [For much more on this an state-space models (in Stan as well), see the course by Eli Holmes, Eric Ward and Mark Sheuerell](https://nwfsc-timeseries.github.io/atsa/lectures.html). Here we will only cover the basic Gompertz growth, with only one state, the process state (no observation error). 
 
 ```{r simulating-data-gompertz}
-
 a=1
 b=0.8 # this is 1-beta, so the "pull strength" beta = 0.2 here (and if b=1, we have a random walk)
 tmax = 50
@@ -235,7 +223,6 @@ parameters {                                       // unobserved parameters
   real<lower=0> sigma; 
 }
 model {
-
   //priors
   a ~ normal(0,1);
   b ~ normal(0,1);
@@ -244,7 +231,6 @@ model {
   for (t in 1:(tmax-1)){
   x[t+1] ~ normal(a+b*x[t],sigma); // likelihood 
   }
-
 }
 ```
 
@@ -322,47 +308,35 @@ Let's now simulate that model and fit it, with different parameterizations. We w
 We consider two values of $r$ (0.1 and 2) and two levels of $\sigma^2$, 0.05 and 0.5. 
 
 ```{r simulating-data-beverthon-holt_first_formula}
-
 set.seed(42)
-
 alpha=0.1
 Kprim=1/alpha #Kprim=10
 tmax=50
-
 ####Let's start with r=0.1
 r=0.1
 R=exp(r) #1.0105
 K=(exp(r)-1)/alpha #K=1.05
-
 N_BH=N_BH1=rep(NA,tmax)
 N_BH[1]=N_BH1[1]=1
 for (t in 1:(tmax-1)){N_BH[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*N_BH[t]/(1+alpha*N_BH[t])}
 for (t in 1:(tmax-1)){N_BH1[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*N_BH1[t]/(1+alpha*N_BH1[t])}
-
 ###
-
 par(mfrow=c(1,2),pch=20)
-plot(1:tmax,N_BH,type="o",ylim=range(c(N_BH,N_BH1)))
+plot(1:tmax,N_BH,type="o",ylim=range(c(N_BH,N_BH1)),main="r=0.1")
 lines(1:tmax,N_BH1,type="o",col="blue")
 legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
-
-
 ####And go on with r=2
 r=2
 R=exp(r) #7.4
 K=(exp(r)-1)/alpha #K=63.9
-
 N_BH.2=N_BH1.2=rep(NA,tmax)
 N_BH.2[1]=N_BH1.2[1]=1
 for (t in 1:(tmax-1)){N_BH.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.05))))*N_BH.2[t]/(1+alpha*N_BH.2[t])}
 for (t in 1:(tmax-1)){N_BH1.2[t+1] = (exp(r+rnorm(1,0,sqrt(0.5))))*N_BH1.2[t]/(1+alpha*N_BH1.2[t])}
-
 ###
-
-plot(1:tmax,N_BH.2,type="o",ylim=range(c(N_BH.2,N_BH1.2)))
+plot(1:tmax,N_BH.2,type="o",ylim=range(c(N_BH.2,N_BH1.2)),main="r=2")
 lines(1:tmax,N_BH1.2,type="o",col="blue")
 legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
-
 ```
 
 ```{r data_m3}
@@ -370,17 +344,15 @@ m30.data <- list(x=log(N_BH), tmax = tmax)
 m31.data <- list(x=log(N_BH1), tmax = tmax)
 m30.2.data <- list(x=log(N_BH.2), tmax = tmax)
 m31.2.data <- list(x=log(N_BH1.2), tmax = tmax)
-
 store_results=matrix(NA,nrow=12,ncol=5,dimnames=list(c("d0.m1","d1.m1","d0.2.m1","d1.2.m1","d0.m2","d1.m2","d0.2.m2","d1.2.m2","d0.m3","d1.m3","d0.2.m3","d1.2.m3"),c("r","alpha","sigma","cor(r,DD)","likelihood")))
 ```
 
-We start with a (r,$\alpha$) structure. 
+### $(r,\alpha)$ structure
 
 ```{stan output.var="m3.1"}
 data {                                             // observed variables
   int<lower=1> tmax;                               // number of observations
   vector[tmax] x;                                  // state variable
-
 }
 parameters {                                       // unobserved parameters
   real r;                                          // growth rate
@@ -388,12 +360,10 @@ parameters {                                       // unobserved parameters
   real<lower=0> sigma;
 }
 model {
-
   //priors
   r ~ normal(0,1);
   alpha ~ exponential(10);
   sigma ~ exponential(10);
-
   for (t in 1:(tmax-1)){
   x[t+1] ~ normal(r+x[t]-log(1+alpha*exp(x[t])),sigma);
   }
@@ -403,7 +373,7 @@ model {
 
 One might ask: why is the model written like this? Well, let's use $x=\log(N)$ then the BH model reads
 
-$$x_{t+1} = \log(\frac{N_t e^{r+\epsilon_t}}{1+\alpha N_t})  = x_t + r + \epsilon_t - \log(1 + \alpha e ^{x_t}) + $$. 
+$$x_{t+1} = \log \left(\frac{N_t e^{r+\epsilon_t}}{1+\alpha N_t} \right)  = x_t + r + \epsilon_t - \log(1 + \alpha e ^{x_t})$$. 
 
 How do the 4 parameterizations work with this structure of the model?
 
@@ -427,7 +397,6 @@ sigma_simu=mean(as.matrix(fit.m3.1_0,pars="sigma"))
 N_simu=rep(NA,tmax)
 N_simu[1]=1
 for (t in 1:(tmax-1)){N_simu[t+1] = (exp(r_simu+rnorm(1,0,sigma_simu)))*N_simu[t]/(1+alpha_simu*N_simu[t])}
-
 plot(1:tmax,N_simu,t="o",xlab="Time",ylim=range(c(N_simu,N_BH)))
 lines(1:tmax,N_BH,col="blue")
 ```
@@ -457,10 +426,8 @@ sigma_simu=mean(as.matrix(fit.m3.1_1,pars="sigma"))
 N_simu=rep(NA,tmax)
 N_simu[1]=1
 for (t in 1:(tmax-1)){N_simu[t+1] = (exp(r_simu+rnorm(1,0,sigma_simu)))*N_simu[t]/(1+alpha_simu*N_simu[t])}
-
 plot(1:tmax,N_simu,t="o",xlab="Time",ylim=range(c(N_simu,N_BH1)))
 lines(1:tmax,N_BH1,col="blue")
-
 ```
 
 ```{r pairsPlotsm3.1_1}
@@ -499,13 +466,12 @@ mcmc_pairs(as.array(fit.m3.1_1.2), np = nuts_params(fit.m3.1_1.2),
            np_style = pairs_style_np(div_size=2, div_shape = 19))
 ```
 
-Let's use the (r,K) formula.
+### $(r,K)$ structure
 
 ```{stan output.var="m3.2"}
 data {                                             // observed variables
   int<lower=1> tmax;                               // number of observations
   vector[tmax] x;                                  // state variables
-
 }
 parameters {                                       // unobserved parameters
   real r;                                          // growth rate
@@ -513,12 +479,10 @@ parameters {                                       // unobserved parameters
   real<lower=0> sigma;
 }
 model {
-
   //priors
   r ~ normal(0,1);
   K ~ exponential(1);                             //exponential(10) not working well
   sigma ~ exponential(10);
-
   for (t in 1:(tmax-1)){
   x[t+1] ~ normal(r+x[t]-log(1+(exp(r)-1)*exp(x[t])/K),sigma);
   }
@@ -531,7 +495,7 @@ print(fit.m3.2_0, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m3.2_0)
 store_results["d0.m2","r"]=mean(tmp$r)
 K=mean(tmp$K)
-alpha=exp(mean(tmp$r)-1)/K
+alpha=(exp(mean(tmp$r))-1)/K
 store_results["d0.m2","alpha"]=alpha
 store_results["d0.m2","sigma"]=mean(tmp$sigma)
 store_results["d0.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
@@ -550,7 +514,7 @@ fit.m3.2_1 <- sampling(m3.2, data = m31.data, iter = 1000, chains = 2, cores = 2
 print(fit.m3.2_1, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m3.2_1)
 K=mean(tmp$K)
-alpha=exp(mean(tmp$r)-1)/K
+alpha=(exp(mean(tmp$r))-1)/K
 store_results["d1.m2","r"]=mean(tmp$r)
 store_results["d1.m2","alpha"]=alpha
 store_results["d1.m2","sigma"]=mean(tmp$sigma)
@@ -570,7 +534,7 @@ fit.m3.2_0.2 <- sampling(m3.2, data = m30.2.data, iter = 1000, chains = 2, cores
 print(fit.m3.2_0.2, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m3.2_0.2)
 K=mean(tmp$K)
-alpha=exp(mean(tmp$r)-1)/K
+alpha=(exp(mean(tmp$r))-1)/K
 store_results["d0.2.m2","r"]=mean(tmp$r)
 store_results["d0.2.m2","alpha"]=alpha
 store_results["d0.2.m2","sigma"]=mean(tmp$sigma)
@@ -584,7 +548,7 @@ fit.m3.2_1.2 <- sampling(m3.2, data = m31.2.data, iter = 1000, chains = 2, cores
 print(fit.m3.2_1.2, probs = c(0.10, 0.5, 0.9))
 tmp=extract(fit.m3.2_1.2)
 K=mean(tmp$K)
-alpha=exp(mean(tmp$r)-1)/K
+alpha=(exp(mean(tmp$r))-1)/K
 store_results["d1.2.m2","r"]=mean(tmp$r)
 store_results["d1.2.m2","alpha"]=alpha
 store_results["d1.2.m2","sigma"]=mean(tmp$sigma)
@@ -598,13 +562,12 @@ mcmc_pairs(as.array(fit.m3.2_1.2), np = nuts_params(fit.m3.2_1.2),
            np_style = pairs_style_np(div_size=2, div_shape = 19))
 ```
 
-And finally, the (r,K') structure.
+### $(r,K')$ structure
 
 ```{stan output.var="m3.3"}
 data {                                             // observed variables
   int<lower=1> tmax;                               // number of observations
   vector[tmax] x;                                  // state variables
-
 }
 parameters {                                       // unobserved parameters
   real r;                                          // growth rate
@@ -612,12 +575,10 @@ parameters {                                       // unobserved parameters
   real<lower=0> sigma;
 }
 model {
-
   //priors
   r ~ normal(0,1);
   Kprim ~ exponential(10);
   sigma ~ exponential(10);
-
   for (t in 1:(tmax-1)){
   x[t+1] ~ normal(r+x[t]-log(1+exp(x[t])/Kprim),sigma);
   }
@@ -686,18 +647,20 @@ store_results["d1.2.m3","likelihood"]=mean(tmp$lp__)
 ```{r pairsPlotsm3.3_1.2}
 mcmc_pairs(as.array(fit.m3.3_1.2), np = nuts_params(fit.m3.3_1.2),
            pars = c("r","Kprim","sigma"), 
-           off_diag_args = list(size = 1,alpha=1),
+           off_diag_args = list(size = 1,alpha=1/3),
            np_style = pairs_style_np(div_size=2, div_shape = 19))
 ```
 
-Keeping in mind that r=0.1, r.2=2, alpha=0.1, sigma0=0.22 and sigma1=0.71
+Keeping in mind that r=0.1, r.2=2, $\alpha=0.1$, $\sigma_0=0.22=\sqrt{0.05}$ and $\sigma_1=0.71=\sqrt{0.5}$. 
 
-```{r print_matriN_Results,cache=T}
-print(store_results)
+### Summary
+
+```{r print_matrix_results,cache=T,echo=F}
+rownames(store_results)=c("(r,alpha),r=0.1,sigma=0.2","(r,alpha),r=0.1,sigma=0.7","(r,alpha),r=2,sigma=0.2","(r,alpha),r=2,sigma=0.7","(r,K),r=0.1,sigma=0.2","(r,K),r=0.1,sigma=0.7","(r,K),r=2,sigma=0.2","(r,K),r=2,sigma=0.7","(r,Kprim),r=0.1,sigma=0.2","(r,Kprim),r=0.1,sigma=0.7","(r,Kprim),r=2,sigma=0.2","(r,Kprim),r=2,sigma=0.7")
+kable(format(store_results,digits=2))
 ```
 
-
-Fairly different qualities of fit and correlations between parameters. Note FB: From previous fits I had, $(r,K)$ could a bit better in some cases than $(r,K')$ and perhaps $(r,\alpha)$ (in terms of reducing the $(r,K)$ correlation), but the estimation of the density-dependence was worse with $(r,K)$ here. ]
+Fairly different qualities of fit and correlations between parameters. Note FB: From previous fits I had, I would have expected that $(r,K)$ could a bit better in some cases than $(r,K')$ and $(r,\alpha)$. Notably in terms of reducing the $(r,K)$ correlation. But the estimation of the density-dependence was really worse with $(r,K)$ here, for reasons that are not entirely apparent yet. This is difficult to sort out without considering several algorithm, i.e., doing this in a frequentist setting as well to get a good look at the likelihood surfaces. 
 
 ## Other forms of discrete-time near-logistic growth
 
@@ -714,75 +677,56 @@ A slightly better-behaved model, still quite far from the original logistic grow
 Here we will also try the two different parameterization, but we will vary $r$ some more (adding $r=3.5$) to make the model exhibit varied dynamics.  
 
 ```{r simulating-data-ricker}
-
 set.seed(42)
-
 alpha=0.1
 tmax=50
-
 ####Let's start with r=0.1
 r=0.1
 K=r/alpha #K=1.
-
 N_R=N_R1=rep(NA,tmax)
 N_R[1]=N_R1[1]=1
 for (t in 1:(tmax-1)){N_R[t+1] = (N_R[t]*exp(r-alpha*N_R[t]+rnorm(1,0,sqrt(0.05))))}
 for (t in 1:(tmax-1)){N_R1[t+1] = (N_R1[t]*exp(r-alpha*N_R1[t]+rnorm(1,0,sqrt(0.5))))}
-
 ###
-
 par(mfrow=c(2,2),pch=20)
 plot(1:tmax,N_R,type="o",ylim=range(c(N_R,N_R1)),xlab="Time",main="r=0.1")
 lines(1:tmax,N_R1,type="o",col="blue")
 legend("topleft",c(expression(paste(sigma^"2","=0.05",sep="")),expression(paste(sigma^"2","=0.5",sep=""))),col=c("black","blue"),lty=1,pch=16,bty="n")
-
-
 ####And go on with r=2
 r=2
 K=r/alpha #K=20
-
 N_R.2=N_R1.2=rep(NA,tmax)
 N_R.2[1]=N_R1.2[1]=1
 for (t in 1:(tmax-1)){N_R.2[t+1] = (N_R.2[t]*exp(r-alpha*N_R.2[t]+rnorm(1,0,sqrt(0.05))))}
 for (t in 1:(tmax-1)){N_R1.2[t+1] = (N_R1.2[t]*exp(r-alpha*N_R1.2[t]+rnorm(1,0,sqrt(0.5))))}
-
 ###
-
 plot(1:tmax,N_R.2,type="o",ylim=range(c(N_R.2,N_R1.2)),xlab="Time",main="r=2")
 lines(1:tmax,N_R1.2,type="o",col="blue")
-
 #And r=3.5
 r=3.5
 K=r/alpha #K=35
-
 N_R.3=N_R1.3=rep(NA,tmax)
 N_R.3[1]=N_R1.3[1]=1
 for (t in 1:(tmax-1)){N_R.3[t+1] = (N_R.3[t]*exp(r-alpha*N_R.3[t]+rnorm(1,0,sqrt(0.05))))}
 for (t in 1:(tmax-1)){N_R1.3[t+1] = (N_R1.3[t]*exp(r-alpha*N_R1.3[t]+rnorm(1,0,sqrt(0.5))))}
-
 ###
-
 plot(1:tmax,N_R.3,type="o",ylim=range(c(N_R.3,N_R1.3)),xlab="Time",main="r=3")
 lines(1:tmax,N_R1.3,type="o",col="blue")
-
 m40.data <- list(x=log(N_R), tmax = tmax)
 m41.data <- list(x=log(N_R1), tmax = tmax)
 m40.2.data <- list(x=log(N_R.2), tmax = tmax)
 m41.2.data <- list(x=log(N_R1.2), tmax = tmax)
 m40.3.data <- list(x=log(N_R.3), tmax = tmax)
 m41.3.data <- list(x=log(N_R1.3), tmax = tmax)
-
 store_results=matrix(NA,nrow=12,ncol=5,dimnames=list(c("d0.m1","d1.m1","d0.2.m1","d1.2.m1","d0.3.m1","d1.3.m1","d0.m2","d1.m2","d0.2.m2","d1.2.m2","d0.3.m2","d1.3.m2"),c("r","alpha","sigma","cor(r,DD)","likelihood")))
-
 ```
 
-We first try the model with parameterization $(r,\alpha)$.
+### (r,$\alpha$) structure
 
 ```{stan output.var="m4.1"}
 data {                                             // observed variables
   int<lower=1> tmax;                               // number of observations
   vector[tmax] x;                                  // state variables
-
 }
 parameters {                                       // unobserved parameters
   real r;                                          // growth rate
@@ -790,12 +734,10 @@ parameters {                                       // unobserved parameters
   real<lower=0> sigma;
 }
 model {
-
   //priors
   r ~ normal(0,1);
   alpha ~ exponential(10);
   sigma ~ exponential(10);
-
   for (t in 1:(tmax-1)){
   x[t+1] ~ normal(r+x[t]-alpha*exp(x[t]),sigma);
   }
@@ -856,13 +798,12 @@ store_results["d1.3.m1",c("r","alpha","sigma","likelihood")]=unlist(tmp_mean)
 store_results["d1.3.m1","cor(r,DD)"]=cor(tmp$r,tmp$alpha)
 ```
 
-Now we can consider the model with parameterization $(r,K)$.
+### (r,K) structure
 
 ```{stan output.var="m4.2"}
 data {                                             // observed variables
   int<lower=1> tmax;                               // number of observations
   vector[tmax] x;                                  // state variables
-
 }
 parameters {                                       // unobserved parameters
   real r;                                          // growth rate
@@ -870,12 +811,10 @@ parameters {                                       // unobserved parameters
   real<lower=0> sigma;
 }
 model {
-
   //priors
   r ~ normal(0,1);
   K ~ exponential(10);
   sigma ~ exponential(10);
-
   for (t in 1:(tmax-1)){
   x[t+1] ~ normal(x[t]+r*(1-exp(x[t])/K),sigma);
   }
@@ -931,7 +870,6 @@ tmp=extract(fit.m4.2_1.2)
 tmp_mean=lapply(tmp,mean)
 store_results["d1.2.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
 store_results["d1.2.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
-
 ```
 
 ```{r pairsPlotsm4.2_1.2}
@@ -950,6 +888,7 @@ tmp=extract(fit.m4.2_0.3)
 tmp_mean=lapply(tmp,mean)
 store_results["d0.3.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_mean$r/tmp_mean$K,tmp_mean$sigma,tmp_mean$lp__)
 store_results["d0.3.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
+
 ```
 
 ```{r print_m4.2_1.3,cache=T}
@@ -961,6 +900,14 @@ store_results["d1.3.m2",c("r","alpha","sigma","likelihood")]=c(tmp_mean$r,tmp_me
 store_results["d1.3.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 ```
 
+### Summary
+
+```{r summary_4,cache=T,echo=F}
+rownames(store_results)=c("(r,alpha),r=0.1,sigma=0.2","(r,alpha),r=0.1,sigma=0.7","(r,alpha),r=2,sigma=0.2","(r,alpha),r=2,sigma=0.7","(r,K),r=0.1,sigma=0.2","(r,K),r=0.1,sigma=0.7","(r,K),r=2,sigma=0.2","(r,K),r=2,sigma=0.7","(r,Kprim),r=0.1,sigma=0.2","(r,Kprim),r=0.1,sigma=0.7","(r,Kprim),r=2,sigma=0.2","(r,Kprim),r=2,sigma=0.7")
+kable(format(store_results,digits=2))
+```
+
+
 [theta-Ricker for the next session? ample material for a session 2...]
 
 ### Some literature on more refined models
@@ -968,5 +915,3 @@ store_results["d1.3.m2","cor(r,DD)"]=cor(tmp$r,tmp$K)
 A nice lifelike example, including more complex models such as models with delays https://onlinelibrary.wiley.com/doi/full/10.1111/j.1600-0587.2009.05604.x
 
 See also the very smart https://esajournals.onlinelibrary.wiley.com/doi/pdf/10.1002/ecs2.2215 
-
-
