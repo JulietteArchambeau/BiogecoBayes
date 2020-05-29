@@ -1,0 +1,663 @@
+
+
+---
+title: "Workshop 6 -- Fitting ODEs with time series: example of SIR models"
+author: "Simon Labarthe"
+date: "May 26, 2020"
+output:
+  html_document:
+    highlight: textmate
+    theme: paper
+    toc: yes
+    toc_depth: 4
+    toc_float:
+      collapsed: no
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+---
+
+```{r setup, include=FALSE}
+options(width = 300)
+knitr::opts_chunk$set(cache = FALSE) ### wonder if that's not changing the size of the html https://bioinfo-fr.net/maitrisez-cache-de-rmarkdown
+library(rstan)
+rstan_options(auto_write = FALSE)
+options(mc.cores = parallel::detectCores())
+library(MASS)
+library(bayesplot)
+library(knitr)
+
+```
+
+This work is massively taken from the two following excellent webpages and mainly consists in extractions, reductions, simplifications or contextualisations of the work they made. Please, visit their page for an extended version of this one.
+
+https://mc-stan.org/users/documentation/case-studies/boarding_school_case_study.html
+
+https://jrmihalj.github.io/estimating-transmission-by-fitting-mechanistic-models-in-Stan/
+
+
+# SIR models
+
+SIR models (standing for Susceptible-Infected-Recovered) form a class of models extensively used in epidemiology. They aim at tracking in time the dynamics of Susceptible (S), Infected (I) and Recovered (R) population densities (or proportions) during an infection to a given pathogen in a total population of size N. During epidemics, susceptible individuals (individuals that did not develop immunity against the pathogen) will become infected, and after a while will recover from the diseases. Very often, after infection, immunity is developed so that after infection, ones do not come back into the susceptible class, but get into a Recovered class, with individuals who are not susceptible to being infected any longer.
+
+
+## Building a SIR model
+
+### Notations
+* S : proportion in the total population of individuals that are susceptible to be infected (they did not develop immunity against the pathogen yet). 
+
+$$ S = \frac{N_S}{N}$$
+
+* I : proportion in the total population of infected individuals.
+
+$$ I = \frac{N_I}{N}$$
+
+* R : proportion in the total population of recovered individuals. They have been infected, but cured, and can no longer be infected again.
+
+$$ R = \frac{N_R}{N}$$
+
+* $N_S$, $N_I$, $N_R$, $N$ are respectively the number of susceptible, infected, recovered and total population.
+
+
+We suppose that the epidemics is not lethal so that the populations remain constant. We then have
+
+$$ N_S + N_I + N_R = N$$
+
+$$ S + I + R = 1$$
+
+### Compartment dynamics : mass conservation equations
+
+During a time step $\Delta t$, the flux of susceptible individuals getting infected will be $F_I$. 
+
+$$F_I = \beta S I$$
+where $\beta$ ([$t^{-1}$]) is the constant rate of infectious contact between people. This flux is then modulated by the interaction between S and I populations.
+
+The flux of recovering individuals is $F_R$
+
+$$ F_R = \gamma I $$
+with $\gamma$ ([$t^{-1}$]) the constant recovery rate of infected individuals.
+
+Hence, during time step $\Delta t$ between $t$ and $t+\Delta t$, the evolution of the different populations will be
+
+$$S(t+\Delta t) - S(t) = - F_I \Delta t = - \beta SI \Delta t $$
+$$I(t+\Delta t) - I(t) =  (F_I - F_R)\Delta t =  (\beta S - \gamma)I \Delta t $$
+$$ R(t+\Delta t) - R(t) = F_R \Delta t = \gamma I \Delta t $$
+These equations are also known as conservation equations, since mass flux between compartments balance. In other words, when an individual leaves one compartment, he will immediately get into an other one so that the total number of people remains constant. We can see that 
+$$ S(t+\Delta t) - S(t) + I(t+\Delta t) - I(t) +  R(t+\Delta t) - R(t) = (-F_I + F_I - F_R + F_R) = 0 $$
+so that 
+$$ S(t+\Delta t)  + I(t+\Delta t)  +  R(t+\Delta t) = N(t+\Delta t)  = S(t) + I(t) +   R(t) = N(t)$$
+
+
+The equation 
+$$S(t+\Delta t) - S(t) = - \beta SI \Delta t $$
+can also be written
+$$\frac{S(t+\Delta t) - S(t)}{\Delta t} =  - \beta SI $$
+In the left hand term, we can recognize a "finite difference" or growth rate. Assuming that $S$ is differentiable, and taking $\Delta \to 0$, we have
+
+$$ \partial_t S = - \beta S I $$
+In the same way
+$$ \partial_t I = \beta SI + \gamma I$$
+
+and 
+$$ \partial_t R = \gamma I.$$
+
+These objects are known as differential equations, or ordinary differential equations (ODE). The system of equation is sometimes named a dynamic system.
+
+Sometimes, the time derivatives are not noted $\partial_t S$ but $\dot{S}$, $S'$ or $\frac{d S}{dt}$.
+
+### Initial conditions
+ODE equations come with an "initial condition" which is the system state at the starting time point. 
+
+Here, we will consider that at $t=0$, the population will be entirely susceptible but a small amount $I_0$ of infected people, who will be the "patient zero" of our epidemic. We set
+
+$$ S(0) = 1-I_0, \quad \quad I(0) = I_0, \quad \quad R(0) = 0. $$
+
+Hence, the system is described by a starting point, and a description of its dynamics. Sometimes, a solution is called a "flow", refering to the image of hydrodynamics : imagine a river with stream lines (the dynamics), the dynamic of a tree leaf that falls into the river will be entirely determined by its starting point and the stream lines found during its trajectory. Here, the stream lines are described by the differential equations, and the initial condition is the starting point of the trajectory : both informations are mandatory.
+
+Initial conditions are often discarded but they are a hudge determinant of the overall dynamics : it can be set as a parameter that we will try to fit.
+
+## Time integration of an ODE system with R
+
+Why does STAN documentation refer to "integrators" or "time integration" ? Integrating an ODE means computing the solution $(S,I,R)$ at any time $t>0$.
+
+
+```{r simulating-ODE}
+#This block is taken from https://jrmihalj.github.io/estimating-transmission-by-fitting-mechanistic-models-in-Stan/
+
+# Load some required packages
+##############
+library(deSolve)
+library(ggplot2)
+##############
+
+# To simulate the data, we need to assign initial conditions.
+# In practice, these will likely be unknown, but can be estimated from the data.
+
+I0 = 0.02    # initial fraction infected
+S0 = 1 - I0 # initial fraction susceptible
+R0 = 0
+
+# Assign transmission and pathogen-induced death rates:
+beta = 0.60
+gamma = 0.10
+
+# We will use the package deSolve to integrate, which requires certain data structures.
+# Store parameters and initial values
+# Parameters must be stored in a named list.
+params <- list(beta = beta,
+              gamma = gamma)
+
+# Initial conditions are stored in a vector
+inits <- c(S0, I0, R0)
+
+# Create a time series over which to integrate.
+# Here we have an epidemic that is observed over t_max number of days (or weeks or etc).
+t_min = 0
+t_max = 50
+times = t_min:t_max
+
+# We must create a function for the system of ODEs. This function computes the time derivatives of the different populations. The function signature takes the current time t, the current state vector y(t)=(S(t),I(t),R(t)) at time t, and the equation parameters.
+# See the 'ode' function documentation for further insights.
+SIR_time_derivative <- function(t, y, params) {
+  with(as.list(c(params, y)), {
+    dS = - beta * y[1] * y[2]
+    dI = beta * y[1] * y[2] - gamma * y[2]
+    dR = gamma * y[2]
+    res <- c(dS,dI,dR)
+    list(res)
+  })
+}
+
+# Run the integration. See the signature of this function : inits = list of initial conditions, times = time points we want to compute (we aim at obtening the solution y=(S,I,R) at each time points of times), the function 
+out <- ode(inits, times, SIR_time_derivative, params, method="ode45")
+
+# Store the output in a data frame.
+out <- data.frame(out)
+colnames(out) <- c("time", "S", "I", "R")
+
+# quick plot of the epidemic
+plot(NA,NA, xlim = c(t_min, t_max), ylim=c(0, 1), xlab = "Time", ylab="Fraction of Host Population")
+lines(out$S ~ out$time, col="black")
+lines(out$I ~ out$time, col="red")
+lines(out$R ~ out$time, col="green")
+legend(x = 30, y = 0.8, legend = c("Susceptible", "Infected","Recovered"), 
+       col = c("black", "red","green"), lty = c(1, 1), bty="n")
+```
+
+
+## About $R_0$
+
+As we heard during Covid19 spread, an important parameter of epidemic dynamics is the $R_0$ parameter. In the ODE system, the parameters governing the Infected dynamics are $\beta$ and $\gamma$
+$$ \partial_t I = \beta SI - \gamma I = (\beta S - \gamma) I $$
+At the begining of the epidemic, we have $S\simeq 1$. If we approximate $S$ by $1$ in the previous equation, we get the linear equation
+$$ \partial_t I = (\beta - \gamma) I $$
+The solution of this equation can be computed exactly : it is the exponential function
+$$ I(t) = I_0 e^{(\beta - \gamma) t} $$
+We define $R_0 = \frac{\beta}{\gamma}$ and we see the alternative:
+* If $R_0 = \frac{\beta}{\gamma} > 1$, then 
+
+$$\beta - \gamma >0 \text{  and  } \lim_{t\to \infty} I(t) = + \infty $$
+* If $R_0 = \frac{\beta}{\gamma} < 1$, then 
+
+$$\beta - \gamma <0 \text{  and  } \lim_{t\to \infty} I(t) = 0 $$
+
+In good french, $R_0$ can be defined as the ratio between infectious contact rate and recovery rate. If recovery is faster than infection, the epidemic disapears, but if infection is faster than recovery, the epidemic explodes in time. 
+
+
+
+
+
+```{r simulating-Playing with R0}
+## R0=10
+beta = 1.0
+gamma = 0.10
+params_R0_10 <- list(beta = beta,
+              gamma = gamma)
+out_R0_10 <- ode(inits, times, SIR_time_derivative, params_R0_10, method="ode45")
+out_R0_10 <- data.frame(out_R0_10)
+colnames(out_R0_10) <- c("time", "S", "I", "R")
+##R0=2
+beta = 2.0
+gamma = 1.0
+params_R0_2 <- list(beta = beta,
+              gamma = gamma)
+out_R0_2 <- ode(inits, times, SIR_time_derivative, params_R0_2, method="ode45")
+out_R0_2 <- data.frame(out_R0_2)
+colnames(out_R0_2) <- c("time", "S", "I", "R")
+##R0=0.9
+beta = 0.9
+gamma = 1.0
+params_R0_0_9 <- list(beta = beta,
+              gamma = gamma)
+out_R0_0_9 <- ode(inits, times, SIR_time_derivative, params_R0_0_9, method="ode45")
+out_R0_0_9 <- data.frame(out_R0_0_9)
+colnames(out_R0_0_9) <- c("time", "S", "I", "R")
+##R0=0.1
+beta = 0.1
+gamma = 1.0
+params_R0_0_1 <- list(beta = beta,
+              gamma = gamma)
+out_R0_0_1 <- ode(inits, times, SIR_time_derivative, params_R0_0_1, method="ode45")
+out_R0_0_1 <- data.frame(out_R0_0_9)
+colnames(out_R0_0_1) <- c("time", "S", "I", "R")
+# quick plot of the infected
+plot(NA,NA, xlim = c(t_min, t_max), ylim=c(0, 1), xlab = "Time", ylab="Fraction of infected")
+lines(out_R0_10$I ~ out$time, col="black")
+lines(out_R0_2$I ~ out$time, col="red")
+lines(out_R0_0_9$I ~ out$time, col="green")
+lines(out_R0_0_1$I ~ out$time, col="blue")
+legend(x = 30, y = 0.8, legend = c("R0=10", "R0=2","R0=0.9","R0=0.1"), 
+       col = c("black", "red","green","blue"), lty = c(1, 1), bty="n")
+```
+
+
+
+
+## Herd immunity : Link between $R_0$ and recovered population
+
+We often heard sentences such "as $R_0$ is about 2.5, the epidemic will vanish when the infected population will reach 60 %".
+
+Coming back to equation :
+$$ \partial_t I = \beta SI - \gamma I = (\beta S - \gamma) I $$
+As $S=1-(R+I)$, we can see that when $S<\frac{1}{R_0}$, i.e. when $R+I > 1 - \frac{1}{R_0}$, then the term
+$$ \beta S - \gamma <0$$
+so that Infected population will exponentially vanish in time.
+
+```{r simulating-Playing with S}
+## R0=10 for all simulations
+beta = 1.0
+gamma = 0.10
+params_R0_10 <- list(beta = beta,
+              gamma = gamma)
+
+## we change the initial condition, with different amonts of recovered people
+
+# R at time 0 is 0 => no herd immunity
+I0 = 0.02    # initial fraction infected
+R0 = 0
+S0 = 1 - I0 - R0 # initial fraction susceptible
+inits <- c(S0, I0, R0)
+
+out_R0_0 <- ode(inits, times, SIR_time_derivative, params_R0_10, method="ode45")
+out_R0_0 <- data.frame(out_R0_0)
+colnames(out_R0_0) <- c("time", "S", "I", "R")
+
+# R at time 0 is 0.2 => small herd immunity
+I0 = 0.02    # initial fraction infected
+R0 = 0.2
+S0 = 1 - I0 - R0 # initial fraction susceptible
+inits <- c(S0, I0, R0)
+
+out_R0_0_2 <- ode(inits, times, SIR_time_derivative, params_R0_10, method="ode45")
+out_R0_0_2 <- data.frame(out_R0_0_2)
+colnames(out_R0_0_2) <- c("time", "S", "I", "R")
+
+# R at time 0 is 0.6 => large herd immunity
+I0 = 0.02    # initial fraction infected
+R0 = 0.6
+S0 = 1 - I0 - R0 # initial fraction susceptible
+inits <- c(S0, I0, R0)
+
+out_R0_0_6 <- ode(inits, times, SIR_time_derivative, params_R0_10, method="ode45")
+out_R0_0_6 <- data.frame(out_R0_0_6)
+colnames(out_R0_0_6) <- c("time", "S", "I", "R")
+
+# quick plot of the infected
+plot(NA,NA, xlim = c(t_min, t_max), ylim=c(0, 1), xlab = "Time", ylab="Fraction of Infected")
+lines(out_R0_0$I ~ out$time, col="black")
+lines(out_R0_0_2$I ~ out$time, col="red")
+lines(out_R0_0_6$I ~ out$time, col="green")
+legend(x = 30, y = 0.8, legend = c("R(0)=0", "R(0)=0.2","R(0)=0.6"), 
+       col = c("black", "red","green"), lty = c(1, 1), bty="n")
+```
+
+
+
+# Bayesian estimation 
+
+## Computing synthetic data
+
+We will compute synthetic data by taking a typical field experiment : at some time points, we will test randomly chosen individuals. We expect "missing time points" (and so, latent variables). We also expect that the number of positive tests (i.e. the number of tests indicating that the tested people is infected) will be sampled in a binomial law, with $N=sample_n$ the number of tests performed each day, and $p=I$ the proportion of infected individuals.
+
+```{r simulating-synthetic data}
+#This bloc as been taken from https://jrmihalj.github.io/estimating-transmission-by-fitting-mechanistic-models-in-Stan/
+
+sample_days = 20 # number of days sampled throughout the epidemic
+sample_n = 25 # number of host individuals sampled per day
+
+# Choose which days the samples were taken. 
+# Ideally this would be daily, but we all know that is difficult.
+sample_time = sort(sample(1:t_max, sample_days, replace=F))
+
+# Extract the "true" fraction of the population that is infected on each of the sampled days:
+sample_propinf = out[out$time %in% sample_time, 3]
+
+# Generate binomially distributed data.
+# So, on each day we sample a given number of people (sample_n), and measure how many are infected.
+# We expect binomially distributed error in this estimate, hence the random number generation.
+sample_y = rbinom(sample_days, sample_n, sample_propinf)
+```
+
+We call stan library
+```{r simulating-stan package}
+library(rstan)
+rstan_options (auto_write = TRUE)
+options (mc.cores = parallel::detectCores ())
+set.seed(3) # for reproductibility
+```
+
+
+
+And we set the model
+```{stan output.var="m.synthetic",eval=F,cache=F}
+//This bloc as been taken from https://jrmihalj.github.io/estimating-transmission-by-fitting-mechanistic-models-in-Stan/
+functions {
+  // This bloc is specific to ODE estimate : this function must contain the time derivative, and is very similar to the function we defined for the deSolve package.
+  // This largely follows the deSolve package, but also includes the x_r and x_i variables.
+  // These variables are mandatory, due to the signature of the derivative functions in STAN ODE integrators. They may contain for exemple additional parameters that we do not want to infer, and are kept fixed. Here, they will remain null (see transformed_data bloc)
+  
+   real[] SI(real t,
+            real[] y,
+            real[] params,
+            real[] x_r,
+            int[] x_i) {
+      
+      real dydt[3];
+      
+      dydt[1] = - params[1] * y[1] * y[2];
+      dydt[2] = params[1] * y[1] * y[2] - params[2] * y[2];
+      dydt[3] = params[2] * y[2];
+      
+      return dydt;
+    }
+  
+}
+
+data {
+  int<lower = 1> n_obs; // Number of days sampled
+  int<lower = 1> n_params; // Number of model parameters
+  int<lower = 1> n_difeq; // Number of differential equations in the system
+  int<lower = 1> n_sample; // Number of hosts sampled at each time point.
+  int<lower = 1> n_fake; // This is to generate "predicted"/"unsampled" data
+  
+  int y[n_obs]; // The binomially distributed data
+  real t0; // Initial time point (zero)
+  real ts[n_obs]; // Time points that were sampled
+  
+  real fake_ts[n_fake]; // Time points for "predicted"/"unsampled" data
+}
+
+transformed data {
+  real x_r[0]; // No additional real parameter to ODE time derivative function => is set to a vector of dimension 0
+  int x_i[0]; // No additional integer parameter to ODE time derivative function => is set to a vector of dimension 0
+}
+
+parameters {
+  real<lower = 0> params[n_params]; // Model parameters
+  real<lower = 0, upper = 1> S0; // Initial fraction of hosts susceptible
+}
+
+transformed parameters{
+  real y_hat[n_obs, n_difeq]; // Output from the ODE solver
+  real y0[n_difeq]; // Initial conditions for both S and I
+
+  y0[1] = S0;
+  y0[2] = 1 - S0;
+  y0[3] = 0;
+  
+  y_hat = integrate_ode_rk45(SI, y0, t0, ts, params, x_r, x_i);
+  
+}
+
+model {
+  params ~ normal(0, 2); //constrained to be positive
+  S0 ~ normal(0.5, 0.5); //constrained to be 0-1.
+  
+  y ~ binomial(n_sample, y_hat[, 2]); //y_hat[,2] are the fractions infected from the ODE solver
+  
+}
+
+generated quantities {
+  // Generate predicted data over the whole time series:
+  real fake_I[n_fake, n_difeq];
+  
+  fake_I = integrate_ode_rk45(SI, y0, t0, fake_ts, params, x_r, x_i);
+  
+}
+
+```
+
+And we fit the parameters.
+
+```{r simulating-fit synthetic,cache=F,eval=T}
+# FITTING
+
+# For stan model we need the following variables:
+
+stan_d <- list(n_obs = sample_days,
+              n_params = length(params),
+              n_difeq = length(inits),
+              n_sample = sample_n,
+              n_fake = length(1:t_max),
+              y = sample_y,
+              t0 = 0,
+              ts = sample_time,
+              fake_ts = c(1:t_max))
+
+# Which parameters to monitor in the model:
+params_monitor <- c("y_hat", "y0","S0", "params", "fake_I")
+
+# Test / debug the model:
+m.synthetic <- stan_model("Models/Model_synthetic.stan")
+mod <- sampling(m.synthetic, data =stan_d,pars=params_monitor,iter = 30000, chains = 4,warmup=500)
+
+# You should do some MCMC diagnostics, including:
+traceplot(mod, pars="lp__")
+traceplot(mod, pars=c("params", "S0"))
+
+pars=c('params', 'S0')
+stan_dens(mod, pars = pars, separate_chains = TRUE)
+# Extract the posterior samples to a structured list:
+posts <- extract(mod)
+print(mod, pars = pars)
+```
+
+
+```{r simulating-check synthetic,cache=F,eval=T}
+# These should match well. 
+## this block has been taken from https://jrmihalj.github.io/estimating-transmission-by-fitting-mechanistic-models-in-Stan/
+#################
+# Plot model fit:
+
+# Proportion infected from the synthetic data:
+sample_prop = sample_y / sample_n
+
+# Model predictions across the sampling time period.
+# These were generated with the "fake" data and time series.
+mod_median = apply(posts$fake_I[,,2], 2, median)
+mod_low = apply(posts$fake_I[,,2], 2, quantile, probs=c(0.025))
+mod_high = apply(posts$fake_I[,,2], 2, quantile, probs=c(0.975))
+mod_time = stan_d$fake_ts
+
+# Combine into two data frames for plotting
+df_sample = data.frame(sample_prop, sample_time)
+df_fit = data.frame(mod_median, mod_low, mod_high, mod_time)
+
+# Plot the synthetic data with the model predictions
+# Median and 95% Credible Interval
+
+ggplot(df_sample, aes(x=sample_time, y=sample_prop)) +
+  geom_point(col="black", shape = 19, size = 1.5) +
+  # Error in integration:
+  geom_line(data = df_fit, aes(x=mod_time, y=mod_median), color = "red") + 
+  geom_line(data = df_fit, aes(x=mod_time, y=mod_high), color = "red", linetype=3) + 
+  geom_line(data = df_fit, aes(x=mod_time, y=mod_low), color = "red", linetype=3) + 
+  # Aesthetics
+  labs(x = "Time (days)", y = "Proportion Infected") + 
+  scale_x_continuous(limits=c(0, 50), breaks=c(0,25,50)) +
+  scale_y_continuous(limits=c(0,1), breaks=c(0,.5,1)) +
+  theme_classic() + 
+  theme(axis.line.x = element_line(color="black"),
+        axis.line.y = element_line(color="black"))
+```
+
+
+
+# Fitting the model on real data
+We examine an outbreak of influenza A (H1N1) in 1978 at a British boarding school. The data consists of the daily number of students in bed, spanning over a time interval of 14 days. 
+
+```{r simulating-real data,cache=F}
+library(outbreaks)
+
+ggplot(data = influenza_england_1978_school) + 
+  geom_point(mapping = aes(x = date, y = in_bed)) + 
+  labs(y = "Number of students in bed")+
+  theme_classic() + 
+  theme(axis.line.x = element_line(color="black"),
+        axis.line.y = element_line(color="black"))
+
+```
+
+We adapt the previous STAN code
+
+
+```{stan output.var="m.data",eval=F,cache=F}
+//This bloc as been taken from https://mc-stan.org/users/documentation/case-studies/boarding_school_case_study.html and https://jrmihalj.github.io/estimating-transmission-by-fitting-mechanistic-models-in-Stan/
+functions {
+  real[] sir(real t, real[] y, real[] theta, 
+             real[] x_r, int[] x_i) {
+
+      real S = y[1];
+      real I = y[2];
+      real R = y[3];
+      real N = x_i[1];
+      
+      real beta = theta[1];
+      real gamma = theta[2];
+      
+      real dS_dt = -beta * I * S / N; // The equation is rescalled
+      real dI_dt =  beta * I * S / N - gamma * I; // The equation is rescalled
+      real dR_dt =  gamma * I;// The equation is rescalled
+      
+      return {dS_dt, dI_dt, dR_dt};
+  }
+}
+
+data {
+  int<lower=1> n_days;
+  real y0[3];
+  real t0;
+  real ts[n_days];
+  int N;
+  int cases[n_days];
+}
+
+transformed data {
+  real x_r[0];
+  int x_i[1] = { N };
+}
+
+parameters {
+  real<lower=0> gamma;
+  real<lower=0> beta;
+  real<lower=0> phi_inv;
+}
+
+transformed parameters{
+  real y[n_days, 3];
+  real phi = 1. / phi_inv;
+  {
+    real theta[2];
+    theta[1] = beta;
+    theta[2] = gamma;
+
+    y = integrate_ode_rk45(sir, y0, t0, ts, theta, x_r, x_i);
+  }
+}
+
+model {
+  //priors
+  beta ~ normal(2, 1); //truncated at 0
+  gamma ~ normal(0.4, 0.5); //truncated at 0
+  phi_inv ~ exponential(5);
+  
+  //sampling distribution
+  //col(matrix x, int n) - The n-th column of matrix x. Here the number of infected people
+  cases ~ neg_binomial_2(col(to_matrix(y), 2), phi); //negative binomial to model an over dispersed count distribution
+}
+
+generated quantities {
+  real R0 = beta / gamma;
+  real recovery_time = 1 / gamma;
+  real pred_cases[n_days];
+  pred_cases = neg_binomial_2_rng(col(to_matrix(y), 2) + 1e-5, phi);
+}
+
+```
+We note that we took a negative binomial distribution to simulate the data from the Infected population, in order to model an overdispersed count distribution. The dispersion is infered with the parameter phi_inv.
+
+
+
+
+
+
+And we fit the parameters.
+
+```{r simulating-fit data,cache=F,eval=T}
+# time series of cases
+# time series of cases
+cases <- influenza_england_1978_school$in_bed  # Number of students in bed
+
+# total count
+N <- 763;
+
+# times
+n_days <- length(cases) 
+t <- seq(0, n_days, by = 1)
+t0 = 0 
+t <- t[-1]
+
+#initial conditions
+i0 <- 1
+s0 <- N - i0
+r0 <- 0
+y0 = c(S = s0, I = i0, R = r0)
+
+# data for Stan
+data_sir <- list(n_days = n_days, y0 = y0, t0 = t0, ts = t, N = N, cases = cases)
+
+# number of MCMC steps
+niter <- 2000
+
+# Compilation of Stan code
+m.data <- stan_model("Models/Model_data.stan")
+
+
+fit_sir_negbin <- sampling(m.data,
+                data = data_sir,
+                iter = niter,
+                chains = 4)
+
+pars=c('beta', 'gamma', "phi")
+print(fit_sir_negbin, pars = pars)
+
+smr_pred <- cbind(as.data.frame(summary(
+  fit_sir_negbin, pars = "pred_cases", probs = c(0.05, 0.5, 0.95))$summary), t, cases)
+colnames(smr_pred) <- make.names(colnames(smr_pred)) # to remove % in the col names
+
+ggplot(smr_pred, mapping = aes(x = t)) +
+  geom_line(mapping = aes(x = t, y = X50.), color = "red") + 
+  geom_line(mapping = aes(x=t,y= X5.), color = "red", linetype=3) +
+  geom_line(mapping= aes(x=t,y= X95.), color = "red", linetype=3)+
+  geom_point(mapping = aes(y = cases),col="black") +
+  labs(x = "Day", y = "Number of students in bed")+
+  theme_classic() + 
+  theme(axis.line.x = element_line(color="black"),
+        axis.line.y = element_line(color="black"))
+
+
+
+```
+
+
+
