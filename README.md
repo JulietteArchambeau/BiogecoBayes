@@ -15,6 +15,7 @@ You will find here a summary of resources for Bayesian modelling in `stan`, incl
 * [Workshop4 - Hierarchical models - Part 2](https://juliettearchambeau.github.io/BiogecoBayes/Workshop4_HierarchicalModels_Part2.html.zip)
 * [Workshop5 - Population dynamics and time series](https://juliettearchambeau.github.io/BiogecoBayes/workshop5_populationDynamics_and_timeSeries.html)
 * [Workshop6 - ODE SIR](https://juliettearchambeau.github.io/BiogecoBayes/workshop6_ODE_SIR.html)
+* [Workshop7 Dirichlet Multinomial](https://juliettearchambeau.github.io/BiogecoBayes/Workshop7_DirichletMultinomial.html)
 
 ## Articles
 
