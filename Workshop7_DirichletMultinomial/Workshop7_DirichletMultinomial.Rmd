@@ -40,7 +40,83 @@ rstan_options(auto_write = T)
 opts_chunk$set(echo = T, eval = T, cache = T, fig.height = 5)
 ```
 
+## Some categorical observation
+
+```{r ParacouDistributions, fig.cap="Distributions.", echo=F}
+include_graphics("Wk7_save/ParacouDistributions.png")
+```
+
 # Mathematics
+
+## Dirichlet
+
+```{r JPGDirichlet, fig.cap="Johann Peter Gustav Lejeune Dirichlet", echo=F}
+include_graphics("https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Peter_Gustav_Lejeune_Dirichlet.jpg/250px-Peter_Gustav_Lejeune_Dirichlet.jpg")
+```
+
+## Dirichlet - Distribution
+
+> Continuous multivariate probability ditribution
+
+> Multivariate generalization of beta the distribution
+
+> Conjugate of catgorical and multinomial distributions
+
+## Dirichlet - Definition
+
+> Parameters: categories $K \geq 2$ and concentrations $\alpha_1,...,\alpha_K|\alpha_i>0$
+
+> Support: $x_1,...,x_K|x\in(0,1),\sum_{i=1}^Kx_i=1$
+
+> PDF: $\frac{1}{B(\alpha)}\Pi_{i=1}^Kx_i^{\alpha_{i-1}}|B(\alpha)=\frac{\Pi_{i=1}^K\Gamma(\alpha_i)}{\Gamma(\sum_{i=1}^K\alpha_i)}$
+
+## Dirichlet - Example
+
+```{r exdirichlet, fig.cap="The picture illustrates the case where $\\alpha_i = \\alpha$ and we vary over time the parameter $\\alpha$ from 0.3 to 2.0.", echo=F}
+include_graphics("https://upload.wikimedia.org/wikipedia/commons/5/54/LogDirichletDensity-alpha_0.3_to_alpha_2.0.gif")
+```
+
+## Multinomial - Distribution
+
+> Parameters: number of trials $n > 0$ and event probabilities $p_1,...,p_K|\sum p_i=1$
+
+> Support: $x_i\in\{0,..,n\}|i\in\{1,..,k\},\sum x_i=n$
+
+> PMF: $\frac{n!}{x_1!...x_k!}p_1^{x_1}...p_k^{x_k}$
+
+> Bernoulli: $k=2,n=1$, Binomial: $k=2,n>1$, Categorical: $k>2,n=1$ 
+
+## Multinomial - Example
+
+```{r exmultinomial, fig.cap="Hardy-Weinberg principle: $Multinomial(n,(\\theta^2,2\\theta(1-\\theta),(1-\\theta)^2))$", echo=F}
+include_graphics("https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Hardy-Weinberg.svg/745px-Hardy-Weinberg.svg.png")
+```
+
+
+## Dirichlet multinomial
+
+> Parameters: number of trials $n > 0$ and probabilities $\alpha_1,...,\alpha_K>0$
+
+> Support: $x_i\in\{0,..,n\}|\sum x_i=n$
+
+> PMF: $\frac{(n!)\Gamma(\alpha_k)}{\Gamma(n+\sum\alpha_k)}\Pi_{k=1}^K\frac{\Gamma(x_k+\alpha_k)}{(x_k!)\Gamma(\alpha_k)}$
+
+> $$LPMF(y|\alpha) = \Gamma(\sum \alpha)  + \sum(\Gamma(\alpha + y)) \\- \Gamma(\sum \alpha+\sum y) - \sum\Gamma(\alpha)$$
+
+## Softmax - Normalized exponential function
+
+> Generalization of the logistic function to multiple dimensions.
+
+> $\sigma:\mathbb{R}^K\to(0,1)^K$
+
+> $\sigma(z)_i=\frac{e^{z_i}}{\sum_{j=1}^Ke^{z_j}}\\i=1,...,K~and~z = (z_1,...,z_K)\in\mathbb{R}^K$
+
+## Softmax - Example
+
+```{r exsoftmax}
+z <- c(1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0)
+exp(z)/sum(exp(z))
+```
 
 # Single species distribution
 
@@ -354,7 +430,7 @@ $$NCI_i = \sum _{j|\delta_{i,j}<20m} ^{J_i} DBH_j ^2 e^{-\frac{1}{4}\delta_{i,j}
 
 ## Posteriors
 
-```{r ParacouPosteriors, fig.cap="Posteriors.", echo=F, fig.height=8}
+```{r ParacouPosteriors, fig.cap="Posteriors.", echo=F}
 include_graphics("Wk7_save/ParacouPosteriors.png")
 ```
 
