@@ -2,7 +2,7 @@
 
 *wip, feel free to edit*
 
-Welcome to the `BiogecoBayes` wiki!
+Welcome to `BiogecoBayes`!
 
 You will find here a summary of resources for Bayesian modelling in `stan`, including our workshops, articles, blog posts, books, webpages, and videos:
 
@@ -15,7 +15,7 @@ You will find here a summary of resources for Bayesian modelling in `stan`, incl
 * [Workshop4 - Hierarchical models - Part 2](https://juliettearchambeau.github.io/BiogecoBayes/Workshop4_HierarchicalModels_Part2.html.zip)
 * [Workshop5 - Population dynamics and time series](https://juliettearchambeau.github.io/BiogecoBayes/workshop5_populationDynamics_and_timeSeries.html)
 * [Workshop6 - ODE SIR](https://juliettearchambeau.github.io/BiogecoBayes/workshop6_ODE_SIR.html)
-* [Workshop7 - Dirichlet Multinomial](https://juliettearchambeau.github.io/BiogecoBayes/Workshop7_DirichletMultinomial.html)
+* [Workshop7 - Dirichlet Multinomial](https://juliettearchambeau.github.io/BiogecoBayes/Workshop7_DirichletMultinomial.html) with the [video](https://visio.u-bordeaux.fr/playback/presentation/2.0/playback.html?meetingId=ba1a861b69e0fc3d39fec52f4dd934078367aac2-1602502758497)
 
 ## Articles
 
@@ -32,6 +32,7 @@ You will find here a summary of resources for Bayesian modelling in `stan`, incl
 * [stan website](https://mc-stan.org/)
 * [stan GitHub](https://github.com/stan-dev)
 * [stan examples](https://github.com/stan-dev/example-models/wiki)
+* [Inférence bayesienne avec R par Éric Marcon](https://ericmarcon.github.io/Inference-bayesienne/Inference-bayesienne.html) *useful to understand basics of bayesian inferences.*
 
 ## Videos
 
