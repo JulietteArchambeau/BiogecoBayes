@@ -51,5 +51,5 @@ We are a small group of researchers, PhD students and post-docs who meet regular
 
 ### Applications
 
-* [https://ben18785.shinyapps.io/distribution-zoo/](The distribution zoo)
-* [https://chi-feng.github.io/mcmc-demo/](The Markov-chain Monte Carlo Interactive Gallery)
+* [The distribution zoo](https://ben18785.shinyapps.io/distribution-zoo/)
+* [The Markov-chain Monte Carlo Interactive Gallery](https://chi-feng.github.io/mcmc-demo/)
