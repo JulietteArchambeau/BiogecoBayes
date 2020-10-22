@@ -21,6 +21,9 @@ We are a small group of researchers, PhD students and post-docs who meet regular
 
 ### Course materials
 
+* [Introduction to Bayesian modelling with stan](https://sylvainschmitt.netlify.app/files/stan/stan.html#/) Thursday, 01 Mar 2018 at UMR ECOFOG, Kourou *Sylvain Schmitt*
+* [Introduction to Bayesian modelling with WinBUGS](https://sylvainschmitt.netlify.app/files/eft/lecture.html#/) Thursday, 07 Nov 2019 and 2020 at Master Écologie des Forêts de Guyane, Kourou *Sylvain Schmitt*
+
 ## Contents we recommend
 
 ### Articles
