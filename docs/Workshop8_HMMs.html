@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="author" content="Frédéric Barraquand" />
+  <meta name="dcterms.date" content="2020-10-26" />
+  <title>Workshop 8 - HMMs</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="Workshop8_HMMs_files/reveal.js-3.3.0.1/css/reveal.css"/>
+
+
+<style type="text/css">
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; background-color: #f8f8f8; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+pre, code { background-color: #f8f8f8; }
+code > span.kw { color: #204a87; font-weight: bold; }
+code > span.dt { color: #204a87; }
+code > span.dv { color: #0000cf; }
+code > span.bn { color: #0000cf; }
+code > span.fl { color: #0000cf; }
+code > span.ch { color: #4e9a06; }
+code > span.st { color: #4e9a06; }
+code > span.co { color: #8f5902; font-style: italic; }
+code > span.ot { color: #8f5902; }
+code > span.al { color: #ef2929; }
+code > span.fu { color: #000000; }
+code > span.er { font-weight: bold; }
+</style>
+
+<link rel="stylesheet" href="Workshop8_HMMs_files/reveal.js-3.3.0.1/css/theme/simple.css" id="theme">
+
+
+  <!-- some tweaks to reveal css -->
+  <style type="text/css">
+    .reveal h1 { font-size: 2.0em; }
+    .reveal h2 { font-size: 1.5em;  }
+    .reveal h3 { font-size: 1.25em;	}
+    .reveal h4 { font-size: 1em;	}
+
+    .reveal .slides>section,
+    .reveal .slides>section>section {
+      padding: 0px 0px;
+    }
+
+
+
+    .reveal table {
+      border-width: 1px;
+      border-spacing: 2px;
+      border-style: dotted;
+      border-color: gray;
+      border-collapse: collapse;
+      font-size: 0.7em;
+    }
+
+    .reveal table th {
+      border-width: 1px;
+      padding-left: 10px;
+      padding-right: 25px;
+      font-weight: bold;
+      border-style: dotted;
+      border-color: gray;
+    }
+
+    .reveal table td {
+      border-width: 1px;
+      padding-left: 10px;
+      padding-right: 25px;
+      border-style: dotted;
+      border-color: gray;
+    }
+
+
+  </style>
+
+    <style type="text/css">code{white-space: pre;}</style>
+
+
+<!-- Printing and PDF exports -->
+<script id="paper-css" type="application/dynamic-css">
+
+/* Default Print Stylesheet Template
+   by Rob Glazebrook of CSSnewbie.com
+   Last Updated: June 4, 2008
+
+   Feel free (nay, compelled) to edit, append, and
+   manipulate this file as you see fit. */
+
+
+@media print {
+
+	/* SECTION 1: Set default width, margin, float, and
+	   background. This prevents elements from extending
+	   beyond the edge of the printed page, and prevents
+	   unnecessary background images from printing */
+	html {
+		background: #fff;
+		width: auto;
+		height: auto;
+		overflow: visible;
+	}
+	body {
+		background: #fff;
+		font-size: 20pt;
+		width: auto;
+		height: auto;
+		border: 0;
+		margin: 0 5%;
+		padding: 0;
+		overflow: visible;
+		float: none !important;
+	}
+
+	/* SECTION 2: Remove any elements not needed in print.
+	   This would include navigation, ads, sidebars, etc. */
+	.nestedarrow,
+	.controls,
+	.fork-reveal,
+	.share-reveal,
+	.state-background,
+	.reveal .progress,
+	.reveal .backgrounds {
+		display: none !important;
+	}
+
+	/* SECTION 3: Set body font face, size, and color.
+	   Consider using a serif font for readability. */
+	body, p, td, li, div {
+		font-size: 20pt!important;
+		font-family: Georgia, "Times New Roman", Times, serif !important;
+		color: #000;
+	}
+
+	/* SECTION 4: Set heading font face, sizes, and color.
+	   Differentiate your headings from your body text.
+	   Perhaps use a large sans-serif for distinction. */
+	h1,h2,h3,h4,h5,h6 {
+		color: #000!important;
+		height: auto;
+		line-height: normal;
+		font-family: Georgia, "Times New Roman", Times, serif !important;
+		text-shadow: 0 0 0 #000 !important;
+		text-align: left;
+		letter-spacing: normal;
+	}
+	/* Need to reduce the size of the fonts for printing */
+	h1 { font-size: 28pt !important;  }
+	h2 { font-size: 24pt !important; }
+	h3 { font-size: 22pt !important; }
+	h4 { font-size: 22pt !important; font-variant: small-caps; }
+	h5 { font-size: 21pt !important; }
+	h6 { font-size: 20pt !important; font-style: italic; }
+
+	/* SECTION 5: Make hyperlinks more usable.
+	   Ensure links are underlined, and consider appending
+	   the URL to the end of the link for usability. */
+	a:link,
+	a:visited {
+		color: #000 !important;
+		font-weight: bold;
+		text-decoration: underline;
+	}
+	/*
+	.reveal a:link:after,
+	.reveal a:visited:after {
+		content: " (" attr(href) ") ";
+		color: #222 !important;
+		font-size: 90%;
+	}
+	*/
+
+
+	/* SECTION 6: more reveal.js specific additions by @skypanther */
+	ul, ol, div, p {
+		visibility: visible;
+		position: static;
+		width: auto;
+		height: auto;
+		display: block;
+		overflow: visible;
+		margin: 0;
+		text-align: left !important;
+	}
+	.reveal pre,
+	.reveal table {
+		margin-left: 0;
+		margin-right: 0;
+	}
+	.reveal pre code {
+		padding: 20px;
+		border: 1px solid #ddd;
+	}
+	.reveal blockquote {
+		margin: 20px 0;
+	}
+	.reveal .slides {
+		position: static !important;
+		width: auto !important;
+		height: auto !important;
+
+		left: 0 !important;
+		top: 0 !important;
+		margin-left: 0 !important;
+		margin-top: 0 !important;
+		padding: 0 !important;
+		zoom: 1 !important;
+
+		overflow: visible !important;
+		display: block !important;
+
+		text-align: left !important;
+		-webkit-perspective: none;
+		   -moz-perspective: none;
+		    -ms-perspective: none;
+		        perspective: none;
+
+		-webkit-perspective-origin: 50% 50%;
+		   -moz-perspective-origin: 50% 50%;
+		    -ms-perspective-origin: 50% 50%;
+		        perspective-origin: 50% 50%;
+	}
+	.reveal .slides section {
+		visibility: visible !important;
+		position: static !important;
+		width: auto !important;
+		height: auto !important;
+		display: block !important;
+		overflow: visible !important;
+
+		left: 0 !important;
+		top: 0 !important;
+		margin-left: 0 !important;
+		margin-top: 0 !important;
+		padding: 60px 20px !important;
+		z-index: auto !important;
+
+		opacity: 1 !important;
+
+		page-break-after: always !important;
+
+		-webkit-transform-style: flat !important;
+		   -moz-transform-style: flat !important;
+		    -ms-transform-style: flat !important;
+		        transform-style: flat !important;
+
+		-webkit-transform: none !important;
+		   -moz-transform: none !important;
+		    -ms-transform: none !important;
+		        transform: none !important;
+
+		-webkit-transition: none !important;
+		   -moz-transition: none !important;
+		    -ms-transition: none !important;
+		        transition: none !important;
+	}
+	.reveal .slides section.stack {
+		padding: 0 !important;
+	}
+	.reveal section:last-of-type {
+		page-break-after: avoid !important;
+	}
+	.reveal section .fragment {
+		opacity: 1 !important;
+		visibility: visible !important;
+
+		-webkit-transform: none !important;
+		   -moz-transform: none !important;
+		    -ms-transform: none !important;
+		        transform: none !important;
+	}
+	.reveal section img {
+		display: block;
+		margin: 15px 0px;
+		background: rgba(255,255,255,1);
+		border: 1px solid #666;
+		box-shadow: none;
+	}
+
+	.reveal section small {
+		font-size: 0.8em;
+	}
+
+}  
+</script>
+
+
+<script id="pdf-css" type="application/dynamic-css">
+    
+/**
+ * This stylesheet is used to print reveal.js
+ * presentations to PDF.
+ *
+ * https://github.com/hakimel/reveal.js#pdf-export
+ */
+
+* {
+	-webkit-print-color-adjust: exact;
+}
+
+body {
+	margin: 0 auto !important;
+	border: 0;
+	padding: 0;
+	float: none !important;
+	overflow: visible;
+}
+
+html {
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+
+/* Remove any elements not needed in print. */
+.nestedarrow,
+.reveal .controls,
+.reveal .progress,
+.reveal .playback,
+.reveal.overview,
+.fork-reveal,
+.share-reveal,
+.state-background {
+	display: none !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	text-shadow: 0 0 0 #000 !important;
+}
+
+.reveal pre code {
+	overflow: hidden !important;
+	font-family: Courier, 'Courier New', monospace !important;
+}
+
+ul, ol, div, p {
+	visibility: visible;
+	position: static;
+	width: auto;
+	height: auto;
+	display: block;
+	overflow: visible;
+	margin: auto;
+}
+.reveal {
+	width: auto !important;
+	height: auto !important;
+	overflow: hidden !important;
+}
+.reveal .slides {
+	position: static;
+	width: 100%;
+	height: auto;
+
+	left: auto;
+	top: auto;
+	margin: 0 !important;
+	padding: 0 !important;
+
+	overflow: visible;
+	display: block;
+
+	-webkit-perspective: none;
+	   -moz-perspective: none;
+	    -ms-perspective: none;
+	        perspective: none;
+
+	-webkit-perspective-origin: 50% 50%; /* there isn't a none/auto value but 50-50 is the default */
+	   -moz-perspective-origin: 50% 50%;
+	    -ms-perspective-origin: 50% 50%;
+	        perspective-origin: 50% 50%;
+}
+
+.reveal .slides section {
+	page-break-after: always !important;
+
+	visibility: visible !important;
+	position: relative !important;
+	display: block !important;
+	position: relative !important;
+
+	margin: 0 !important;
+	padding: 0 !important;
+	box-sizing: border-box !important;
+	min-height: 1px;
+
+	opacity: 1 !important;
+
+	-webkit-transform-style: flat !important;
+	   -moz-transform-style: flat !important;
+	    -ms-transform-style: flat !important;
+	        transform-style: flat !important;
+
+	-webkit-transform: none !important;
+	   -moz-transform: none !important;
+	    -ms-transform: none !important;
+	        transform: none !important;
+}
+
+.reveal section.stack {
+	margin: 0 !important;
+	padding: 0 !important;
+	page-break-after: avoid !important;
+	height: auto !important;
+	min-height: auto !important;
+}
+
+.reveal img {
+	box-shadow: none;
+}
+
+.reveal .roll {
+	overflow: visible;
+	line-height: 1em;
+}
+
+/* Slide backgrounds are placed inside of their slide when exporting to PDF */
+.reveal section .slide-background {
+	display: block !important;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	z-index: -1;
+}
+
+/* All elements should be above the slide-background */
+.reveal section>* {
+	position: relative;
+	z-index: 1;
+}
+
+/* Display slide speaker notes when 'showNotes' is enabled */
+.reveal .speaker-notes-pdf {
+	display: block;
+	width: 100%;
+	max-height: none;
+	left: auto;
+	top: auto;
+	z-index: 100;
+}
+
+/* Display slide numbers when 'slideNumber' is enabled */
+.reveal .slide-number-pdf {
+	display: block;
+	position: absolute;
+	font-size: 14px;
+}
+
+</script>
+
+
+<script>
+var style = document.createElement( 'style' );
+style.type = 'text/css';
+var style_script_id = window.location.search.match( /print-pdf/gi ) ? 'pdf-css' : 'paper-css';
+var style_script = document.getElementById(style_script_id).text;
+style.innerHTML = style_script;
+document.getElementsByTagName('head')[0].appendChild(style);
+</script>
+
+    <link href="Workshop8_HMMs_files/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+    <link href="Workshop8_HMMs_files/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+<section>
+    <h1 class="title">Workshop 8 - HMMs</h1>
+    <h2 class="author">Frédéric Barraquand</h2>
+    <h3 class="date">2020-10-26</h3>
+</section>
+
+<section><section id="introduction" class="titleslide slide level1"><h1>Introduction</h1></section><section id="what-is-a-hidden-markov-model" class="slide level2">
+<h1>What is a Hidden Markov Model?</h1>
+<div class="figure">
+<img src="figs/hmm.png" alt="Basic structure" width="978" />
+<p class="caption">
+Basic structure
+</p>
+</div>
+<p>From <span class="citation" data-cites="mcclintock2020uncovering">McClintock et al. (2020)</span>’s recent review in Ecology Letters (this presentation is more or less a rip-off!).</p>
+</section><section id="what-is-it-for" class="slide level2">
+<h1>What is it for?</h1>
+<div class="figure">
+<img src="figs/hmm_uses.png" alt="All sorts of things - cf. @mcclintock2020uncovering" width="50%" />
+<p class="caption">
+All sorts of things - cf. <span class="citation" data-cites="mcclintock2020uncovering">McClintock et al. (2020)</span>
+</p>
+</div>
+</section><section id="a-very-simple-markov-chain-weather-prediction" class="slide level2">
+<h1>A very simple Markov chain – weather prediction</h1>
+<p>Every day, either it rains or the sun shines. This is the true state <span class="math">\(\{1,2\}\)</span> I’m interested in. We assume that weather obeys the <strong>Markov property</strong> so that <span class="math">\(\mathbb{P}(S_t|S_{t-1},S_{t-2},S_{t-3},...) = \mathbb{P}(S_t|S_{t-1})\)</span>.</p>
+<p>Of course, IRL it doesn’t. But let’s assume there are four possible transitions for tomorrow’s weather 1-&gt;1, 1-&gt;2, 2-&gt;1, 2-&gt;2 and these only depend on the weather of the day.</p>
+</section><section id="what-are-the-model-parameters" class="slide level2">
+<h1>What are the model parameters?</h1>
+<p>These are <span class="math">\(\mathbb{P}(\text{ rain at t }|\text{ sun at t-1 }) = 1 - \mathbb{P}(\text{ sun at t }|\text{ sun at t-1 })\)</span> which is formally <span class="math">\(\mathbb{P}(S_t = 1 | S_{t-1} = 2)\)</span> // rain = 1, sun = 2.</p>
+<p>We can also estimate <span class="math">\(\mathbb{P}(\text{ sun at t }|\text{ rain at t-1 }) = 1- \mathbb{P}(\text{ rain at t }|\text{ rain at t-1 })\)</span> which is formally <span class="math">\(\mathbb{P}(S_t = 1 | S_{t-1} = 1)\)</span>.</p>
+<p>We assume these do not change over time, so truly there are two transition probabilities:</p>
+<p>Pr(rain -&gt; sun) and Pr(sun -&gt; rain).</p>
+</section><section id="a-little-bit-of-general-theory" class="slide level2">
+<h1>A little bit of general theory</h1>
+<p>We stack all this in a matrix of <strong>transition probabilities</strong> <span class="math">\(\Gamma = (\gamma_{ij})\)</span> with <span class="math">\(\gamma_{ij}=\mathbb{P}(S_t = j |S_{t-1} = i)\)</span><a href="#/fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a> so that the rows sum to 1.</p>
+<p>In general, let’s say I want to compute the probability of the states at time <span class="math">\(t\)</span> from those at times <span class="math">\(t-1\)</span>.</p>
+<p>I then compute <span class="math">\(p_{t}[k] = \mathbb{P}(S_t = k) = \sum_i \mathbb{P}(S_t = k |S_{t-1} = i) \mathbb{P}(S_{t-1} = i)\)</span>. Thus <span class="math">\(p_t = p_{t-1} \Gamma\)</span>.</p>
+</section><section id="a-little-bit-of-theory-contd" class="slide level2">
+<h1>A little bit of theory – cont’d</h1>
+<p>So we have the update equation <span class="math">\(p_{t} = p_{t-1} P\)</span>. It’s for an <strong>homogeneous</strong> Markov chain as <span class="math">\(P\)</span> does not depend of time (the laws of weather do not change over time – well, except for seasonality, climate change,…).</p>
+<p>Stationary distribution: <span class="math">\(\pi = \pi P\)</span> so that <span class="math">\(\pi(I-P) = 0\)</span>. The left eigenvectors of P with an eigenvalue of 1 are the stationary probabilities.</p>
+<p>(true only when a stationary distribution exists, but Markov chains are great in that we know this well)</p>
+</section><section id="the-simplest-hmm-adding-a-binary-observation-level" class="slide level2">
+<h1>The simplest HMM – adding a binary observation level</h1>
+<p>My neighbor wakes up very early. When it rains, he usually has an umbrella in the corridor, which I use to make an inference on whether it rains today. So <span class="math">\(X_t = 1\)</span> when he has an umbrella and <span class="math">\(X_t = 0\)</span> when he hasn’t.</p>
+</section><section id="my-neighbor-this-observation-model" class="slide level2">
+<h1>My neighbor, this observation model</h1>
+<p>We can specify</p>
+<ul>
+<li><span class="math">\(\mathbb{P}(X_t = 1|S_t = 1) = \mathbb{P}(\text{umbrella } | \text{ rain})\)</span> which is also <span class="math">\(1 - \mathbb{P}(X_t = 0|S_t = 1)\)</span></li>
+<li><span class="math">\(\mathbb{P}(X_t = 1|S_t = 2) = \mathbb{P}(\text{umbrella } | \text{ sun})\)</span></li>
+</ul>
+<p>Weather -&gt; Umbrella but Umbrella doesn’t affect the weather. New matrix <span class="math">\(\mathbf{E} = (E_{ij})\)</span> with <span class="math">\(E_{ij} = \mathbb{P}(X_t = j|S_t = i)\)</span> of the so-called <strong>emission probabilities</strong>.</p>
+</section><section id="the-hidden-markov-model" class="slide level2">
+<h1>The Hidden Markov model</h1>
+<ul>
+<li><p>An observed state <span class="math">\(X_t\)</span> that generates observables <span class="math">\(x_t\)</span>. x = (100011110011)</p></li>
+<li><p>A hidden state <span class="math">\(S_t\)</span> that generates non-observables <span class="math">\(s_t\)</span>. s =(112221122112)</p></li>
+<li><p>Two matrices of parameters: transition probabilities in <span class="math">\(\Gamma\)</span> and emission probabilities in <span class="math">\(E\)</span></p></li>
+</ul>
+<p>(actually, <span class="math">\(E\)</span> is when you have a categorical emission distribution, more complex emission distribution require something else than a matrix, see <span class="citation" data-cites="mcclintock2020uncovering">McClintock et al. (2020)</span>).</p>
+</section></section>
+<section><section id="how-to-fit-this-model" class="titleslide slide level1"><h1>How to fit this model?</h1></section><section id="the-problem" class="slide level2">
+<h1>The problem</h1>
+<p>We only observe the sequence of observed states <span class="math">\(x=(0,1,0,0,1,0,...)\)</span>. You do not know the hidden states, so we have to integrate over these. You could try to evaluate all possibilities, but that’s suboptimal: there are <span class="math">\(2^T\)</span> sequences of hidden states, and that grows fast with time <span class="math">\(T\)</span>.</p>
+<p><span class="math">\(\mathcal{L}(\theta|x) = \sum_{\text{paths}} \mathbb{P}(\text{emission} = x|\text{path}) \times \mathbb{P}(\text{path})\)</span></p>
+</section><section id="how-to-solve-it" class="slide level2">
+<h1>How to solve it</h1>
+<p>The likelihood of the last time step given the past is <span class="math">\(p_{t-1} \Gamma E_{\bullet,x_T}\)</span> where <span class="math">\(E_{\bullet,x_T}\)</span> is a column vector. That’s easy.</p>
+<p>The trick is to do a similar thing for all observations, using conditional probability.</p>
+<p>Let denote by the diagonal matrix <span class="math">\(O(x_t) = \text{diag}(E_{\bullet,x_t})\)</span>. Following <span class="citation" data-cites="mcclintock2020uncovering">McClintock et al. (2020)</span> (and many others), we will use the forward algorithm. <span class="citation" data-cites="mcclintock2020uncovering">McClintock et al. (2020)</span> derive the magical formula</p>
+<p><span class="math">\(\mathcal{L}(\theta|x) = p_0 \prod_{t=1}^{T} \Gamma O(x_t)\)</span>.</p>
+<p>The magic unfolds later.</p>
+</section><section id="diverse-options-for-model-fitting" class="slide level2">
+<h1>Diverse options for model fitting</h1>
+<ul>
+<li>BUGS, JAGS: super easy -&gt; computes posteriors for all the hidden states (updates probabilities for <span class="math">\(S_1 = 1, S_1 = 2, S_2 = 1, S_2 = 2,..\)</span> at each iteration of the chain), but very slow. You essentially evaluate the probability of <em>all possible combinations of states, i.e., all hidden paths</em>. It’s the brute force method.</li>
+</ul>
+<p>Note: BUGS and JAGS uses MCMC (several Markov chains over iterations) to estimates a biological or physical Markov chain (here, the weather). Do not confuse both type of Markov chains.</p>
+</section><section id="diverse-options-for-model-fitting-1" class="slide level2">
+<h1>Diverse options for model fitting</h1>
+<ul>
+<li>Other idea (math): marginalises the hidden states (wait, what?).</li>
+</ul>
+<p>This is what is used in Stan as Stan <em>cannot handle sampling from discrete latent states</em>. By definition almost, a HMM is a model is a discrete latent state model that is Markovian in time. Here we will be using Stan <strong>but really we’re just using math</strong>. We could just as well use optim().</p>
+</section><section id="the-forward-algorithm" class="slide level2">
+<h1>The forward algorithm</h1>
+<p>Called ``marginalisation’’ nowadays (<span class="citation" data-cites="yackulic2020need">Yackulic et al. (2020)</span>) but really an old idea. Instead of using an algorithm that requires <span class="math">\(T \times T\)</span> computations, use an algorithm that requires <span class="math">\(\sim T\)</span> computations, capitalizing on <strong>recursivity</strong>.</p>
+</section><section id="the-forward-algorithm-1" class="slide level2">
+<h1>The forward algorithm</h1>
+<p>The <strong>forward probabilities</strong> provide the probability that we end iup in a given state <span class="math">\(S_t = s_t\)</span> AND that all the observations <span class="math">\((X_1,...,X_t) = (x_1,...x_t)\)</span> up to time t. Mathematically, <span class="math">\(\alpha_t(s) = \mathbb{P}(S_t = s, (X_1,...,X_t) = (x_1,...x_t))\)</span>. They’re not useful biological stuff. They are just a convenient algorithmic tool.</p>
+</section><section id="the-forward-algorithm-2" class="slide level2">
+<h1>The forward algorithm</h1>
+<p>Marginalize based on past state <span class="math">\(\alpha_t(s) = \sum_j \mathbb{P}(S_t = s,S_{t-1} = j,X_{1:t} = x_{1:t})\)</span></p>
+<p>Apply Bayes’ theorem by conditioning on the past state <span class="math">\(\alpha_t(s) = \sum_j \mathbb{P}(X_{t} = x_{t}|S_t = s,\text{ past stuff })\)</span> <span class="math">\(\times \mathbb{P}(S_t = s| S_{t-1} = j, \text{ past stuff })\)</span> <span class="math">\(\times \mathbb{P}(S_{t-1} = j,X_{1:t-1} = x_{1:t-1})\)</span></p>
+</section><section id="the-forward-algorithm-3" class="slide level2">
+<h1>The forward algorithm</h1>
+<p><span class="math">\(\alpha_t(s) = \sum_j E_{s,x_t} \times \Gamma_{sj} \times \alpha_{t-1}(j)\)</span></p>
+<p>Recursive equation that includes the model <em>transition</em> and <em>emission</em> probabilities. We actually use <span class="math">\(\alpha_T\)</span> which is the probability of all observed data (and the past state).</p>
+</section></section>
+<section><section id="weather-example-in-r-and-stan" class="titleslide slide level1"><h1>Weather example in R and Stan</h1></section><section id="simulating-the-hmm" class="slide level2">
+<h1>Simulating the HMM</h1>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">set.seed</span>(<span class="dv">42</span>)
+<span class="co">#T=60 #number of days #initial guess</span>
+T=<span class="dv">1000</span>
+
+### Parameters
+Gamma =<span class="st"> </span><span class="kw">matrix</span>(<span class="kw">c</span>(<span class="fl">0.7</span>,<span class="fl">0.3</span>,<span class="fl">0.2</span>,<span class="fl">0.8</span>),<span class="dv">2</span>,<span class="dv">2</span>,<span class="dt">byrow=</span><span class="ot">TRUE</span>) <span class="co">#transition probability matrix</span>
+Gamma</code></pre>
+<pre><code>##      [,1] [,2]
+## [1,]  0.7  0.3
+## [2,]  0.2  0.8</code></pre>
+<pre class="sourceCode r"><code class="sourceCode r">E =<span class="st"> </span><span class="kw">matrix</span>(<span class="kw">c</span>(<span class="fl">0.1</span>,<span class="fl">0.9</span>,<span class="fl">0.75</span>,<span class="fl">0.25</span>),<span class="dv">2</span>,<span class="dv">2</span>,<span class="dt">byrow=</span><span class="ot">TRUE</span>) <span class="co">#emission probability matrix</span>
+<span class="co"># E matrix         #obs 0  #obs 1, 1 = umbrella</span>
+<span class="co"># state 1 = rain   0.1     0.9</span>
+<span class="co"># state 2 = sun    0.75    0.25</span>
+<span class="co"># (Pr(umbrella|rain) = 90%, Pr(umbrella|sun) = 25%)</span></code></pre>
+</section><section id="simulating-the-hmm-1" class="slide level2">
+<h1>Simulating the HMM</h1>
+<pre class="sourceCode r"><code class="sourceCode r">## simulating the chain
+
+x=s=<span class="kw">rep</span>(<span class="dv">0</span>,T)
+<span class="co"># initial state</span>
+x[<span class="dv">1</span>] =<span class="st"> </span><span class="dv">1</span> <span class="co">#umbrella (arbitrarily)</span>
+s[<span class="dv">1</span>] =<span class="st"> </span><span class="dv">1</span>+<span class="kw">rbinom</span>(<span class="dv">1</span>,<span class="dv">1</span>,<span class="fl">0.5</span>)
+
+<span class="co"># temporal process</span>
+for (t in <span class="dv">2</span>:T){
+  s[t] =<span class="st"> </span><span class="dv">1</span>+<span class="kw">rbinom</span>(<span class="dv">1</span>,<span class="dv">1</span>,Gamma[<span class="dv">2</span>,s[t<span class="dv">-1</span>]])  <span class="co">#1+ because the state is {1,2}. </span>
+  x[t] =<span class="st"> </span><span class="kw">rbinom</span>(<span class="dv">1</span>,<span class="dv">1</span>,E[s[t],<span class="dv">2</span>])  ## we indicate probability of success in a binomial
+}
+s[<span class="dv">1</span>:<span class="dv">60</span>]</code></pre>
+<pre><code>##  [1] 2 1 2 2 2 2 2 2 1 1 1 1 2 2 1 2 1 1 2 2 2 2 1 2 2 2 2 2 2 2 2 1 1 1 2 2 2 2
+## [39] 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 2 2 2 1 1 1 1</code></pre>
+<pre class="sourceCode r"><code class="sourceCode r">x[<span class="dv">1</span>:<span class="dv">60</span>]</code></pre>
+<pre><code>##  [1] 1 1 0 0 0 0 1 0 0 1 0 0 0 0 1 0 1 1 0 1 0 0 1 1 1 0 0 0 0 0 0 1 1 1 0 0 0 0
+## [39] 0 0 0 0 1 0 0 0 0 0 1 1 1 1 0 0 0 0 1 1 1 1</code></pre>
+<pre class="sourceCode r"><code class="sourceCode r">## The ones roughly match between x and s, which is logical (more umbrellas when there&#39;s more rain!)</code></pre>
+</section><section id="fitting-the-hmm" class="slide level2">
+<h1>Fitting the HMM</h1>
+<pre class="stan"><code>
+data {                                             // observations
+  int&lt;lower=1&gt; T;                                  // number of observations
+  int&lt;lower=0,upper=1&gt; x[T];                       // observed variable
+ 
+}
+parameters {                                       // unobserved parameters
+  simplex[2] Gamma[2];
+  simplex[2] E[2]; 
+}
+model {
+  //useful variables
+  real acc[2];
+  vector[2] alpha[T]; // T is the first dimension of the array here
+  alpha[1,1:2] = rep_vector(0.5,2);
+
+  //priors -- note that rows of the matrices must sum to one. Dirichlet priors. 
+   for (n in 1:2){
+   Gamma[n] ~ dirichlet(rep_vector(10, 2));
+   E[n] ~ dirichlet(rep_vector(10, 2));
+   }
+  // hoping these will have rows that sum to 1 -- they should. 
+
+
+  for (t in 2:T){ //loop over time
+  
+  for (k in 1:2){ //loop over categories for present state k
+     for (j in 1:2){//loop over categories for past state j
+           acc[j] = alpha[t - 1, j] * Gamma[j,k] * E[k,1+x[t]]; 
+      }
+      alpha[t,k] = sum(acc);
+    }
+  }
+
+  target += log(sum(alpha[T])); //should there have been something more? Like, initial probabilities to estimate too? 
+}
+</code></pre>
+</section><section id="analysing-the-hmm" class="slide level2">
+<h1>Analysing the HMM</h1>
+<pre class="sourceCode r"><code class="sourceCode r">data =<span class="st"> </span><span class="kw">list</span>(<span class="dt">x=</span>x, <span class="dt">T =</span> T)
+## Parameters monitored
+params &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;E&quot;</span>, <span class="st">&quot;Gamma&quot;</span>)
+fit &lt;-<span class="st"> </span><span class="kw">sampling</span>(hmm.weather, <span class="dt">data =</span> data, <span class="dt">iter =</span> <span class="dv">1000</span>, <span class="dt">chains =</span> <span class="dv">1</span>, <span class="dt">cores =</span> <span class="dv">2</span>)</code></pre>
+<pre><code>## 
+## SAMPLING FOR MODEL &#39;9430b0fe6fad0fc523f8c174108ab3b0&#39; NOW (CHAIN 1).
+## Chain 1: 
+## Chain 1: Gradient evaluation took 0.00027 seconds
+## Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 2.7 seconds.
+## Chain 1: Adjust your expectations accordingly!
+## Chain 1: 
+## Chain 1: 
+## Chain 1: Iteration:   1 / 1000 [  0%]  (Warmup)
+## Chain 1: Iteration: 100 / 1000 [ 10%]  (Warmup)
+## Chain 1: Iteration: 200 / 1000 [ 20%]  (Warmup)
+## Chain 1: Iteration: 300 / 1000 [ 30%]  (Warmup)
+## Chain 1: Iteration: 400 / 1000 [ 40%]  (Warmup)
+## Chain 1: Iteration: 500 / 1000 [ 50%]  (Warmup)
+## Chain 1: Iteration: 501 / 1000 [ 50%]  (Sampling)
+## Chain 1: Iteration: 600 / 1000 [ 60%]  (Sampling)
+## Chain 1: Iteration: 700 / 1000 [ 70%]  (Sampling)
+## Chain 1: Iteration: 800 / 1000 [ 80%]  (Sampling)
+## Chain 1: Iteration: 900 / 1000 [ 90%]  (Sampling)
+## Chain 1: Iteration: 1000 / 1000 [100%]  (Sampling)
+## Chain 1: 
+## Chain 1:  Elapsed Time: 1.09709 seconds (Warm-up)
+## Chain 1:                1.12269 seconds (Sampling)
+## Chain 1:                2.21978 seconds (Total)
+## Chain 1:</code></pre>
+</section><section id="analysing-the-hmm-1" class="slide level2">
+<h1>Analysing the HMM</h1>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(fit, <span class="dt">probs =</span> <span class="kw">c</span>(<span class="fl">0.10</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span>))</code></pre>
+<pre><code>## Inference for Stan model: 9430b0fe6fad0fc523f8c174108ab3b0.
+## 1 chains, each with iter=1000; warmup=500; thin=1; 
+## post-warmup draws per chain=500, total post-warmup draws=500.
+## 
+##               mean se_mean   sd     10%     50%     90% n_eff Rhat
+## Gamma[1,1]    0.73    0.00 0.04    0.67    0.73    0.78   366    1
+## Gamma[1,2]    0.27    0.00 0.04    0.22    0.27    0.33   366    1
+## Gamma[2,1]    0.21    0.00 0.04    0.16    0.20    0.25   306    1
+## Gamma[2,2]    0.79    0.00 0.04    0.75    0.80    0.84   306    1
+## E[1,1]        0.77    0.00 0.05    0.71    0.77    0.83   400    1
+## E[1,2]        0.23    0.00 0.05    0.17    0.23    0.29   400    1
+## E[2,1]        0.17    0.00 0.03    0.13    0.17    0.21   325    1
+## E[2,2]        0.83    0.00 0.03    0.79    0.83    0.87   325    1
+## lp__       -719.53    0.08 1.39 -721.49 -719.15 -718.12   276    1
+## 
+## Samples were drawn using NUTS(diag_e) at Mon Oct 26 18:22:12 2020.
+## For each parameter, n_eff is a crude measure of effective sample size,
+## and Rhat is the potential scale reduction factor on split chains (at 
+## convergence, Rhat=1).</code></pre>
+<p>NB The algo does not know which is state 2 – invariance under relabelling issues</p>
+</section><section id="analysing-the-hmm-2" class="slide level2">
+<h1>Analysing the HMM</h1>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">mcmc_dens</span>(fit, <span class="dt">regex_pars =</span> params)</code></pre>
+<p><img src="Workshop8_HMMs_files/figure-revealjs/densities-plots-1.png" /><!-- --></p>
+</section></section>
+<section><section id="other-applications" class="titleslide slide level1"><h1>Other applications</h1></section><section id="whale-behaviour" class="slide level2">
+<h1>Whale behaviour</h1>
+<p><img src="figs/hmm_whale.png" width="80%" /></p>
+</section><section id="whale-behaviour-1" class="slide level2">
+<h1>Whale behaviour</h1>
+<p><img src="figs/hmm_whale_results.png" width="85%" /></p>
+</section><section id="whale-behaviour-2" class="slide level2">
+<h1>Whale behaviour</h1>
+<p><img src="figs/hmm_whale_results2.png" width="60%" /></p>
+<p>Require “decoding” and backward probabilities – See <span class="citation" data-cites="mcclintock2020uncovering">McClintock et al. (2020)</span>.</p>
+</section><section id="survival-estimation" class="slide level2">
+<h1>Survival estimation</h1>
+<p><img src="figs/hmm_CJS.png" width="85%" /></p>
+</section><section id="breeding-probability-estimation" class="slide level2">
+<h1>Breeding probability estimation</h1>
+<p><img src="figs/hmm_breeding.png" width="80%" /></p>
+</section><section id="population-counts" class="slide level2">
+<h1>Population counts</h1>
+<p><img src="figs/hmm_popcounts.png" width="75%" /></p>
+</section><section id="and-even-more-applications" class="slide level2">
+<h1>And even more applications…</h1>
+<ul>
+<li><p>Movement models (I actually started with this).</p></li>
+<li><p>Ecosystem-state models.</p></li>
+</ul>
+</section><section id="bibliography" class="slide level2 unnumbered">
+<h1>Bibliography</h1>
+<div class="references">
+<p>McClintock, B.T., Langrock, R., Gimenez, O., Cam, E., Borchers, D.L., Glennie, R. &amp; Patterson, T.A. (2020). Uncovering ecological state dynamics with hidden markov models. <em>arXiv preprint arXiv:2002.10497</em>.</p>
+<p>Yackulic, C.B., Dodrill, M., Dzul, M., Sanderlin, J.S. &amp; Reid, J.A. (2020). A need for speed in bayesian population models: A practical guide to marginalizing and recovering discrete latent states. <em>Ecological Applications</em>, e02112.</p>
+</div>
+</section></section>
+<section class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>Many people use <span class="math">\(P\)</span> but we stick with <span class="math">\(\Gamma\)</span> to match <span class="citation" data-cites="mcclintock2020uncovering">McClintock et al. (2020)</span><a href="#/fnref1">↩</a></p></li>
+</ol>
+</section>
+    </div>
+  </div>
+
+  <script src="Workshop8_HMMs_files/reveal.js-3.3.0.1/lib/js/head.min.js"></script>
+  <script src="Workshop8_HMMs_files/reveal.js-3.3.0.1/js/reveal.js"></script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://github.com/hakimel/reveal.js#configuration
+      Reveal.initialize({
+        // Display the page number of the current slide
+        slideNumber: true,
+        // Push each slide change to the browser history
+        history: true,
+        // Vertical centering of slides
+        center: true,
+        // Opens links in an iframe preview overlay
+        previewLinks: true,
+        // Transition style
+        transition: 'none', // none/fade/slide/convex/concave/zoom
+        // Transition style for full page slide backgrounds
+        backgroundTransition: 'default', // none/fade/slide/convex/concave/zoom
+
+
+
+        chalkboard: {
+        },
+
+        keyboard: {
+          67: function() { RevealChalkboard.toggleNotesCanvas() },    // toggle notes canvas when 'c' is pressed
+          66: function() { RevealChalkboard.toggleChalkboard() }, // toggle chalkboard when 'b' is pressed
+          46: function() { RevealChalkboard.clear() },    // clear chalkboard when 'DEL' is pressed
+           8: function() { RevealChalkboard.reset() },    // reset chalkboard data on current slide when 'BACKSPACE' is pressed
+          68: function() { RevealChalkboard.download() }, // downlad recorded chalkboard drawing when 'd' is pressed
+        },
+
+        // Optional reveal.js plugins
+        dependencies: [
+          { src: 'Workshop8_HMMs_files/reveal.js-3.3.0.1/plugin/chalkboard/chalkboard.js', async: true },
+        ]
+      });
+    </script>
+  <!-- dynamically load mathjax for compatibility with self-contained -->
+  <script>
+    (function () {
+      var script = document.createElement("script");
+      script.type = "text/javascript";
+      script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+      document.getElementsByTagName("head")[0].appendChild(script);
+    })();
+  </script>
+
+<script>
+  (function() {
+    if (window.jQuery) {
+      Reveal.addEventListener( 'slidechanged', function(event) {  
+        window.jQuery(event.previousSlide).trigger('hidden');
+        window.jQuery(event.currentSlide).trigger('shown');
+      });
+    }
+  })();
+</script>
+
+
+  </body>
+</html>
