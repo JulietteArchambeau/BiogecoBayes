@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="generator" content="pandoc">
   <meta name="author" content="Frédéric Barraquand" />
-  <meta name="dcterms.date" content="2020-10-26" />
+  <meta name="dcterms.date" content="2020-10-28" />
   <title>Workshop 8 - HMMs</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -474,7 +474,7 @@ document.getElementsByTagName('head')[0].appendChild(style);
 <section>
     <h1 class="title">Workshop 8 - HMMs</h1>
     <h2 class="author">Frédéric Barraquand</h2>
-    <h3 class="date">2020-10-26</h3>
+    <h3 class="date">2020-10-28</h3>
 </section>
 
 <section><section id="introduction" class="titleslide slide level1"><h1>Introduction</h1></section><section id="what-is-a-hidden-markov-model" class="slide level2">
@@ -500,20 +500,22 @@ All sorts of things - cf. <span class="citation" data-cites="mcclintock2020uncov
 <p>Of course, IRL it doesn’t. But let’s assume there are four possible transitions for tomorrow’s weather 1-&gt;1, 1-&gt;2, 2-&gt;1, 2-&gt;2 and these only depend on the weather of the day.</p>
 </section><section id="what-are-the-model-parameters" class="slide level2">
 <h1>What are the model parameters?</h1>
-<p>These are <span class="math">\(\mathbb{P}(\text{ rain at t }|\text{ sun at t-1 }) = 1 - \mathbb{P}(\text{ sun at t }|\text{ sun at t-1 })\)</span> which is formally <span class="math">\(\mathbb{P}(S_t = 1 | S_{t-1} = 2)\)</span> // rain = 1, sun = 2.</p>
-<p>We can also estimate <span class="math">\(\mathbb{P}(\text{ sun at t }|\text{ rain at t-1 }) = 1- \mathbb{P}(\text{ rain at t }|\text{ rain at t-1 })\)</span> which is formally <span class="math">\(\mathbb{P}(S_t = 1 | S_{t-1} = 1)\)</span>.</p>
+<p>These are</p>
+<p><span class="math">\(\mathbb{P}(\text{ rain at t }|\text{ sun at t-1 }) = 1 - \mathbb{P}(\text{ sun at t }|\text{ sun at t-1 })\)</span> which is formally <span class="math">\(\mathbb{P}(S_t = 1 | S_{t-1} = 2)\)</span> // rain = 1, sun = 2.</p>
+<p>We can also estimate</p>
+<p><span class="math">\(\mathbb{P}(\text{ sun at t }|\text{ rain at t-1 }) = 1- \mathbb{P}(\text{ rain at t }|\text{ rain at t-1 })\)</span> which is formally <span class="math">\(\mathbb{P}(S_t = 2 | S_{t-1} = 1)\)</span>.</p>
 <p>We assume these do not change over time, so truly there are two transition probabilities:</p>
 <p>Pr(rain -&gt; sun) and Pr(sun -&gt; rain).</p>
 </section><section id="a-little-bit-of-general-theory" class="slide level2">
 <h1>A little bit of general theory</h1>
 <p>We stack all this in a matrix of <strong>transition probabilities</strong> <span class="math">\(\Gamma = (\gamma_{ij})\)</span> with <span class="math">\(\gamma_{ij}=\mathbb{P}(S_t = j |S_{t-1} = i)\)</span><a href="#/fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a> so that the rows sum to 1.</p>
-<p>In general, let’s say I want to compute the probability of the states at time <span class="math">\(t\)</span> from those at times <span class="math">\(t-1\)</span>.</p>
-<p>I then compute <span class="math">\(p_{t}[k] = \mathbb{P}(S_t = k) = \sum_i \mathbb{P}(S_t = k |S_{t-1} = i) \mathbb{P}(S_{t-1} = i)\)</span>. Thus <span class="math">\(p_t = p_{t-1} \Gamma\)</span>.</p>
+<p>In general, let’s say I want to compute the probability of the states at time <span class="math">\(t\)</span> from those at times <span class="math">\(t-1\)</span>. We use the <a href="https://en.wikipedia.org/wiki/Law_of_total_probability">Law of Total Probability</a> to obtain</p>
+<p><span class="math">\(p_{t}[k] = \mathbb{P}(S_t = k) = \sum_i \mathbb{P}(S_t = k |S_{t-1} = i) \mathbb{P}(S_{t-1} = i)\)</span>. Thus <span class="math">\(p_t = p_{t-1} \Gamma\)</span>.</p>
 </section><section id="a-little-bit-of-theory-contd" class="slide level2">
 <h1>A little bit of theory – cont’d</h1>
-<p>So we have the update equation <span class="math">\(p_{t} = p_{t-1} P\)</span>. It’s for an <strong>homogeneous</strong> Markov chain as <span class="math">\(P\)</span> does not depend of time (the laws of weather do not change over time – well, except for seasonality, climate change,…).</p>
-<p>Stationary distribution: <span class="math">\(\pi = \pi P\)</span> so that <span class="math">\(\pi(I-P) = 0\)</span>. The left eigenvectors of P with an eigenvalue of 1 are the stationary probabilities.</p>
-<p>(true only when a stationary distribution exists, but Markov chains are great in that we know this well)</p>
+<p>So we have the update equation <span class="math">\(p_{t} = p_{t-1} \Gamma\)</span>. It’s for an <strong>homogeneous</strong> Markov chain as <span class="math">\(\Gamma\)</span> does not depend of time (the laws of weather do not change over time – well, except for seasonality, climate change,…).</p>
+<p>Stationary distribution: <span class="math">\(\pi = \pi \Gamma\)</span> so that <span class="math">\(\pi(I-\Gamma) = 0\)</span>. The left eigenvectors of <span class="math">\(\Gamma\)</span> with an eigenvalue of 1 are the stationary probabilities.</p>
+<p>(true only when a stationary distribution exists, but <a href="https://en.wikipedia.org/wiki/Discrete-time_Markov_chain">for discrete-time Markov chains we know the conditions for such existence</a>)</p>
 </section><section id="the-simplest-hmm-adding-a-binary-observation-level" class="slide level2">
 <h1>The simplest HMM – adding a binary observation level</h1>
 <p>My neighbor wakes up very early. When it rains, he usually has an umbrella in the corridor, which I use to make an inference on whether it rains today. So <span class="math">\(X_t = 1\)</span> when he has an umbrella and <span class="math">\(X_t = 0\)</span> when he hasn’t.</p>
@@ -548,13 +550,13 @@ All sorts of things - cf. <span class="citation" data-cites="mcclintock2020uncov
 </section><section id="diverse-options-for-model-fitting" class="slide level2">
 <h1>Diverse options for model fitting</h1>
 <ul>
-<li>BUGS, JAGS: super easy -&gt; computes posteriors for all the hidden states (updates probabilities for <span class="math">\(S_1 = 1, S_1 = 2, S_2 = 1, S_2 = 2,..\)</span> at each iteration of the chain), but very slow. You essentially evaluate the probability of <em>all possible combinations of states, i.e., all hidden paths</em>. It’s the brute force method.</li>
+<li>BUGS, JAGS: super easy -&gt; computes posteriors not only for <span class="math">\(\gamma_{12},\gamma_{21}\)</span> but also for all the hidden states (updates probabilities for <span class="math">\(S_1 = 1, S_1 = 2, S_2 = 1, S_2 = 2,..\)</span> at each iteration of the chain). You essentially evaluate the probability of <em>all possible combinations of states, i.e., all hidden paths</em>. It’s the brute force method – very slow for large samples.</li>
 </ul>
 <p>Note: BUGS and JAGS uses MCMC (several Markov chains over iterations) to estimates a biological or physical Markov chain (here, the weather). Do not confuse both type of Markov chains.</p>
 </section><section id="diverse-options-for-model-fitting-1" class="slide level2">
 <h1>Diverse options for model fitting</h1>
 <ul>
-<li>Other idea (math): marginalises the hidden states (wait, what?).</li>
+<li>Other idea (math): marginalise the hidden states (wait, what?).</li>
 </ul>
 <p>This is what is used in Stan as Stan <em>cannot handle sampling from discrete latent states</em>. By definition almost, a HMM is a model is a discrete latent state model that is Markovian in time. Here we will be using Stan <strong>but really we’re just using math</strong>. We could just as well use optim().</p>
 </section><section id="the-forward-algorithm" class="slide level2">
@@ -562,15 +564,19 @@ All sorts of things - cf. <span class="citation" data-cites="mcclintock2020uncov
 <p>Called ``marginalisation’’ nowadays (<span class="citation" data-cites="yackulic2020need">Yackulic et al. (2020)</span>) but really an old idea. Instead of using an algorithm that requires <span class="math">\(T \times T\)</span> computations, use an algorithm that requires <span class="math">\(\sim T\)</span> computations, capitalizing on <strong>recursivity</strong>.</p>
 </section><section id="the-forward-algorithm-1" class="slide level2">
 <h1>The forward algorithm</h1>
-<p>The <strong>forward probabilities</strong> provide the probability that we end iup in a given state <span class="math">\(S_t = s_t\)</span> AND that all the observations <span class="math">\((X_1,...,X_t) = (x_1,...x_t)\)</span> up to time t. Mathematically, <span class="math">\(\alpha_t(s) = \mathbb{P}(S_t = s, (X_1,...,X_t) = (x_1,...x_t))\)</span>. They’re not useful biological stuff. They are just a convenient algorithmic tool.</p>
+<p>The <strong>forward probabilities</strong> provide the probability that we end iup in a given state <span class="math">\(S_t = s_t\)</span> AND that all the observations <span class="math">\((X_1,...,X_t) = (x_1,...x_t)\)</span> up to time t. Mathematically, <span class="math">\(\alpha_t(s) = \mathbb{P}(S_t = s, (X_1,...,X_t) = (x_1,...x_t))\)</span> .</p>
+<p>They’re not useful biological stuff. They are just a convenient algorithmic tool.</p>
 </section><section id="the-forward-algorithm-2" class="slide level2">
 <h1>The forward algorithm</h1>
-<p>Marginalize based on past state <span class="math">\(\alpha_t(s) = \sum_j \mathbb{P}(S_t = s,S_{t-1} = j,X_{1:t} = x_{1:t})\)</span></p>
-<p>Apply Bayes’ theorem by conditioning on the past state <span class="math">\(\alpha_t(s) = \sum_j \mathbb{P}(X_{t} = x_{t}|S_t = s,\text{ past stuff })\)</span> <span class="math">\(\times \mathbb{P}(S_t = s| S_{t-1} = j, \text{ past stuff })\)</span> <span class="math">\(\times \mathbb{P}(S_{t-1} = j,X_{1:t-1} = x_{1:t-1})\)</span></p>
+<p>Marginalize based on past state because <span class="math">\(\{S_{t-1} = j\}\)</span> form a partition</p>
+<p><span class="math">\(\alpha_t(s) = \sum_j \mathbb{P}(S_t = s,S_{t-1} = j,X_{1:t} = x_{1:t})\)</span></p>
+<p>Apply Bayes’ theorem by conditioning on the past state</p>
+<p><span class="math">\(\alpha_t(s) = \sum_j \mathbb{P}(X_{t} = x_{t}|S_t = s,\text{ past stuff })\)</span> <span class="math">\(\times \mathbb{P}(S_t = s| S_{t-1} = j, \text{ past stuff })\)</span> <span class="math">\(\times \mathbb{P}(S_{t-1} = j,X_{1:t-1} = x_{1:t-1})\)</span></p>
 </section><section id="the-forward-algorithm-3" class="slide level2">
 <h1>The forward algorithm</h1>
 <p><span class="math">\(\alpha_t(s) = \sum_j E_{s,x_t} \times \Gamma_{sj} \times \alpha_{t-1}(j)\)</span></p>
-<p>Recursive equation that includes the model <em>transition</em> and <em>emission</em> probabilities. We actually use <span class="math">\(\alpha_T\)</span> which is the probability of all observed data (and the past state).</p>
+<p>Recursive equation that includes the model <em>transition</em> and <em>emission</em> probabilities. Initialize at <span class="math">\(t=1\)</span> (for all possibles states <span class="math">\(s=1,2\)</span>) and then loop over time til <span class="math">\(t=T\)</span>.</p>
+<p>We actually use <span class="math">\(\alpha_T\)</span> which is the probability of all observed data (and the past state).</p>
 </section></section>
 <section><section id="weather-example-in-r-and-stan" class="titleslide slide level1"><h1>Weather example in R and Stan</h1></section><section id="simulating-the-hmm" class="slide level2">
 <h1>Simulating the HMM</h1>
@@ -612,7 +618,8 @@ s[<span class="dv">1</span>:<span class="dv">60</span>]</code></pre>
 <pre class="sourceCode r"><code class="sourceCode r">## The ones roughly match between x and s, which is logical (more umbrellas when there&#39;s more rain!)</code></pre>
 </section><section id="fitting-the-hmm" class="slide level2">
 <h1>Fitting the HMM</h1>
-<pre class="stan"><code>
+<p>Adapted from HMMs in <a href="https://github.com/stan-dev/example-models/tree/master/BPA">Hiroki Itô’s Stan translation of Bayesian Population Analysis by Kéry &amp; Schaub</a></p>
+<pre class="stan"><code>// 
 data {                                             // observations
   int&lt;lower=1&gt; T;                                  // number of observations
   int&lt;lower=0,upper=1&gt; x[T];                       // observed variable
@@ -657,9 +664,24 @@ params &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">
 fit &lt;-<span class="st"> </span><span class="kw">sampling</span>(hmm.weather, <span class="dt">data =</span> data, <span class="dt">iter =</span> <span class="dv">1000</span>, <span class="dt">chains =</span> <span class="dv">1</span>, <span class="dt">cores =</span> <span class="dv">2</span>)</code></pre>
 <pre><code>## 
 ## SAMPLING FOR MODEL &#39;9430b0fe6fad0fc523f8c174108ab3b0&#39; NOW (CHAIN 1).
+## Chain 1: Rejecting initial value:
+## Chain 1:   Log probability evaluates to log(0), i.e. negative infinity.
+## Chain 1:   Stan can&#39;t start sampling from this initial value.
+## Chain 1: Rejecting initial value:
+## Chain 1:   Log probability evaluates to log(0), i.e. negative infinity.
+## Chain 1:   Stan can&#39;t start sampling from this initial value.
+## Chain 1: Rejecting initial value:
+## Chain 1:   Gradient evaluated at the initial value is not finite.
+## Chain 1:   Stan can&#39;t start sampling from this initial value.
+## Chain 1: Rejecting initial value:
+## Chain 1:   Log probability evaluates to log(0), i.e. negative infinity.
+## Chain 1:   Stan can&#39;t start sampling from this initial value.
+## Chain 1: Rejecting initial value:
+## Chain 1:   Log probability evaluates to log(0), i.e. negative infinity.
+## Chain 1:   Stan can&#39;t start sampling from this initial value.
 ## Chain 1: 
-## Chain 1: Gradient evaluation took 0.00027 seconds
-## Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 2.7 seconds.
+## Chain 1: Gradient evaluation took 0.000235 seconds
+## Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 2.35 seconds.
 ## Chain 1: Adjust your expectations accordingly!
 ## Chain 1: 
 ## Chain 1: 
@@ -676,9 +698,9 @@ fit &lt;-<span class="st"> </span><span class="kw">sampling</span>(hmm.weather, 
 ## Chain 1: Iteration: 900 / 1000 [ 90%]  (Sampling)
 ## Chain 1: Iteration: 1000 / 1000 [100%]  (Sampling)
 ## Chain 1: 
-## Chain 1:  Elapsed Time: 1.09709 seconds (Warm-up)
-## Chain 1:                1.12269 seconds (Sampling)
-## Chain 1:                2.21978 seconds (Total)
+## Chain 1:  Elapsed Time: 1.38481 seconds (Warm-up)
+## Chain 1:                1.24879 seconds (Sampling)
+## Chain 1:                2.6336 seconds (Total)
 ## Chain 1:</code></pre>
 </section><section id="analysing-the-hmm-1" class="slide level2">
 <h1>Analysing the HMM</h1>
@@ -688,17 +710,17 @@ fit &lt;-<span class="st"> </span><span class="kw">sampling</span>(hmm.weather, 
 ## post-warmup draws per chain=500, total post-warmup draws=500.
 ## 
 ##               mean se_mean   sd     10%     50%     90% n_eff Rhat
-## Gamma[1,1]    0.73    0.00 0.04    0.67    0.73    0.78   366    1
-## Gamma[1,2]    0.27    0.00 0.04    0.22    0.27    0.33   366    1
-## Gamma[2,1]    0.21    0.00 0.04    0.16    0.20    0.25   306    1
-## Gamma[2,2]    0.79    0.00 0.04    0.75    0.80    0.84   306    1
-## E[1,1]        0.77    0.00 0.05    0.71    0.77    0.83   400    1
-## E[1,2]        0.23    0.00 0.05    0.17    0.23    0.29   400    1
-## E[2,1]        0.17    0.00 0.03    0.13    0.17    0.21   325    1
-## E[2,2]        0.83    0.00 0.03    0.79    0.83    0.87   325    1
-## lp__       -719.53    0.08 1.39 -721.49 -719.15 -718.12   276    1
+## Gamma[1,1]    0.80    0.00 0.04    0.74    0.80    0.85   256 1.01
+## Gamma[1,2]    0.20    0.00 0.04    0.15    0.20    0.26   256 1.01
+## Gamma[2,1]    0.26    0.00 0.05    0.21    0.26    0.32   290 1.01
+## Gamma[2,2]    0.74    0.00 0.05    0.68    0.74    0.79   290 1.01
+## E[1,1]        0.17    0.00 0.04    0.11    0.17    0.22   285 1.00
+## E[1,2]        0.83    0.00 0.04    0.78    0.83    0.89   285 1.00
+## E[2,1]        0.77    0.00 0.05    0.70    0.76    0.83   151 1.00
+## E[2,2]        0.23    0.00 0.05    0.17    0.24    0.30   151 1.00
+## lp__       -719.86    0.14 1.75 -722.06 -719.45 -718.12   168 1.00
 ## 
-## Samples were drawn using NUTS(diag_e) at Mon Oct 26 18:22:12 2020.
+## Samples were drawn using NUTS(diag_e) at Wed Oct 28 13:37:18 2020.
 ## For each parameter, n_eff is a crude measure of effective sample size,
 ## and Rhat is the potential scale reduction factor on split chains (at 
 ## convergence, Rhat=1).</code></pre>
@@ -710,7 +732,12 @@ fit &lt;-<span class="st"> </span><span class="kw">sampling</span>(hmm.weather, 
 </section></section>
 <section><section id="other-applications" class="titleslide slide level1"><h1>Other applications</h1></section><section id="whale-behaviour" class="slide level2">
 <h1>Whale behaviour</h1>
-<p><img src="figs/hmm_whale.png" width="80%" /></p>
+<div class="figure">
+<img src="figs/hmm_whale.png" alt="From @mcclintock2020uncovering again" width="80%" />
+<p class="caption">
+From <span class="citation" data-cites="mcclintock2020uncovering">McClintock et al. (2020)</span> again
+</p>
+</div>
 </section><section id="whale-behaviour-1" class="slide level2">
 <h1>Whale behaviour</h1>
 <p><img src="figs/hmm_whale_results.png" width="85%" /></p>
@@ -733,6 +760,7 @@ fit &lt;-<span class="st"> </span><span class="kw">sampling</span>(hmm.weather, 
 <li><p>Movement models (I actually started with this).</p></li>
 <li><p>Ecosystem-state models.</p></li>
 </ul>
+<p><a href="https://onlinelibrary.wiley.com/doi/10.1111/ele.13610">McClintock et al.’s review</a></p>
 </section><section id="bibliography" class="slide level2 unnumbered">
 <h1>Bibliography</h1>
 <div class="references">

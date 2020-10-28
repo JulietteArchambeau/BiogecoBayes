@@ -61,9 +61,13 @@ Of course, IRL it doesn't. But let's assume there are four possible transitions 
 
 ## What are the model parameters?
 
-These are $\mathbb{P}(\text{ rain at t }|\text{ sun at t-1 }) = 1 - \mathbb{P}(\text{ sun at t }|\text{ sun at t-1 })$ which is formally $\mathbb{P}(S_t = 1 | S_{t-1} = 2)$ // rain = 1, sun = 2. 
+These are 
 
-We can also estimate $\mathbb{P}(\text{ sun at t }|\text{ rain at t-1 }) = 1- \mathbb{P}(\text{ rain at t }|\text{ rain at t-1 })$ which is formally $\mathbb{P}(S_t = 1 | S_{t-1} = 1)$. 
+$\mathbb{P}(\text{ rain at t }|\text{ sun at t-1 }) = 1 - \mathbb{P}(\text{ sun at t }|\text{ sun at t-1 })$ which is formally $\mathbb{P}(S_t = 1 | S_{t-1} = 2)$ // rain = 1, sun = 2. 
+
+We can also estimate 
+
+$\mathbb{P}(\text{ sun at t }|\text{ rain at t-1 }) = 1- \mathbb{P}(\text{ rain at t }|\text{ rain at t-1 })$ which is formally $\mathbb{P}(S_t = 2 | S_{t-1} = 1)$. 
 
 We assume these do not change over time, so truly there are two transition probabilities: 
 
@@ -73,17 +77,17 @@ Pr(rain -> sun) and Pr(sun -> rain).
 
 We stack all this in a matrix of **transition probabilities** $\Gamma = (\gamma_{ij})$ with $\gamma_{ij}=\mathbb{P}(S_t = j |S_{t-1} = i)$^[Many people use $P$ but we stick with $\Gamma$ to match @mcclintock2020uncovering] so that the rows sum to 1. 
 
-In general, let's say I want to compute the probability of the states at time $t$ from those at times $t-1$. 
+In general, let's say I want to compute the probability of the states at time $t$ from those at times $t-1$. We use the [Law of Total Probability](https://en.wikipedia.org/wiki/Law_of_total_probability) to obtain
 
-I then compute $p_{t}[k] = \mathbb{P}(S_t = k) = \sum_i \mathbb{P}(S_t = k |S_{t-1} = i) \mathbb{P}(S_{t-1} = i)$. Thus $p_t =  p_{t-1} \Gamma$. 
+$p_{t}[k] = \mathbb{P}(S_t = k) = \sum_i \mathbb{P}(S_t = k |S_{t-1} = i) \mathbb{P}(S_{t-1} = i)$. Thus $p_t =  p_{t-1} \Gamma$. 
 
 ## A little bit of theory -- cont'd
 
-So we have the update equation $p_{t} = p_{t-1} P$. It's for an **homogeneous** Markov chain as $P$ does not depend of time (the laws of weather do not change over time -- well, except for seasonality, climate change,...). 
+So we have the update equation $p_{t} = p_{t-1} \Gamma$. It's for an **homogeneous** Markov chain as $\Gamma$ does not depend of time (the laws of weather do not change over time -- well, except for seasonality, climate change,...). 
 
-Stationary distribution: $\pi = \pi P$ so that $\pi(I-P) = 0$. The left eigenvectors of P  with an eigenvalue of 1 are the stationary probabilities. 
+Stationary distribution: $\pi = \pi \Gamma$ so that $\pi(I-\Gamma) = 0$. The left eigenvectors of $\Gamma$ with an eigenvalue of 1 are the stationary probabilities. 
 
-(true only when a stationary distribution exists, but Markov chains are great in that we know this well)
+(true only when a stationary distribution exists, but [for discrete-time Markov chains we know the conditions for such existence](https://en.wikipedia.org/wiki/Discrete-time_Markov_chain))
 
 ## The simplest HMM -- adding a binary observation level
 
@@ -133,13 +137,13 @@ The magic unfolds later.
 
 ## Diverse options for model fitting
 
-* BUGS, JAGS: super easy -> computes posteriors for all the hidden states (updates probabilities for $S_1 = 1, S_1 = 2, S_2 = 1, S_2 = 2,..$ at each iteration of the chain), but very slow. You essentially evaluate the probability of *all possible combinations of states, i.e., all hidden paths*. It's the brute force method. 
+* BUGS, JAGS: super easy -> computes posteriors not only for $\gamma_{12},\gamma_{21}$ but also for all the hidden states (updates probabilities for $S_1 = 1, S_1 = 2, S_2 = 1, S_2 = 2,..$ at each iteration of the chain). You essentially evaluate the probability of *all possible combinations of states, i.e., all hidden paths*. It's the brute force method -- very slow for large samples. 
 
 Note: BUGS and JAGS uses MCMC (several Markov chains over iterations) to estimates a biological or physical Markov chain (here, the weather). Do not confuse both type of Markov chains. 
 
 ## Diverse options for model fitting
 
-* Other idea (math): marginalises the hidden states (wait, what?). 
+* Other idea (math): marginalise the hidden states (wait, what?). 
 
 This is what is used in Stan as Stan *cannot handle sampling from discrete latent states*. By definition almost, a HMM is a model is a discrete latent state model that is Markovian in time. Here we will be using Stan **but really we're just using math**.  We could just as well use optim(). 
 
@@ -149,14 +153,18 @@ Called ``marginalisation'' nowadays (@yackulic2020need) but really an old idea. 
 
 ## The forward algorithm
 
-The **forward probabilities** provide the probability that we end iup in a given state $S_t = s_t$ AND that all the observations $(X_1,...,X_t) = (x_1,...x_t)$ up to time t. Mathematically, $\alpha_t(s) = \mathbb{P}(S_t = s, (X_1,...,X_t) = (x_1,...x_t))$. They're not useful biological stuff. They are just a convenient algorithmic tool.  
+The **forward probabilities** provide the probability that we end iup in a given state $S_t = s_t$ AND that all the observations $(X_1,...,X_t) = (x_1,...x_t)$ up to time t. Mathematically, $\alpha_t(s) = \mathbb{P}(S_t = s, (X_1,...,X_t) = (x_1,...x_t))$ . 
+
+They're not useful biological stuff. They are just a convenient algorithmic tool.  
 
 ## The forward algorithm
 
-Marginalize based on past state 
+Marginalize based on past state because $\{S_{t-1} = j\}$ form a partition
+
 $\alpha_t(s) = \sum_j \mathbb{P}(S_t = s,S_{t-1} = j,X_{1:t} = x_{1:t})$
 
 Apply Bayes' theorem by conditioning on the past state
+
 $\alpha_t(s) = \sum_j \mathbb{P}(X_{t} = x_{t}|S_t = s,\text{ past stuff })$ 
 $\times \mathbb{P}(S_t = s| S_{t-1} = j, \text{ past stuff })$
 $\times \mathbb{P}(S_{t-1} = j,X_{1:t-1} = x_{1:t-1})$
@@ -165,7 +173,9 @@ $\times \mathbb{P}(S_{t-1} = j,X_{1:t-1} = x_{1:t-1})$
 
 $\alpha_t(s) = \sum_j E_{s,x_t} \times \Gamma_{sj} \times \alpha_{t-1}(j)$
 
-Recursive equation that includes the model *transition* and *emission* probabilities. We actually use $\alpha_T$ which is the probability of all observed data (and the past state). 
+Recursive equation that includes the model *transition* and *emission* probabilities. Initialize at $t=1$ (for all possibles states $s=1,2$) and then loop over time til $t=T$. 
+
+We actually use $\alpha_T$ which is the probability of all observed data (and the past state). 
 
 # Weather example in R and Stan
 
@@ -212,8 +222,10 @@ x[1:60]
 
 ## Fitting the HMM
 
-```{stan output.var="hmm.weather"}
+Adapted from HMMs in [Hiroki Itô's Stan translation of Bayesian Population Analysis by Kéry & Schaub](https://github.com/stan-dev/example-models/tree/master/BPA)  
 
+```{stan output.var="hmm.weather"}
+// 
 data {                                             // observations
   int<lower=1> T;                                  // number of observations
   int<lower=0,upper=1> x[T];                       // observed variable
@@ -341,7 +353,7 @@ mcmc_dens(fit, regex_pars = params)
 
 ## Whale behaviour 
 
-```{r hmm_whale, out.width = "80%", echo=F}
+```{r hmm_whale, out.width = "80%", fig.cap="From @mcclintock2020uncovering again", echo=F}
 include_graphics("figs/hmm_whale.png")
 ```
 
@@ -382,6 +394,8 @@ include_graphics("figs/hmm_popcounts.png")
 * Movement models (I actually started with this). 
 
 * Ecosystem-state models. 
+
+[McClintock et al.'s review](https://onlinelibrary.wiley.com/doi/10.1111/ele.13610)
 
 ## Bibliography
 
