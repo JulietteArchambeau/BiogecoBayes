@@ -1,0 +1,755 @@
+---
+title: "Workshop 9 \\ State Space Models (SSMs)"
+author: Simon Labarthe
+date: '`r Sys.Date()`'
+output: 
+  revealjs::revealjs_presentation:
+    theme: simple
+    highlight: tango
+    transition: none
+    center: true
+    fig_caption: true
+    self_contained: false
+    reveal_plugins: ["chalkboard"]
+    slide_level: 2
+    reveal_options:
+      slideNumber: true
+      previewLinks: true
+  # pdf_document: default
+  # html_document:
+  #   theme: readable
+  #   toc: true
+  #   toc_float: yes
+#csl: mee.csl
+header-includes:
+   - \usepackage{caption}
+   - \captionsetup[figure]{font=small}
+bibliography: ssm.bib
+link-citations: yes
+---
+
+```{r setup, message=FALSE, echo=FALSE, include = FALSE }
+rm(list = ls()) ; gc()
+library(knitr)
+#library(kableExtra)
+#library(tidyverse)
+library(rstan)
+library(bayesplot)
+theme_set(bayesplot::theme_default())
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = T)
+opts_chunk$set(echo = T, eval = T, cache = T, fig.height = 5)
+```
+
+# Introduction
+
+## Acknowledgements
+This presentation is taken from @augermethe2020introduction containing
+
+* an accessible introduction to State Space Models (SSMs)
+* toy and real-life models
+* a review of inference methods and tools, both in the frequentist and bayesian frameworks
+* a review of usual identifiability issues + guidelines and workarounds. 
+* DLM (kalman filtering), JAGS, nimble and STAN ready-to-use codes
+
+## Outline
+
+* What are SSMs?
+  + Maths
+  + Links with previous workshops
+* A first toy model (from @augermethe2020introduction)
+* Real life movement model (from @augermethe2020introduction)
+
+# What is a Space State Model? 
+
+## Maths
+```{r, fig.cap="Basic structure. From @augermethe2020introduction", echo=F}
+knitr::include_graphics("figs/ssm.png")
+```
+
+
+
+## Maths
+```{r, out.width = "50%", echo=F}
+knitr::include_graphics("figs/ssm.png")
+```
+
+* State equation/model (a.k.a. process or transition eq.)
+
+$z_t = f(z_{t-1}) + \epsilon_t \quad \Rightarrow z_t \text{ time evolution of the hidden state}$
+
+* Observation equation/model (a.k.a. measurement eq.)
+
+$y_t = g(z_t) + \eta_t \quad \Rightarrow z_t \text{ dependant observation}$
+
+* Allows to quantify separately model ($\epsilon_t$) and observation ($\eta_t$) errors.
+
+## Advantages of SSMs
+SSMs can cope with
+
+* Non linearities : $z_t = f(z_{t-1}) + \epsilon_t$, general $f$.
+
+_Example with logistic equations_ 
+
+* multiple data streams
+
+_Example with categorical, movements and count data in whales survey_ 
+
+* time-continuous data & movements
+
+_Example with a time continuous Ornstein-Uhlenbeck (OU) process (movement model) and Argos vs GPS data stream => different data/noise ratio_
+
+## Links with HMMs and ODE ?
+
+* HMM: particular case of SSM where $z_t$ is a categorical, with finite number of categories $\Rightarrow$ transition matrix. (CF WS 8)
+
+$z_t = T z_{t-1} + \epsilon_t, \quad T : \text{ transition matrix}$
+
+$z_t \in [0,1]^N, N \text{ categories}$
+
+* ODE + observation equation can be discretized (Euler scheme) to give SSM (CF WS 6)
+
+$\small{\left\{ \begin{array}{l}\partial_t z_t = f(z_t) + \epsilon_t \\ y_t = g(z_t) + \eta_t\end{array} \right. \quad \Rightarrow \quad  \left\{ \begin{array}{l} z_t = z_{t-1} + \Delta t f(z_{t-1}) + \Delta t \epsilon_t\\ y_t = g(z_t) + \eta_t\end{array} \right.}$
+
+
+# My first SSM : linear Gaussian SSM
+
+## Model to be fitted 
+taken from Appendix 1 of @augermethe2020introduction
+
+$\small{\left\{
+\begin{array}{l}
+z_t = \beta z_{t-1} + \epsilon_t, \quad \epsilon \sim N(0,\sigma_p^2),\\
+y_t = \alpha z_t + \eta_t, \quad \eta_t \sim N(0,\sigma_o^2)
+\end{array}
+\right.}$
+
+  + State equation: Linear time evolution 
+  + Stationary gaussian noise for growth rate.
+  + Observation equation: linearly dependant on the state
+  + Stationary gaussian noise for observation error.
+
+**Known parameters:**  $\alpha = 1, \quad \beta = 1$  
+
+(identifiability issues to be illustrated latter)
+
+**parameters to be fitted:**
+
+$\small{\sigma_p \sim N(0,1), \quad \sigma_o \sim N(0,1)}$
+
+## Alternative model
+taken from [Stan Examples](https://github.com/stan-dev/example-models/tree/master/BPA)
+
+$z_t = \beta z_{t-1}, \quad \beta \sim N(\bar{\beta},\sigma_p^2)$
+
+$\color{red}{\text{ (versus } z_t = \beta z_{t-1} + \epsilon_t,~\beta \text{ fixed in previous model})}$
+
+ <span style="color:red">Hence, the modeling noise is supposed proportional to the population level</span>.
+
+$y_t = z_t + \eta_t, \quad \eta_t \sim N(0,\sigma_o^2)$
+
+## Modeling raw data
+
+$\left\{
+\begin{array}{l}
+\small{z_t = \beta z_{t-1} + \epsilon_t, \quad \epsilon \sim N(0,\sigma_p^2),~~\beta = 1,~~\sigma_p \sim N(0,1)}\\
+y_t = z_t + \eta_t, \quad \eta_t \sim N(0,\sigma_o^2),~~\sigma_o \sim N(0,1)
+\end{array}
+\right.$
+
+```{r simulating-data}
+set.seed(42)
+#Number of time points
+TT=200
+z <- numeric(TT + 1)
+# Standard deviation of the process variation
+sdp <- 0.1
+# For-loop that simulates the state through time,
+for(i in 1:TT){
+#process equation
+z[i+1] <- z[i] + rnorm(1, 0, sdp)
+}
+```
+
+## True state
+
+```{r plot-data, fig.asp = 0.6, fig.width =7.5}
+plot(0:TT, z,
+pch = 19, cex = 0.7, ty = "o",
+xlab = "t", ylab = expression(z[t]), las=1)
+```
+
+## Observations
+
+```{r observations}
+#Number of time points
+y <- numeric(TT)
+# Standard deviation of the observation variation
+sdo <- 0.1
+# Adding error
+y<-z[2:(TT+1)]+rnorm(TT,0,sdo)
+```
+
+## Observations
+
+```{r observations-plot,fig.asp = 0.6, fig.width =7.5}
+plot(1:TT, y, pch=3, cex = 0.8, col=grey(0.4), ty="p", xlab = "t", ylab = expression(z[t]), xlim = c(0,TT), ylim = c(min(y), max(y)+max(y)/5), las = 1)
+points(0:TT, z, pch = 19, cex = 0.7, ty = "o")
+legend("top", legend = c("Obs.", "True states"), pch = c(3, 19), col = c(grey(0.4), "black"),horiz=TRUE, bty="n", cex=0.9)
+```
+
+## Stan model
+```{stan output.var='ssm.linear'}
+/*----------------------- Data --------------------------*/
+data {
+  int TT;
+  vector[TT] y;
+  real z0;
+}
+/*----------------------- Parameters --------------------------*/
+parameters {
+  real<lower=0> sdp;
+  real<lower=0> sdo;
+  vector[TT] z;
+}
+/*----------------------- Model --------------------------*/
+model {
+  //prior distributions
+  sdo ~ normal(0, 1);
+  sdp ~ normal(0, 1);
+  //data model
+  z[1] ~ normal(z0, sdp);
+  for(t in 2:TT){
+    z[t] ~ normal(z[t-1], sdp);
+  }
+  for(t in 1:TT){
+    y[t] ~ normal(z[t], sdo);
+  }
+}
+```
+```{r linear-fit}
+dataStan <- list(y=y, TT=TT, z0=0)
+linearfit <- sampling(ssm.linear, data = dataStan, iter = 3000, chains = 3)
+```
+
+## sdp chains 
+```{r chain-sdp, fig.asp = 0.6, fig.width =7.5}
+# Traceplot for sdp
+traceplot(linearfit, pars="sdp", inc_warmup = TRUE)
+```
+
+## estimates
+```{r fit-result}
+print(linearfit, max = 50)
+```
+
+
+## Pair plots
+
+```{r linearmodel_result_pairplot, fig.asp = 0.55, fig.width =6}
+pairs(linearfit, pars = c("sdp", "sdo"), las = 1)
+```
+
+
+
+## Extraction of confidence intervals
+
+```{r confidence}
+zsp2pStan <- rstan::extract(linearfit, pars=c("z"))[[1]]
+sdop2pStan <- rstan::extract(linearfit, pars=c("sdo"))[[1]]
+sdpp2pStan <- rstan::extract(linearfit, pars=c("sdp"))[[1]]
+
+zs2pStan <- colMeans(zsp2pStan)
+zsCIl2pStan <- apply(zsp2pStan, 2, quantile, probs=0.025)
+zsCIu2pStan <- apply(zsp2pStan, 2, quantile, probs=0.975)
+```
+
+## confidence cone plot
+
+```{r confidence-plot, fig.asp = 0.55, fig.width =7}
+plot(1:TT, y, pch=3, cex = 0.8, col=grey(0.4), ty="p", xlab = "t", ylab = expression(z[t]), xlim = c(0,TT), ylim = c(min(y), max(y)+max(y)/5), las = 1)
+points(0:TT, z, pch = 19, cex = 0.7, ty = "o")
+polygon(c(1:TT, TT:1), c(zsCIl2pStan,rev(zsCIu2pStan)), col=rgb(0.8,0,1,0.3), border=FALSE)
+points(1:TT, zs2pStan, cex=0.6, col="purple", pch=19)
+legend("top", legend = c("Obs.", "True states", "Filter. states"), pch = c(3, 19, 19), col = c(grey(0.4), "black", "purple"), horiz=TRUE, bty="n", cex=0.9)
+```
+
+
+
+## Coming back to the Stan Example
+
+
+$\left\{
+\begin{array}{l}
+\small{z_t = \beta z_{t-1}, \quad \beta \sim N(\bar{\beta},\sigma_p^2)}\\
+y_t = z_t + \eta_t, \quad \eta_t \sim N(0,\sigma_o^2),~~\sigma_o \sim N(0,1)
+\end{array}
+\right.$
+
+
+```{stan output.var='ssm.StanExample'}
+data {
+  int<lower=0> T;
+  vector[T] y;
+}
+
+parameters {
+  real<lower=0,upper=10> mean_beta;    // Mean growth rate
+  real<lower=0,upper=10> sigma_proc;     // SD of state process
+  real<lower=0,upper=100> sigma_obs;     // SD of observation process
+  vector<lower=0>[T - 1] beta;
+  real<lower=0,upper=500> N0_est;        // Initial population size
+}
+
+transformed parameters {
+  vector<lower=0>[T] N_est;
+
+  N_est[1] = N0_est;
+  // State process
+  for (t in 1:(T - 1))
+    N_est[t + 1] = N_est[t] * beta[t];
+}
+
+model {
+  // Priors are implicitly defined
+  //  N_est1 ~ uniform(0, 500);
+  //  mean_lambda ~ uniform(0, 10);
+  //  sigma_proc ~ uniform(0, 10);
+  //  sigma_obs ~ uniform(0, 100);
+
+  // Likelihood
+  beta ~ normal(mean_beta, sigma_proc);
+
+  // Observation process
+  y ~ normal(N_est, sigma_obs);
+}
+
+generated quantities {
+  real<lower=0> sigma2_obs;
+  real<lower=0> sigma2_proc;
+  vector<lower=0>[T] N_est_extract;
+
+  sigma2_obs = square(sigma_obs);
+  sigma2_proc = square(sigma_proc);
+  N_est_extract = N_est;
+}
+
+```
+
+## Fitting Stan Example
+
+```{r stan_example_fit, fig.asp = 0.55, fig.width =7}
+
+## Read data
+## The data generation code is in bpa-code.txt, available at
+## http://www.vogelwarte.ch/de/projekte/publikationen/bpa/complete-code-and-data-files-of-the-book.html
+stan_data <- read_rdump("ssm.StanExample.data.R")
+
+## Parameters monitored
+params <- c("beta", "mean_beta", "sigma2_obs", "sigma2_proc",
+            "N0_est","N_est")
+
+## MCMC settings
+ni <- 10000
+nt <- 5
+nb <- 5000
+nc <- 4
+
+## Initial values
+#inits <- lapply(1:nc, function(i) {
+#    list(sigma_proc = runif(1, 0, 5),
+ #        mean_beta = runif(1, 0.1, 2),
+#         sigma_obs = runif(1, 0, 10),
+#         N0_est = runif(1, 20, 40))})
+
+## Call Stan from R
+ssm <-  sampling(ssm.StanExample,
+            data = stan_data, pars = params, #init = inits, 
+            chains = nc, iter = ni, warmup = nb, thin = nt,
+            seed = 1,
+            control = list(adapt_delta = 0.999),
+            open_progress = FALSE)
+
+## Note: there may be divergent transitions after warmup.
+```
+
+
+## Result
+
+```{r Stan_example_result, fig.asp = 0.55, fig.width =6}
+## Summarize posteriors
+print(ssm)
+```
+
+## Result
+
+```{r Stan_example_result_pairplot, fig.asp = 0.55, fig.width =6}
+pairs(ssm, pars = c("mean_beta", "sigma2_obs", "sigma2_proc",
+            "N0_est"), las = 1)
+```
+
+## Extraction
+
+```{r confidence_stan_example, fig.asp = 0.55, fig.width =6}
+zsp2pStan <- rstan::extract(ssm, pars=c("N_est"))[[1]]
+
+zs2pStan <- colMeans(zsp2pStan)
+zsCIl2pStan <- apply(zsp2pStan, 2, quantile, probs=0.025)
+zsCIu2pStan <- apply(zsp2pStan, 2, quantile, probs=0.975)
+plot(1:stan_data$T, stan_data$y, pch=3, cex = 0.8, col=grey(0.4), ty="p", xlab = "t", ylab = expression(z[t]), xlim = c(0,stan_data$T), ylim = c(min(stan_data$y), max(stan_data$y)+max(stan_data$y)/5), las = 1)
+polygon(c(1:stan_data$T, stan_data$T:1), c(zsCIl2pStan,rev(zsCIu2pStan)), col=rgb(0.8,0,1,0.3), border=FALSE)
+points(1:stan_data$T, zs2pStan, cex=0.6, col="purple", pch=19,ty = "o")
+legend("top", legend = c("Obs.", "Filter. states"), pch = c(3, 19), col = c(grey(0.4), "purple"), horiz=TRUE, bty="n", cex=0.9)
+```
+
+# An example with count data
+
+## Stan Example : real data
+
+House martin population counts in the village of Magden
+taken from [Stan Examples](https://github.com/stan-dev/example-models/tree/master/BPA)
+
+
+${\left\{
+\begin{array}{l}
+\log(z_t) =  \log(z_{t-1}) + log(r), \\\
+y_t = z_t + \eta.
+\end{array}
+\right.}$
+
+$log(r) \sim N(\bar{r},\sigma_p^2), ~~\bar{r} \sim N(1,10), \sigma_p \sim U(0,1)$
+
+$\eta \sim N(0,\sigma_o^2),~~\sigma_o \sim U(0,1)$
+
+
+
+## Stan Code
+```{stan output.var='ssm.StanExampleMartin'}
+data {
+  int<lower=0> T;
+  vector[T] y;
+  int<lower=0> pyears;          // Number of years for prediction
+}
+
+parameters {
+  real logN_est1;               // Initial log population size
+  real mean_r;                  // Mean growth rate
+  real<lower=0,upper=1> sigma_proc; // SD of state procesdatas
+  real<lower=0,upper=1> sigma_obs;  // SD of observation process
+  vector[T - 1] r;
+}
+
+transformed parameters {
+  vector[T] logN_est;           // Log population size
+
+  // State process
+  logN_est[1] = logN_est1;
+  for (t in 1:(T - 1))
+    logN_est[t + 1] = logN_est[t] + r[t];
+}
+
+model {
+  // Priors and constraints
+  logN_est1 ~ normal(5.6, 10);
+  mean_r ~ normal(1, sqrt(1000));
+  //  sigma_proc ~ uniform(0, 1);
+  //  sigma_obs ~ uniform(0, 1);
+
+  // Likelihood
+  r ~ normal(mean_r, sigma_proc);
+
+  // Observation process
+  y ~ normal(logN_est, sigma_obs);
+}
+
+generated quantities {
+  // Population sizes on real scale
+  real sigma2_proc;
+  real sigma2_obs;
+  vector[pyears] pr;
+  vector[pyears] plogN_est;             // Predicted log population size
+  vector<lower=0>[T] N_est;    // Population size
+  vector[T] logadjN_est;    // Population size
+  vector<lower=0>[T] adjN_est;    // Population size
+  vector[T] adjr;    // Population size
+  vector<lower=0>[pyears] pN_est;    // Population size
+
+  sigma2_proc = square(sigma_proc);
+  sigma2_obs = square(sigma_obs);
+
+  pr[1] = normal_rng(mean_r, sigma_proc);
+  plogN_est[1] = logN_est[T] + pr[1];
+  for (t in 2:pyears) {
+    pr[t] = normal_rng(mean_r, sigma_proc);
+    plogN_est[t] = plogN_est[t - 1] + pr[t];
+  }
+  adjr[1] = normal_rng(mean_r,sigma_proc);
+  logadjN_est[1] = logN_est[1] + adjr[1];
+  for (t in 2:T){
+    adjr[t] = normal_rng(mean_r,sigma_proc);
+    logadjN_est[t] = logadjN_est[t-1]+adjr[t];
+  }
+  for (t in 1:T)
+    adjN_est[t] = exp(logadjN_est[t]);
+  for (t in 1:T)
+    N_est[t] = exp(logN_est[t]);
+  for (t in 1:pyears)
+    pN_est[t] = exp(plogN_est[t]);
+}
+
+```
+
+
+
+## R main code
+```{r data_martin}
+## Data generation code is transplanted from original bpa-code.txt
+## House martin population data from Magden
+pyears <- 6 # Number of future years with predictions
+hm <- c(271, 261, 309, 318, 231, 216, 208, 226, 195, 226, 233,
+        209, 226, 192, 191, 225, 245, 205, 191, 174)
+year <- 1990:2009
+
+## Bundle data
+stan_data <- list(y = log(hm), T = length(year), pyears = pyears)
+
+## Parameters monitored
+params <- c("r", "mean_r", "sigma2_obs", "sigma2_proc",
+            "N_est","pN_est","adjN_est")
+
+## MCMC settings
+ni <- 30000
+nt <- 10
+nb <- 20000
+nc <- 4
+
+## Initial values
+inits <- lapply(1:nc, function(i) {
+    list(sigma_proc = runif(1, 0, 1),
+         mean_r = rnorm(1),
+         sigma_obs = runif(1, 0, 1))})
+
+## Call Stan from R
+hm_ssm <- sampling(ssm.StanExampleMartin,
+               data = stan_data, init = inits, pars = params,
+               chains = nc, thin = nt, iter = ni, warmup = nb,
+               seed = 1,
+               control = list(adapt_delta = 0.999),
+               open_progress = FALSE)
+
+```
+
+
+## Result
+```{r result_martin, fig.asp = 0.55, fig.width =6,cache=F}
+print(hm_ssm,pars=c("mean_r", "sigma2_obs", "sigma2_proc"), digits = 3)
+```
+
+## Result-pair plots
+```{r pair_martin, fig.asp = 0.55, fig.width =6,cache=F}
+pairs(hm_ssm,pars=c("mean_r", "sigma2_obs", "sigma2_proc"),las=1)
+```
+
+
+## Extraction
+
+```{r prediction_martin, fig.asp = 0.55, fig.width =6}
+zsp2pStan <- rstan::extract(hm_ssm, pars=c("N_est"))[[1]]
+zs2pStan <- colMeans(zsp2pStan)
+zsCIl2pStan <- apply(zsp2pStan, 2, quantile, probs=0.025)
+zsCIu2pStan <- apply(zsp2pStan, 2, quantile, probs=0.975)
+pzsp2pStan <- rstan::extract(hm_ssm, pars=c("pN_est"))[[1]]
+pzsp2pStan <- cbind(zsp2pStan[,ncol(zsp2pStan)],pzsp2pStan)
+pzs2pStan <- colMeans(pzsp2pStan)
+pzsCIl2pStan <- apply(pzsp2pStan, 2, quantile, probs=0.025)
+pzsCIu2pStan <- apply(pzsp2pStan, 2, quantile, probs=0.975)
+adjzsp2pStan <- rstan::extract(hm_ssm, pars=c("adjN_est"))[[1]]
+adjzs2pStan <- colMeans(adjzsp2pStan)
+adjzsCIl2pStan <- apply(adjzsp2pStan, 2, quantile, probs=0.025)
+adjzsCIu2pStan <- apply(adjzsp2pStan, 2, quantile, probs=0.975)
+```
+
+## Plot 1
+
+```{r prediction_plot_martin_1, fig.asp = 0.55, fig.width =6}
+plot(1:stan_data$T, exp(stan_data$y), pch=3, cex = 0.8, col=grey(0.4), ty="p", xlab = "t", ylab = expression(z[t]), xlim = c(0,stan_data$T+stan_data$pyears), ylim = c(0, max(zsCIu2pStan)*1.5), las = 1)
+polygon(c(1:stan_data$T, stan_data$T:1), c(zsCIl2pStan,rev(zsCIu2pStan)), col=rgb(0.8,0,1,0.3), border=FALSE)
+points(1:stan_data$T, zs2pStan, cex=0.6, col="purple", pch=19,ty = "o")
+polygon(c((stan_data$T):(stan_data$T+stan_data$pyears), (stan_data$T+stan_data$pyears):(stan_data$T)), c(pzsCIl2pStan,rev(pzsCIu2pStan)), col=rgb(0,0.8,1,0.3), border=FALSE)
+points((stan_data$T):(stan_data$T+stan_data$pyears), pzs2pStan, cex=0.6, col=rgb(0,0.8,1,1), pch=19)
+legend("top", legend = c("Obs.", "Filter. states","Prediction"), pch = c(3, 19,19), col = c(grey(0.4), "purple",rgb(0,0.8,1,1)), horiz=TRUE, bty="n", cex=0.9)
+```
+
+
+## Plot 2
+
+```{r prediction_plot_martin_2, fig.asp = 0.55, fig.width =6}
+plot(1:stan_data$T, exp(stan_data$y), pch=3, cex = 0.8, col=grey(0.4), ty="p", xlab = "t", ylab = expression(z[t]), xlim = c(0,stan_data$T+stan_data$pyears), ylim = c(0, max(adjzsCIu2pStan)*1.1), las = 1)
+polygon(c(1:stan_data$T, stan_data$T:1), c(adjzsCIl2pStan,rev(adjzsCIu2pStan)), col=rgb(0.8,0.8,1,0.3), border=FALSE)
+points(1:stan_data$T, adjzs2pStan, cex=0.6, col=rgb(0.8,0.8,1,0.3), pch=19,ty = "o")
+polygon(c(1:stan_data$T, stan_data$T:1), c(zsCIl2pStan,rev(zsCIu2pStan)), col=rgb(0.8,0,1,0.3), border=FALSE)
+points(1:stan_data$T, zs2pStan, cex=0.6, col="purple", pch=19,ty = "o")
+polygon(c((stan_data$T):(stan_data$T+stan_data$pyears), (stan_data$T+stan_data$pyears):(stan_data$T)), c(pzsCIl2pStan,rev(pzsCIu2pStan)), col=rgb(0,0.8,1,0.3), border=FALSE)
+points((stan_data$T):(stan_data$T+stan_data$pyears), pzs2pStan, cex=0.6, col=rgb(0,0.8,1,1), pch=19)
+legend("top", legend = c("Obs.","Resimulated", "Filter. states","Prediction"), pch = c(3,19, 19,19), col = c(grey(0.4),col=rgb(0.8,0.8,1,0.3), "purple",rgb(0,0.8,1,1)), horiz=TRUE, bty="n", cex=0.9)
+```
+
+
+
+# A non linear example
+
+## Population model with density dependence
+
+${\left\{
+\begin{array}{l}
+z_t = z_{t-1} exp(\beta_0 - \beta_1 z_{t-1} + \epsilon_t), \quad \beta_0 \geq 0, \beta_1 \geq 0 \\
+y_t = z_t + \eta.
+\end{array}
+\right.}$
+
+$\epsilon_t \sim N(0,\sigma_p^2), ~~\sigma_p \sim U(0,1)$
+
+$\eta \sim N(0,\sigma_o^2),~~\sigma_o \sim U(0,1)$
+
+*"Linearisation" : $w_t = log(z_t)$*
+
+${\left\{
+\begin{array}{l}
+w_t = w_{t-1} + \beta_0 - \beta_1 exp(w_{t-1}) + \epsilon_t, \quad \beta_0 \geq 0, \beta_1 \geq 0 \\
+y_t = z_t + \eta.
+\end{array}
+\right.}$
+
+
+## Stan Code
+```{stan output.var='ssm.StanNonLinear'}
+data {
+  int<lower=0> T;
+  vector[T] y;
+}
+
+parameters {
+  real w_est1;               // Initial log population size
+  real<lower=0,upper=1> beta_0;                   // Mean growth rate
+  real<lower=0,upper=1> beta_1;                   // Mean density dependence
+  real<lower=0,upper=1> sigma_proc; // SD of state procesdatas
+  real<lower=0,upper=1> sigma_obs;  // SD of observation process
+  vector[T - 1] epsilon;
+}
+
+transformed parameters {
+  vector[T] w_est;           // Log population size
+  vector[T] z_est;
+  // State process
+  w_est[1] = w_est1;
+  for (t in 1:(T - 1))
+    w_est[t + 1] = w_est[t] + beta_0 - beta_1 * exp(w_est[t]) + epsilon[t];
+  for (t in 1:T)
+    z_est[t] = exp(w_est[t]);
+}
+
+model {
+  // Priors and constraints
+  w_est1 ~ normal(2, 10);
+  //  sigma_proc ~ uniform(0, 1);
+  //  sigma_obs ~ uniform(0, 1);
+  beta_0 ~ normal(0.1,0.4);
+  beta_1 ~ normal(0.1,0.4);
+  // Likelihood
+  epsilon ~ normal(0, sigma_proc);
+  
+  // Observation process
+  y ~ normal(z_est, sigma_obs);
+}
+
+generated quantities {
+  // Population sizes on real scale
+  real sigma2_proc;
+  real sigma2_obs;
+
+  sigma2_proc = square(sigma_proc);
+  sigma2_obs = square(sigma_obs);
+}
+
+```
+
+
+
+## R main code
+```{r nonlinear}
+TT <- 20 # Observation size
+beta_0<-0.9
+beta_1<-0.5
+w <- numeric(TT)
+w[1] = 2
+# Standard deviation of the process variation
+sdp <- 0.1
+# For-loop that simulates the state through time,
+for(i in 1:(TT-1)){
+#process equation
+w[i+1] <- w[i] + beta_0 - beta_1 * exp(w[i]) + rnorm(1, 0, sdp)
+}
+#Number of time points
+y <- numeric(TT)
+# Standard deviation of the observation variation
+sdo <- 0.1
+# Adding error
+for(i in 1:(TT)){
+y [i]<-exp(w[i])+rnorm(1,0,sdo)
+}
+## Bundle data
+stan_data <- list(y = y, T = TT)
+
+## Parameters monitored
+params <- c("beta_0","beta_1","z_est","sigma_proc","sigma_obs")
+
+## MCMC settings
+ni <- 30000
+nt <- 10
+nb <- 20000
+nc <- 4
+
+
+## Call Stan from R
+nonlinear_ssm <- sampling(ssm.StanNonLinear,
+                   data = stan_data, pars = params,
+                   chains = nc, thin = nt, iter = ni, warmup = nb,
+                   seed = 1,
+                   control = list(adapt_delta = 0.999),
+                   open_progress = FALSE)
+
+```
+
+## Result
+```{r result_nonlinear, fig.asp = 0.55, fig.width =6}
+print(nonlinear_ssm,pars=c("beta_0","beta_1", "sigma_obs", "sigma_proc"), digits = 3)
+```
+
+## Result-pair plots
+```{r pair_nonlinear, fig.asp = 0.55, fig.width =6}
+pairs(nonlinear_ssm,pars=c("sigma_obs", "sigma_proc","beta_0","beta_1"),las=1)
+```
+
+## Extraction
+
+```{r prediction_nonlinear, fig.asp = 0.55, fig.width =6}
+zsp2pStan <- rstan::extract(nonlinear_ssm, pars=c("z_est"))[[1]]
+zs2pStan <- colMeans(zsp2pStan)
+zsCIl2pStan <- apply(zsp2pStan, 2, quantile, probs=0.025)
+zsCIu2pStan <- apply(zsp2pStan, 2, quantile, probs=0.975)
+```
+
+## Plot 1
+
+```{r prediction_plot_nonlinear_1, fig.asp = 0.55, fig.width =6,eval=T,cache=F}
+plot(1:stan_data$T, stan_data$y, pch=3, cex = 0.8, col=grey(0.4), ty="p", xlab = "t", ylab = expression(z[t]), xlim = c(0,stan_data$T), ylim = c(0, max(y)*1.5), las = 1)
+polygon(c(1:stan_data$T, stan_data$T:1), c(zsCIl2pStan,rev(zsCIu2pStan)), col=rgb(0.8,0,1,0.3), border=FALSE)
+points(1:stan_data$T, zs2pStan, cex=0.6, col="purple", pch=19,ty = "o")
+legend("top", legend = c("Obs.", "Filter. states"), pch = c(3, 19), col = c(grey(0.4), "purple"), horiz=TRUE, bty="n", cex=0.9)
+```
+
+
+
+## Bibliography
+
+
