@@ -17,6 +17,7 @@ We are a small group of researchers, PhD students and post-docs who meet regular
 * [Workshop6 - ODE SIR](https://juliettearchambeau.github.io/BiogecoBayes/workshop6_ODE_SIR.html)
 * [Workshop7 - Dirichlet Multinomial](https://juliettearchambeau.github.io/BiogecoBayes/Workshop7_DirichletMultinomial.html) with the [video](https://visio.u-bordeaux.fr/playback/presentation/2.0/playback.html?meetingId=ba1a861b69e0fc3d39fec52f4dd934078367aac2-1602502758497)
 * [Workshop8 - Hidden Markov Models](https://juliettearchambeau.github.io/BiogecoBayes/Workshop8_HMMs.html#/)
+* [Workshop9 - State Space Models](https://juliettearchambeau.github.io/BiogecoBayes/Workshop9_SSMs.html#/)
 
 ### Course materials
 
