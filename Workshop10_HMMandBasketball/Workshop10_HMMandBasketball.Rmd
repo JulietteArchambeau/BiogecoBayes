@@ -60,8 +60,6 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 library(bayesplot)
 color_scheme_set("green") # color scheme of the bayesplot package
-#library(gridExtra)
-#library(grid)
 library(ggplot2)
 library(tibble)
 library(dplyr)
@@ -106,8 +104,6 @@ Unlike the larger class of state-space models (see workshop 7), the state proces
 A basic $N$-state HMM can be fully specified by the following three components: 
 
   - the **initial distribution**: $\mathbf{\delta} = Pr(S_{1} = 1), . . . , Pr(S_{1} = N)$ , specifying the probabilities of being in each state at the start of the sequence.
-
-<!-- In the cases below, we don't estimate the initial distribution. So, how the initial is chosen?  and when is it done?-->
 
   - the **state transition probabilities**, $\gamma_{ij} = Pr(S_{t+1} = j \, | \, S_{t} = i)$, specifying the probability of switching from state $i$ at time $t$ to state $j$ at time $t + 1$ and usually represented as a $N × N$ state transition probability matrix where $\sum_{j=1}^{N} \gamma_{ij} = 1$.
 
@@ -244,8 +240,6 @@ $$
     * For the emission parameters $\mu_{z_t}$, we use the normal distribution: $\mu_{z_1} \sim \mathcal{N}(3,1)$ and $\mu_{z_2} \sim \mathcal{N}(10,1)$.
         
     * For the transition matrix $\boldsymbol{\theta}$, since each row of the matrix sums to 1, we can use the **Dirichlet distribution on each row of the matrix**: $\boldsymbol{\theta} \sim \text{Dirichlet}(\alpha)$ with $\alpha = \begin{pmatrix} 4 & 2 \\ 2 & 4 \end{pmatrix}$.
-
-<!-- Do we agree that this prior give more confidence to staying in the same time vs moving to another state? -->
 
 Once we estimate the parameters, we can determine the most likely state sequence that generated the sequence of observations. This can be computed with the [Viterbi algorithm](https://en.wikipedia.org/wiki/Viterbi_algorithm). 
 
@@ -502,10 +496,8 @@ Discussion about whether to use the exponential or normal distribution for model
 Using the exponential distribution function to model the emission probabilities poses two issues:
 
   1. **Scale of the data**: Both the distance and the speed metric are on very different scales. It would make sense to take the log of these data to normalize them but unfortunately this is infeasible since the support of the exponential distribution must be greater than or equal to 0.
-
-<!-- To discuss with Fred -->
   
-2. **Computationally unstable**: The 1/speed transformation contains values that are mostly close to 0. This makes it difficult to use distributions that have most of their density around 0, such as the exponential distribution. The reason being that it will be difficult to discriminate between the "drive" and "none" states, since modeling 1/speed with the exponential distribution will attribute high probabilities to both states.
+  2. **Computationally unstable**: The 1/speed transformation contains values that are mostly close to 0. This makes it difficult to use distributions that have most of their density around 0, such as the exponential distribution. The reason being that it will be difficult to discriminate between the "drive" and "none" states, since modeling 1/speed with the exponential distribution will attribute high probabilities to both states.
 
 While it is mathematically more tractable to use the exponential distribution, we argue that such a choice to model the data generation process will be computationally unstable. Instead, we opt to use the normal distribution on both the 1/speed and distance metrics, enabling us to model the data on the log scale. 
 
@@ -525,7 +517,7 @@ z_t &\sim \mathcal{Categorical}(\theta_{z_{[t-1]}}) \\
 \end{align*}
 $$
 
-where $z_t \in [1,2]$, $\tau=\rho=0.1$, and $\alpha = [[4,2],[2,4]]$. <!-- The alpha prior gives more weight to staying in the same state vs switching to another state, right? -->
+where $z_t \in [1,2]$, $\tau=\rho=0.1$, and $\alpha = [[4,2],[2,4]]$. 
 
 Graphical representation of the process we are trying to model:
 
@@ -548,7 +540,6 @@ stan_data <- list(N = length(lavine_speed_smooth),
 We fit the model to Lavine's data for a single drive possession.
 
 ```{stan output.var="drive"}
-// drive model (normal dist)
 data {
   int<lower=1> K;               // number of states (1 = none, 2 = drive)
   int<lower=1> N;               // length of process
