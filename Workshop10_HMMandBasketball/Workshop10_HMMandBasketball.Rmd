@@ -323,7 +323,7 @@ generated quantities {
 ```
 
 
-We fit the model to the data provided above in order to estimate the parameters $\boldsymbol{\theta}$ and $\mu_{z_t}$ along with the hidden state sequence (`z_star`).
+We fit the model to the data provided below:
 
 ```{r results='hide', warning=FALSE}
 # Create a data list for Stan:
@@ -340,7 +340,7 @@ hmm_fit <- sampling(HMM, data = stan_data, iter = 1e3, chains = 4)
 
 #### Diagnostics
 
-Here, we check that the chains converged for the parameters we want to estimate: the transition probabilities $\boldsymbol\theta{}$ and the parameters associated with the emission probabilities $\mu$.
+Here, we check that the chains converged for the parameters we want to estimate: the transition probabilities $\boldsymbol\theta{}$ and the parameters associated with the emission probabilities $\mu_{z_t}$.
 
 We can look at the parameter estimates:
 
@@ -1063,7 +1063,7 @@ In this example, there is a strong difference between fixing and estimating $\la
 
 ## Player Tracking Data
 
-We now apply our model to the player tracking data. We select an event with more movement among players on the court than the one in the section on tagging drives.
+We now apply our model to the player tracking data (same event as in the previous section on tagging drives).
 
 So far the models in this section have shown how to infer defensive assignment for only one defender. In order to apply this to event level player tracking data we need to determine **defensive assignment for each of the 5 defenders over time**: we will use all of the defensive player coordinates in the data. This means that **$d$ has an extra dimension $I=5$**. Now the dimensions of $d$ are (number of defenders, number of offensive players (states), number of time steps $N$, number of coordinates (2)), which translates to (5,5,$N$,2) where $N$ is defined by the length of the possession. 
 
