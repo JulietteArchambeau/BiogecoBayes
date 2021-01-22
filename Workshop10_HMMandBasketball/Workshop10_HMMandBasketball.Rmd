@@ -541,8 +541,8 @@ We fit the model to Lavine's data for a single drive possession.
 
 ```{stan output.var="drive"}
 data {
-  int<lower=1> K;               // number of states (1 = none, 2 = drive)
-  int<lower=1> N;               // length of process
+  int<lower=1> K;               // number of states (1 = drive, 2 = none)
+  int<lower=1> N;               // length of process (number of time steps)
   real u[N];                    // 1/speed
   real v[N];                    // hoop distance
   matrix<lower=0>[K,K] alpha;   // transit prior
@@ -556,14 +556,19 @@ parameters {
   ordered[K] lambda;   // emission parameter for hoop dist
 }
 model {
-  // priors
+  // Priors
   for (k in 1:K)
-    target += dirichlet_lpdf(theta[k] | alpha[k,]');
-  target+= normal_lpdf(phi[1] | 0, 1);
-  target+= normal_lpdf(phi[2] | 3, 1);
-  target+= normal_lpdf(lambda[1] | 0, 1);
-  target+= normal_lpdf(lambda[2] | 3, 1);
-  // forward algorithm
+    target += dirichlet_lpdf(theta[k] | alpha[k,]'); // prior of the transition matrix
+    
+    // priors of the emission parameter phi for 1/speed
+  target+= normal_lpdf(phi[1] | 0, 1); // in a drive event
+  target+= normal_lpdf(phi[2] | 3, 1); // not in a drive event
+  
+    // priors of the emission parameter lambda for hoop distance
+  target+= normal_lpdf(lambda[1] | 0, 1); // in a drive event 
+  target+= normal_lpdf(lambda[2] | 3, 1); // not in a drive event
+  
+  // Forward algorithm
   {
     real acc[K];
     real gamma[N,K];
@@ -727,16 +732,16 @@ text(d[1],d[2], "defender", pos = 3, cex = 0.8)
 
 ## Model specification
 
-We model the **defender's position** $d_{t}$ at time step $t$ as 2 draws (the defensive player's coordinates) from the normal distribution where the location parameter is defined as a **convex combination of the hoop, ball, and offensive player coordinates**.
+We model the **defender's position** $d_{t}$ at time step $t$ as 2 draws (the defensive player's coordinates) from the normal distribution where the location parameter is defined as a **convex combination of the offensive player, the hoop and the ball coordinates**.
 
 $$
 d_{t} \sim \mathcal{N}(\mu_{z_{t}}, \tau) \\
-\mu_{z_t} = o_{z_t}\lambda_{1} + h\lambda_{3} + b_t\lambda_{2} \\
+\mu_{z_t} = o_{z_t}\lambda_{1} + h\lambda_{2} + b_t\lambda_{3} \\
 $$
 
 The index $z_t \in [1,2,\ldots,5]$ represents the **hidden states** (one of the 5 offensive player = player that is being guarded by the defensive player at time step $t$). $o_{z_t}$ is the position of the offensive player associated with state $z_t$, $h$ is the position of the hoop, and $b_t$ is the position of the ball. 
 
-As $\mu_{k}$ is a convex combination of the hoop, ball, and offensive player coordinates, this implies that $\lambda$ is a simplex (the sum of all the elements equals 1):
+As $\mu_{k}$ is a convex combination of the offensive player, the hoop and the ball coordinates, this implies that $\lambda$ is a simplex (the sum of all the elements equals 1):
 
 $$
 \lambda_{1} + \lambda_{2} + \lambda_{3} = 1 \\
@@ -748,7 +753,7 @@ Here is our HMM, **which determine, for a single defender, which one of the five
 
 $$
 d_{t} \sim \mathcal{N}(\mu_{z_{t}}, \tau) \\
-\mu_{z_t} = o_{z_t}\lambda_{1} + h\lambda_{3} + b_t\lambda_{2} \\
+\mu_{z_t} = o_{z_t}\lambda_{1} + h\lambda_{2} + b_t\lambda_{3} \\
 z_{t} \sim \mbox{Categorical}(\theta_{z_{t-1}}) \\
 \mbox{s.t. } \sum_l{\lambda_l} = 1 \\
 \mbox{priors on } \lambda, \theta
@@ -791,12 +796,20 @@ d <- cbind(seq(-1,1,length.out=N),
 o <- array(c(o1,o2,o3,o4,o5), dim = c(N,2,K))
 o <- aperm(o, c(3,1,2))
 
+# Prior of the transition matrix
+beta <- rbind(rep(6,5),
+              rep(6,5),
+              rep(6,5),
+              rep(6,5),
+              rep(6,5))
+
 # store as list
 defense_example <- list(N = N,
             K = K,
             tau = tau,
             h = h,
             b = b,
+            beta=beta,
             o = o,
             d = d)
 
@@ -824,6 +837,7 @@ data {
   int<lower=0> K;    // Number of states
   real<lower=0> tau; // scale parameter associated with convex combination
   real lambda[3];    // fixed convex combination of parameters
+  vector[K] beta[K];    // prior on transition matrix
   vector[2] h;       // location of the hoop
   vector[2] b[N];    // location of the ball (array of size N containing vectors of size 2)
   vector[2] d[N];    // location of the defensive players (array of size N containing vectors of size 2)
@@ -835,6 +849,10 @@ parameters {
 }
 
 model {
+  // Priors:
+  for (k in 1:K)
+    target+= dirichlet_lpdf(theta[k] | beta[k]);
+    
   // forward algorithm
   {
   real acc[K];
@@ -909,7 +927,8 @@ data {
   int<lower=0> N;
   int<lower=0> K;
   real<lower=0> tau;
-  vector[3] alpha; // for the Dirichlet prior
+  vector[3] alpha;      // for the Dirichlet prior
+  vector[K] beta[K];    // prior on transition matrix
   vector[2] h;
   vector[2] b[N];
   vector[2] d[N];
@@ -922,8 +941,11 @@ parameters {
 }
 
 model {
-  // priors
+  // Priors:
+  for (k in 1:K)
+    target+= dirichlet_lpdf(theta[k] | beta[k]);
   target+= dirichlet_lpdf(lambda | alpha);
+  
   // forward algorithm
   {
   real acc[K];
@@ -1073,7 +1095,7 @@ Here is the mathematical model:
 
 $$
 d_{i,t} \sim \mathcal{N}(\mu_{z_{t}}, \tau) \\
-\mu_{z_t} = o_{z_t}\lambda_{1} + h\lambda_{3} + b_t\lambda_{2} \\
+\mu_{z_t} = o_{z_t}\lambda_{1} + h\lambda_{2} + b_t\lambda_{3} \\
 z_{t} \sim \mbox{Categorical}(\theta_{z_{t-1}}) \\
 \mbox{s.t. } \sum_l{\lambda_l} = 1 \\
 \mbox{priors } \\
@@ -1124,16 +1146,10 @@ d <- array(c(d1,d2,d3,d4,d5), dim = c(N,2,5))
 o <- aperm(o, c(3,1,2)) # array of size (5,417,2)
 d <- aperm(d, c(3,1,2)) # array of size (5,417,2)
 
-# stan_data <- list(N = N,
-#                   h = h,
-#                   b = b,
-#                   d = d,
-#                   o = o)
-
 # Priors
 # ======
 alpha <- c(6,6,6)         # priors on convex combination parameter
-beta <- rbind(rep(6,5),
+beta <- rbind(rep(6,5),   # prior of the transition matrix
               rep(6,5),
               rep(6,5),
               rep(6,5),
@@ -1149,6 +1165,7 @@ defense_low_res <- list(N = length(indxs),
                         o = o[,indxs,],
                         indxs = indxs,
                         alpha=alpha,
+                        beta=beta,
                         K=5,
                         I=5,
                         tau=0.1)
@@ -1231,7 +1248,7 @@ generated quantities {
 
 
 ```{r FitDefenseModel}
-fit <- sampling(DefenseModel, data = defense_low_res, chains = 4, iter = 1e3, cores = 4)
+fit <- sampling(DefenseModel, data = defense_low_res, chains = 4, iter = 1e3, cores = 4) 
 ```
 
 ```{r ParamEstimatesDefenseModel}
