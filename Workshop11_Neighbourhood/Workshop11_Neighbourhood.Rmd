@@ -1,0 +1,41 @@
+---
+title: "Workshop 11 - Neighbourhood"
+author: Sylvain SCHMITT
+date: '`r Sys.Date()`'
+output: 
+  revealjs::revealjs_presentation:
+    theme: blood
+    highlight: pygments
+    center: true
+    fig_caption: true
+    self_contained: false
+    reveal_plugins: ["chalkboard"]
+    reveal_options:
+      slideNumber: true
+      previewLinks: true
+  # pdf_document: default
+  # html_document:
+  #   theme: readable
+  #   toc: true
+  #   toc_float: yes
+csl: /home/sylvain/Documents/Bibliography/csl/mee.csl
+bibliography: /home/sylvain/Documents/Bibliography/library.bib
+link-citations: yes
+---
+
+# Introduction
+
+## Setup
+
+```{r setup, message=FALSE, warning=FALSE}
+rm(list = ls()) ; gc()
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(rstan)
+library(bayesplot)
+theme_set(bayesplot::theme_default())
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = T)
+opts_chunk$set(echo = T, eval = T, cache = T, fig.height = 5)
+```
