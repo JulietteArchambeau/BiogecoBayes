@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="author" content="Sylvain SCHMITT" />
+  <meta name="dcterms.date" content="2021-03-01" />
+  <title>Workshop 11 - Neighbourhood</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="Workshop11_Neighbourhood_files/reveal.js-3.3.0.1/css/reveal.css"/>
+
+
+<style type="text/css">
+code.sourceCode > span { display: inline-block; line-height: 1.25; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+<link rel="stylesheet" href="Workshop11_Neighbourhood_files/reveal.js-3.3.0.1/css/theme/blood.css" id="theme">
+
+<style type="text/css">
+.reveal section img {
+  background: rgba(255, 255, 255, 0.85);
+}
+</style>
+
+  <!-- some tweaks to reveal css -->
+  <style type="text/css">
+    .reveal h1 { font-size: 2.0em; }
+    .reveal h2 { font-size: 1.5em;  }
+    .reveal h3 { font-size: 1.25em;	}
+    .reveal h4 { font-size: 1em;	}
+
+    .reveal .slides>section,
+    .reveal .slides>section>section {
+      padding: 0px 0px;
+    }
+
+
+
+    .reveal table {
+      border-width: 1px;
+      border-spacing: 2px;
+      border-style: dotted;
+      border-color: gray;
+      border-collapse: collapse;
+      font-size: 0.7em;
+    }
+
+    .reveal table th {
+      border-width: 1px;
+      padding-left: 10px;
+      padding-right: 25px;
+      font-weight: bold;
+      border-style: dotted;
+      border-color: gray;
+    }
+
+    .reveal table td {
+      border-width: 1px;
+      padding-left: 10px;
+      padding-right: 25px;
+      border-style: dotted;
+      border-color: gray;
+    }
+
+
+  </style>
+
+    <style type="text/css">code{white-space: pre;}</style>
+
+
+<!-- Printing and PDF exports -->
+<script id="paper-css" type="application/dynamic-css">
+
+/* Default Print Stylesheet Template
+   by Rob Glazebrook of CSSnewbie.com
+   Last Updated: June 4, 2008
+
+   Feel free (nay, compelled) to edit, append, and
+   manipulate this file as you see fit. */
+
+
+@media print {
+
+	/* SECTION 1: Set default width, margin, float, and
+	   background. This prevents elements from extending
+	   beyond the edge of the printed page, and prevents
+	   unnecessary background images from printing */
+	html {
+		background: #fff;
+		width: auto;
+		height: auto;
+		overflow: visible;
+	}
+	body {
+		background: #fff;
+		font-size: 20pt;
+		width: auto;
+		height: auto;
+		border: 0;
+		margin: 0 5%;
+		padding: 0;
+		overflow: visible;
+		float: none !important;
+	}
+
+	/* SECTION 2: Remove any elements not needed in print.
+	   This would include navigation, ads, sidebars, etc. */
+	.nestedarrow,
+	.controls,
+	.fork-reveal,
+	.share-reveal,
+	.state-background,
+	.reveal .progress,
+	.reveal .backgrounds {
+		display: none !important;
+	}
+
+	/* SECTION 3: Set body font face, size, and color.
+	   Consider using a serif font for readability. */
+	body, p, td, li, div {
+		font-size: 20pt!important;
+		font-family: Georgia, "Times New Roman", Times, serif !important;
+		color: #000;
+	}
+
+	/* SECTION 4: Set heading font face, sizes, and color.
+	   Differentiate your headings from your body text.
+	   Perhaps use a large sans-serif for distinction. */
+	h1,h2,h3,h4,h5,h6 {
+		color: #000!important;
+		height: auto;
+		line-height: normal;
+		font-family: Georgia, "Times New Roman", Times, serif !important;
+		text-shadow: 0 0 0 #000 !important;
+		text-align: left;
+		letter-spacing: normal;
+	}
+	/* Need to reduce the size of the fonts for printing */
+	h1 { font-size: 28pt !important;  }
+	h2 { font-size: 24pt !important; }
+	h3 { font-size: 22pt !important; }
+	h4 { font-size: 22pt !important; font-variant: small-caps; }
+	h5 { font-size: 21pt !important; }
+	h6 { font-size: 20pt !important; font-style: italic; }
+
+	/* SECTION 5: Make hyperlinks more usable.
+	   Ensure links are underlined, and consider appending
+	   the URL to the end of the link for usability. */
+	a:link,
+	a:visited {
+		color: #000 !important;
+		font-weight: bold;
+		text-decoration: underline;
+	}
+	/*
+	.reveal a:link:after,
+	.reveal a:visited:after {
+		content: " (" attr(href) ") ";
+		color: #222 !important;
+		font-size: 90%;
+	}
+	*/
+
+
+	/* SECTION 6: more reveal.js specific additions by @skypanther */
+	ul, ol, div, p {
+		visibility: visible;
+		position: static;
+		width: auto;
+		height: auto;
+		display: block;
+		overflow: visible;
+		margin: 0;
+		text-align: left !important;
+	}
+	.reveal pre,
+	.reveal table {
+		margin-left: 0;
+		margin-right: 0;
+	}
+	.reveal pre code {
+		padding: 20px;
+		border: 1px solid #ddd;
+	}
+	.reveal blockquote {
+		margin: 20px 0;
+	}
+	.reveal .slides {
+		position: static !important;
+		width: auto !important;
+		height: auto !important;
+
+		left: 0 !important;
+		top: 0 !important;
+		margin-left: 0 !important;
+		margin-top: 0 !important;
+		padding: 0 !important;
+		zoom: 1 !important;
+
+		overflow: visible !important;
+		display: block !important;
+
+		text-align: left !important;
+		-webkit-perspective: none;
+		   -moz-perspective: none;
+		    -ms-perspective: none;
+		        perspective: none;
+
+		-webkit-perspective-origin: 50% 50%;
+		   -moz-perspective-origin: 50% 50%;
+		    -ms-perspective-origin: 50% 50%;
+		        perspective-origin: 50% 50%;
+	}
+	.reveal .slides section {
+		visibility: visible !important;
+		position: static !important;
+		width: auto !important;
+		height: auto !important;
+		display: block !important;
+		overflow: visible !important;
+
+		left: 0 !important;
+		top: 0 !important;
+		margin-left: 0 !important;
+		margin-top: 0 !important;
+		padding: 60px 20px !important;
+		z-index: auto !important;
+
+		opacity: 1 !important;
+
+		page-break-after: always !important;
+
+		-webkit-transform-style: flat !important;
+		   -moz-transform-style: flat !important;
+		    -ms-transform-style: flat !important;
+		        transform-style: flat !important;
+
+		-webkit-transform: none !important;
+		   -moz-transform: none !important;
+		    -ms-transform: none !important;
+		        transform: none !important;
+
+		-webkit-transition: none !important;
+		   -moz-transition: none !important;
+		    -ms-transition: none !important;
+		        transition: none !important;
+	}
+	.reveal .slides section.stack {
+		padding: 0 !important;
+	}
+	.reveal section:last-of-type {
+		page-break-after: avoid !important;
+	}
+	.reveal section .fragment {
+		opacity: 1 !important;
+		visibility: visible !important;
+
+		-webkit-transform: none !important;
+		   -moz-transform: none !important;
+		    -ms-transform: none !important;
+		        transform: none !important;
+	}
+	.reveal section img {
+		display: block;
+		margin: 15px 0px;
+		background: rgba(255,255,255,1);
+		border: 1px solid #666;
+		box-shadow: none;
+	}
+
+	.reveal section small {
+		font-size: 0.8em;
+	}
+
+}  
+</script>
+
+
+<script id="pdf-css" type="application/dynamic-css">
+    
+/**
+ * This stylesheet is used to print reveal.js
+ * presentations to PDF.
+ *
+ * https://github.com/hakimel/reveal.js#pdf-export
+ */
+
+* {
+	-webkit-print-color-adjust: exact;
+}
+
+body {
+	margin: 0 auto !important;
+	border: 0;
+	padding: 0;
+	float: none !important;
+	overflow: visible;
+}
+
+html {
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+
+/* Remove any elements not needed in print. */
+.nestedarrow,
+.reveal .controls,
+.reveal .progress,
+.reveal .playback,
+.reveal.overview,
+.fork-reveal,
+.share-reveal,
+.state-background {
+	display: none !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	text-shadow: 0 0 0 #000 !important;
+}
+
+.reveal pre code {
+	overflow: hidden !important;
+	font-family: Courier, 'Courier New', monospace !important;
+}
+
+ul, ol, div, p {
+	visibility: visible;
+	position: static;
+	width: auto;
+	height: auto;
+	display: block;
+	overflow: visible;
+	margin: auto;
+}
+.reveal {
+	width: auto !important;
+	height: auto !important;
+	overflow: hidden !important;
+}
+.reveal .slides {
+	position: static;
+	width: 100%;
+	height: auto;
+
+	left: auto;
+	top: auto;
+	margin: 0 !important;
+	padding: 0 !important;
+
+	overflow: visible;
+	display: block;
+
+	-webkit-perspective: none;
+	   -moz-perspective: none;
+	    -ms-perspective: none;
+	        perspective: none;
+
+	-webkit-perspective-origin: 50% 50%; /* there isn't a none/auto value but 50-50 is the default */
+	   -moz-perspective-origin: 50% 50%;
+	    -ms-perspective-origin: 50% 50%;
+	        perspective-origin: 50% 50%;
+}
+
+.reveal .slides section {
+	page-break-after: always !important;
+
+	visibility: visible !important;
+	position: relative !important;
+	display: block !important;
+	position: relative !important;
+
+	margin: 0 !important;
+	padding: 0 !important;
+	box-sizing: border-box !important;
+	min-height: 1px;
+
+	opacity: 1 !important;
+
+	-webkit-transform-style: flat !important;
+	   -moz-transform-style: flat !important;
+	    -ms-transform-style: flat !important;
+	        transform-style: flat !important;
+
+	-webkit-transform: none !important;
+	   -moz-transform: none !important;
+	    -ms-transform: none !important;
+	        transform: none !important;
+}
+
+.reveal section.stack {
+	margin: 0 !important;
+	padding: 0 !important;
+	page-break-after: avoid !important;
+	height: auto !important;
+	min-height: auto !important;
+}
+
+.reveal img {
+	box-shadow: none;
+}
+
+.reveal .roll {
+	overflow: visible;
+	line-height: 1em;
+}
+
+/* Slide backgrounds are placed inside of their slide when exporting to PDF */
+.reveal section .slide-background {
+	display: block !important;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	z-index: -1;
+}
+
+/* All elements should be above the slide-background */
+.reveal section>* {
+	position: relative;
+	z-index: 1;
+}
+
+/* Display slide speaker notes when 'showNotes' is enabled */
+.reveal .speaker-notes-pdf {
+	display: block;
+	width: 100%;
+	max-height: none;
+	left: auto;
+	top: auto;
+	z-index: 100;
+}
+
+/* Display slide numbers when 'slideNumber' is enabled */
+.reveal .slide-number-pdf {
+	display: block;
+	position: absolute;
+	font-size: 14px;
+}
+
+</script>
+
+
+<script>
+var style = document.createElement( 'style' );
+style.type = 'text/css';
+var style_script_id = window.location.search.match( /print-pdf/gi ) ? 'pdf-css' : 'paper-css';
+var style_script = document.getElementById(style_script_id).text;
+style.innerHTML = style_script;
+document.getElementsByTagName('head')[0].appendChild(style);
+</script>
+
+    <link href="Workshop11_Neighbourhood_files/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+    <link href="Workshop11_Neighbourhood_files/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+    <script src="Workshop11_Neighbourhood_files/htmlwidgets-1.5.2/htmlwidgets.js"></script>
+    <script src="Workshop11_Neighbourhood_files/jquery-1.12.4/jquery.min.js"></script>
+    <link href="Workshop11_Neighbourhood_files/leaflet-1.3.1/leaflet.css" rel="stylesheet" />
+    <script src="Workshop11_Neighbourhood_files/leaflet-1.3.1/leaflet.js"></script>
+    <link href="Workshop11_Neighbourhood_files/leafletfix-1.0.0/leafletfix.css" rel="stylesheet" />
+    <script src="Workshop11_Neighbourhood_files/Proj4Leaflet-1.0.1/proj4-compressed.js"></script>
+    <script src="Workshop11_Neighbourhood_files/Proj4Leaflet-1.0.1/proj4leaflet.js"></script>
+    <link href="Workshop11_Neighbourhood_files/rstudio_leaflet-1.3.1/rstudio_leaflet.css" rel="stylesheet" />
+    <script src="Workshop11_Neighbourhood_files/leaflet-binding-2.0.3/leaflet.js"></script>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+<section>
+    <h1 class="title">Workshop 11 - Neighbourhood</h1>
+    <h2 class="author">Sylvain SCHMITT</h2>
+    <h3 class="date">2021-03-01</h3>
+</section>
+
+<section><section id="introduction" class="title-slide slide level1"><h1>Introduction</h1></section><section id="setup" class="slide level2">
+<h2>Setup</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="kw">rm</span>(<span class="dt">list =</span> <span class="kw">ls</span>()) ; <span class="kw">invisible</span>(<span class="kw">gc</span>()) ; <span class="kw">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb1-2"><a href="#cb1-2"></a><span class="kw">library</span>(knitr) </span>
+<span id="cb1-3"><a href="#cb1-3"></a><span class="kw">library</span>(tidyverse)</span>
+<span id="cb1-4"><a href="#cb1-4"></a><span class="kw">library</span>(rstan)</span>
+<span id="cb1-5"><a href="#cb1-5"></a><span class="kw">library</span>(bayesplot)</span>
+<span id="cb1-6"><a href="#cb1-6"></a><span class="kw">library</span>(sf)</span>
+<span id="cb1-7"><a href="#cb1-7"></a><span class="kw">library</span>(leaflet)</span>
+<span id="cb1-8"><a href="#cb1-8"></a><span class="kw">library</span>(broom.mixed)</span>
+<span id="cb1-9"><a href="#cb1-9"></a><span class="kw">theme_set</span>(bayesplot<span class="op">::</span><span class="kw">theme_default</span>())</span>
+<span id="cb1-10"><a href="#cb1-10"></a><span class="kw">options</span>(<span class="dt">mc.cores =</span> parallel<span class="op">::</span><span class="kw">detectCores</span>())</span>
+<span id="cb1-11"><a href="#cb1-11"></a><span class="kw">rstan_options</span>(<span class="dt">auto_write =</span> T)</span>
+<span id="cb1-12"><a href="#cb1-12"></a>opts_chunk<span class="op">$</span><span class="kw">set</span>(<span class="dt">echo =</span> T, <span class="dt">eval =</span> T, <span class="dt">cache =</span> T, <span class="dt">fig.height =</span> <span class="dv">5</span>)</span></code></pre></div>
+</section><section id="origin" class="slide level2">
+<h2>Origin</h2>
+<blockquote>
+<p><a href="https://www.youtube.com/watch?v=w3w2rsozjJc&amp;list=PLCrWEzJgSUqzI3goQEAKkDsHg72inmqbe&amp;index=22&amp;t=2s">Cristina Barber’s talk StanCon20</a> <a href="https://mc-stan.org/users/documentation/case-studies/plantInteractions.html">Cristina Barber et al. case study</a></p>
+</blockquote>
+</section></section>
+<section><section id="data" class="title-slide slide level1"><h1>Data</h1></section><section id="paracou-p16-c1" class="slide level2">
+<h2>Paracou P16-C1</h2>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a>trees &lt;-<span class="st"> </span><span class="kw">src_sqlite</span>(<span class="kw">file.path</span>(<span class="st">&quot;..&quot;</span>, <span class="st">&quot;..&quot;</span>, <span class="st">&quot;PhD&quot;</span>, <span class="st">&quot;data&quot;</span>, </span>
+<span id="cb2-2"><a href="#cb2-2"></a>                              <span class="st">&quot;Paracou&quot;</span>,<span class="st">&quot;trees&quot;</span>, <span class="st">&quot;Paracou.sqlite&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb2-3"><a href="#cb2-3"></a><span class="st">  </span><span class="kw">tbl</span>(<span class="st">&quot;Paracou&quot;</span>) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb2-4"><a href="#cb2-4"></a><span class="st">  </span><span class="kw">filter</span>(CensusYear <span class="op">==</span><span class="st"> </span><span class="dv">2015</span>) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb2-5"><a href="#cb2-5"></a><span class="st">  </span><span class="kw">filter</span>(Plot <span class="op">==</span><span class="st"> </span><span class="dv">16</span>, SubPlot <span class="op">==</span><span class="st"> </span><span class="dv">1</span>) <span class="op">%&gt;%</span></span>
+<span id="cb2-6"><a href="#cb2-6"></a><span class="st">  </span><span class="kw">mutate</span>(<span class="dt">SpeciesLong =</span> <span class="kw">paste0</span>(<span class="kw">substr</span>(Genus, <span class="dv">1</span>, <span class="dv">1</span>), <span class="st">&quot;. &quot;</span>, Species)) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb2-7"><a href="#cb2-7"></a><span class="st">  </span><span class="kw">mutate</span>(<span class="dt">DBH =</span> CircCorr<span class="op">/</span>pi) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb2-8"><a href="#cb2-8"></a><span class="st">  </span><span class="kw">collect</span>()</span></code></pre></div>
+</section><section id="lets-simulate" class="slide level2">
+<h2>Let’s simulate !</h2>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a>N &lt;-<span class="st"> </span><span class="dv">100</span></span>
+<span id="cb3-2"><a href="#cb3-2"></a>S &lt;-<span class="st"> </span><span class="dv">10</span></span>
+<span id="cb3-3"><a href="#cb3-3"></a>trees &lt;-<span class="st"> </span><span class="kw">data.frame</span>(</span>
+<span id="cb3-4"><a href="#cb3-4"></a>  <span class="dt">id =</span> <span class="dv">1</span><span class="op">:</span>N,</span>
+<span id="cb3-5"><a href="#cb3-5"></a>  <span class="dt">x =</span> <span class="kw">runif</span>(N, <span class="dt">min =</span> <span class="dv">0</span>, <span class="dt">max =</span> <span class="dv">10</span>),</span>
+<span id="cb3-6"><a href="#cb3-6"></a>  <span class="dt">y =</span> <span class="kw">runif</span>(N, <span class="dt">min =</span> <span class="dv">0</span>, <span class="dt">max =</span> <span class="dv">10</span>),</span>
+<span id="cb3-7"><a href="#cb3-7"></a>  <span class="dt">dbh =</span> <span class="kw">rnorm</span>(N, <span class="dt">mean =</span> <span class="dv">10</span>, <span class="dt">sd =</span>  <span class="dv">1</span>),</span>
+<span id="cb3-8"><a href="#cb3-8"></a>  <span class="dt">Species =</span> <span class="kw">sample</span>(<span class="kw">paste0</span>(<span class="st">&quot;Sp&quot;</span>, <span class="dv">1</span><span class="op">:</span>S), N, <span class="dt">replace =</span> T)</span>
+<span id="cb3-9"><a href="#cb3-9"></a>)</span></code></pre></div>
+</section><section id="spatialize-it" class="slide level2">
+<h2>Spatialize it</h2>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a>trees &lt;-<span class="st"> </span>trees <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb4-2"><a href="#cb4-2"></a><span class="st">  </span><span class="kw">st_as_sf</span>(<span class="dt">coords =</span> <span class="kw">c</span>(<span class="st">&quot;x&quot;</span>, <span class="st">&quot;y&quot;</span>),</span>
+<span id="cb4-3"><a href="#cb4-3"></a>                 <span class="dt">crs =</span> <span class="st">&#39;+proj=utm +zone=22 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0&#39;</span>)</span>
+<span id="cb4-4"><a href="#cb4-4"></a>crs &lt;-<span class="st"> &#39;+proj=longlat +datum=WGS84&#39;</span></span></code></pre></div>
+</section><section id="prepare-map" class="slide level2">
+<h2>Prepare map</h2>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1"></a>palSp &lt;-<span class="st"> </span><span class="kw">colorFactor</span>(<span class="st">&quot;viridis&quot;</span>, trees<span class="op">$</span>Species)</span>
+<span id="cb5-2"><a href="#cb5-2"></a>map &lt;-<span class="st"> </span><span class="kw">leaflet</span>(<span class="dt">data =</span> <span class="kw">st_transform</span>(trees, <span class="dt">crs =</span> crs)) <span class="op">%&gt;%</span></span>
+<span id="cb5-3"><a href="#cb5-3"></a><span class="st">  </span><span class="kw">addCircles</span>(<span class="dt">color =</span> <span class="op">~</span><span class="kw">palSp</span>(Species),</span>
+<span id="cb5-4"><a href="#cb5-4"></a>             <span class="dt">label =</span> <span class="op">~</span><span class="st"> </span>Species, <span class="dt">radius =</span> <span class="op">~</span><span class="st"> </span>dbh<span class="op">/</span><span class="dv">50</span>) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb5-5"><a href="#cb5-5"></a><span class="st">  </span><span class="kw">addLegend</span>(<span class="dt">pal =</span> palSp, <span class="dt">values =</span> <span class="op">~</span><span class="st"> </span>Species)</span></code></pre></div>
+</section><section id="view" class="slide level2">
+<h2>View</h2>
+<div id="htmlwidget-a7fe533464c59cedc3da" style="width:768px;height:480px;" class="leaflet html-widget"></div>
+<script type="application/json" data-for="htmlwidget-a7fe533464c59cedc3da">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addCircles","args":[[5.64834274969898e-05,1.95862711711525e-05,1.9533020347397e-05,3.50804174262445e-05,8.50036274384398e-05,8.68212399026058e-05,6.67303341523399e-05,6.61342049445239e-05,4.83223281094404e-05,2.0500737108913e-07,5.49223603961952e-05,7.54742841312603e-05,6.77826520516622e-05,4.08335632256165e-05,4.83249158529433e-05,4.84680292927697e-05,1.24543486519354e-07,3.2078849467683e-05,5.52105870952652e-05,7.47654111741272e-05,3.21741013112716e-05,3.70367258381983e-05,5.17239528229697e-05,5.31853084877226e-05,6.49085963985038e-05,3.56241055575198e-05,8.2906460821425e-05,8.68178419246828e-05,2.10623655343407e-05,6.53451680244733e-05,8.15022011946662e-05,5.44296010717438e-05,5.69580192841723e-05,8.45463597232735e-05,7.67082355155207e-05,5.22962312906047e-05,7.4085506877545e-05,1.02567089824902e-05,6.89538355713694e-05,5.62460455548186e-05,1.33889579630258e-05,7.2393542722786e-06,4.18561770442829e-05,7.02941518777009e-05,6.61596468694142e-05,7.37090937319555e-05,1.53475953548301e-05,8.52078832458863e-05,2.64830408967078e-05,1.34453696650644e-05,6.48834613135354e-05,2.92305312522758e-05,7.02437589707623e-05,3.55761197500161e-05,6.12048412675059e-05,6.99745827036105e-05,1.69446165279814e-05,2.62335937033932e-06,1.22405377772073e-05,6.13465672467157e-05,8.43152023927808e-05,4.96511363080935e-05,5.42755633618595e-05,1.77676744518673e-05,4.8275006445483e-05,1.61948072918293e-05,4.0757342529207e-05,2.85962362403562e-05,1.04782310165113e-05,1.67852534065338e-05,6.5817100160247e-05,3.71482906015759e-05,3.73446978324691e-05,4.33209781517465e-05,3.85573333579808e-05,1.23105796185802e-05,7.43809349545807e-05,5.34221480487599e-05,7.16496533864985e-05,6.93619245844424e-05,8.28029643660571e-05,7.78038229543167e-05,2.8589189188496e-05,2.33836875394568e-05,6.69478072262554e-05,6.7407312473638e-05,8.27892167891572e-05,7.1540896840449e-05,1.20254994629942e-05,2.59532325176661e-05,1.75585744702227e-05,7.0721771980513e-05,1.16234648797999e-05,1.16430489531953e-05,6.51678038617173e-06,4.79194821537606e-06,4.79717562292917e-05,1.01295030249732e-05,6.70308995739759e-05,6.59600962956321e-05],[-55.4886619269417,-55.4886599318274,-55.4887182491556,-55.488669484609,-55.4886863904301,-55.488697378602,-55.4886778934646,-55.4887318196141,-55.4886850244689,-55.4886807176539,-55.4887028753176,-55.4886794591455,-55.4886601471299,-55.4887210005281,-55.488702467589,-55.488659668514,-55.4886562451087,-55.488733358699,-55.4887013294153,-55.4886936841971,-55.4886628922414,-55.4887314573487,-55.4886552896064,-55.4886590724086,-55.4887364988119,-55.4886978161699,-55.4887089260754,-55.4886627393387,-55.4887038403923,-55.4886689867923,-55.4886778032218,-55.4886712219824,-55.4887091137804,-55.4886825000562,-55.4887435306597,-55.4886692634612,-55.488743227325,-55.4887252802266,-55.4886626619959,-55.4886890751589,-55.4887098796868,-55.4887048436244,-55.4887405309434,-55.4886566649768,-55.4887052038091,-55.4886580951303,-55.4886643504505,-55.4886865487132,-55.4886568955161,-55.4886884426908,-55.4887140126567,-55.4887128192231,-55.4887081840949,-55.4886735837849,-55.4887403960708,-55.4886767998336,-55.4886832071761,-55.4887285408214,-55.4887204935249,-55.4886977981506,-55.4886833567562,-55.4886558338234,-55.4886758368403,-55.4886931327065,-55.4886677607111,-55.4887269094236,-55.4887195798291,-55.4886696896928,-55.4886817801878,-55.4887223339918,-55.4887400330253,-55.4887312988707,-55.4887244984257,-55.4887009350858,-55.488726198402,-55.4886794373188,-55.4887431779975,-55.4887102442549,-55.4886977986197,-55.4887437436846,-55.4886917785067,-55.4887297376688,-55.4887117190531,-55.4886860422467,-55.4886743783976,-55.4886933872867,-55.4887229469118,-55.4887358230392,-55.4887362144052,-55.4887165398836,-55.4886840896657,-55.4887438629879,-55.4887251986115,-55.488660293886,-55.4886609559002,-55.4886781169002,-55.4887140444802,-55.4886977398792,-55.4886772317233,-55.4886884139323],[0.22401930751197,0.220895021743355,0.179935827063203,0.236969638033455,0.186664531824844,0.202110276249121,0.191554882362623,0.197552996560901,0.20376386069003,0.20238321915994,0.199498148982652,0.202161454558841,0.190291295283067,0.189915657386242,0.166778018401704,0.192353325462524,0.189746994842444,0.254037820006896,0.172757675376206,0.202745124371172,0.170127498653674,0.170591285171264,0.20249404772394,0.180067217302319,0.199963547713906,0.191434822371484,0.18772656787101,0.159506443091618,0.1755050409928,0.203590328822359,0.211352411888471,0.190142452928931,0.200001257681307,0.222457792867599,0.228797114859524,0.178057724631884,0.197653608794996,0.224029968018394,0.190605408388674,0.19895061030122,0.198277854035258,0.182246419641871,0.191106319902305,0.199411102418235,0.191722623018842,0.222267720467364,0.19038014316692,0.191336619347985,0.213937251531042,0.178872631736582,0.199186030496976,0.168969103553048,0.223343390984714,0.194527085972518,0.190643093506555,0.175234953440276,0.199844759324453,0.183994356440967,0.189330153400991,0.225753504911692,0.196489482595157,0.178564352316986,0.203264137649348,0.192745231687441,0.211800270959747,0.22864843855462,0.18014614977781,0.209093005951606,0.20169796117357,0.217911311645291,0.195404437221075,0.216732381369212,0.165098882773266,0.233789178426267,0.217295559570372,0.196984480222285,0.171019857397217,0.21286017400084,0.209663877276295,0.199872887471572,0.203029117857248,0.188317820593004,0.207376134652605,0.20589308679439,0.194414812533149,0.173275266902137,0.214014976368801,0.211083932445481,0.183273868143972,0.168108236759875,0.204099171611753,0.193098240440542,0.205052234067289,0.174119950690309,0.180816591112393,0.221715497073598,0.208075498094314,0.211729750734386,0.236304568923079,0.202576428572048],null,null,{"interactive":true,"className":"","stroke":true,"color":["#26828E","#B4DE2C","#1F9E89","#B4DE2C","#35B779","#26828E","#1F9E89","#26828E","#482878","#440154","#440154","#26828E","#35B779","#35B779","#6DCD59","#1F9E89","#3E4A89","#6DCD59","#482878","#35B779","#3E4A89","#31688E","#440154","#26828E","#FDE725","#35B779","#482878","#6DCD59","#31688E","#3E4A89","#FDE725","#482878","#FDE725","#31688E","#6DCD59","#31688E","#35B779","#26828E","#482878","#3E4A89","#6DCD59","#440154","#3E4A89","#31688E","#440154","#482878","#1F9E89","#3E4A89","#31688E","#31688E","#482878","#3E4A89","#482878","#26828E","#FDE725","#482878","#6DCD59","#440154","#26828E","#35B779","#31688E","#31688E","#35B779","#FDE725","#482878","#6DCD59","#31688E","#FDE725","#3E4A89","#35B779","#FDE725","#B4DE2C","#35B779","#1F9E89","#482878","#440154","#FDE725","#482878","#440154","#35B779","#440154","#FDE725","#26828E","#31688E","#1F9E89","#35B779","#1F9E89","#482878","#26828E","#3E4A89","#6DCD59","#26828E","#FDE725","#FDE725","#26828E","#FDE725","#31688E","#3E4A89","#482878","#440154"],"weight":5,"opacity":0.5,"fill":true,"fillColor":["#26828E","#B4DE2C","#1F9E89","#B4DE2C","#35B779","#26828E","#1F9E89","#26828E","#482878","#440154","#440154","#26828E","#35B779","#35B779","#6DCD59","#1F9E89","#3E4A89","#6DCD59","#482878","#35B779","#3E4A89","#31688E","#440154","#26828E","#FDE725","#35B779","#482878","#6DCD59","#31688E","#3E4A89","#FDE725","#482878","#FDE725","#31688E","#6DCD59","#31688E","#35B779","#26828E","#482878","#3E4A89","#6DCD59","#440154","#3E4A89","#31688E","#440154","#482878","#1F9E89","#3E4A89","#31688E","#31688E","#482878","#3E4A89","#482878","#26828E","#FDE725","#482878","#6DCD59","#440154","#26828E","#35B779","#31688E","#31688E","#35B779","#FDE725","#482878","#6DCD59","#31688E","#FDE725","#3E4A89","#35B779","#FDE725","#B4DE2C","#35B779","#1F9E89","#482878","#440154","#FDE725","#482878","#440154","#35B779","#440154","#FDE725","#26828E","#31688E","#1F9E89","#35B779","#1F9E89","#482878","#26828E","#3E4A89","#6DCD59","#26828E","#FDE725","#FDE725","#26828E","#FDE725","#31688E","#3E4A89","#482878","#440154"],"fillOpacity":0.2},null,null,["Sp4","Sp8","Sp5","Sp8","Sp6","Sp4","Sp5","Sp4","Sp10","Sp1","Sp1","Sp4","Sp6","Sp6","Sp7","Sp5","Sp2","Sp7","Sp10","Sp6","Sp2","Sp3","Sp1","Sp4","Sp9","Sp6","Sp10","Sp7","Sp3","Sp2","Sp9","Sp10","Sp9","Sp3","Sp7","Sp3","Sp6","Sp4","Sp10","Sp2","Sp7","Sp1","Sp2","Sp3","Sp1","Sp10","Sp5","Sp2","Sp3","Sp3","Sp10","Sp2","Sp10","Sp4","Sp9","Sp10","Sp7","Sp1","Sp4","Sp6","Sp3","Sp3","Sp6","Sp9","Sp10","Sp7","Sp3","Sp9","Sp2","Sp6","Sp9","Sp8","Sp6","Sp5","Sp10","Sp1","Sp9","Sp10","Sp1","Sp6","Sp1","Sp9","Sp4","Sp3","Sp5","Sp6","Sp5","Sp10","Sp4","Sp2","Sp7","Sp4","Sp9","Sp9","Sp4","Sp9","Sp3","Sp2","Sp10","Sp1"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addLegend","args":[{"colors":["#440154","#482878","#3E4A89","#31688E","#26828E","#1F9E89","#35B779","#6DCD59","#B4DE2C","#FDE725"],"labels":["Sp1","Sp10","Sp2","Sp3","Sp4","Sp5","Sp6","Sp7","Sp8","Sp9"],"na_color":null,"na_label":"NA","opacity":0.5,"position":"topright","type":"factor","title":"Species","extra":null,"layerId":null,"className":"info legend","group":null}]}],"limits":{"lat":[1.24543486519354e-07,8.68212399026058e-05],"lng":[-55.4887438629879,-55.4886552896064]}},"evals":[],"jsHooks":[]}</script>
+</section></section>
+<section><section id="neighbourhood-interactions" class="title-slide slide level1"><h1>Neighbourhood interactions</h1></section><section id="interactions" class="slide level2">
+<h2>Interactions</h2>
+<blockquote>
+<p>Between plants</p>
+</blockquote>
+<ul>
+<li>Survival</li>
+<li>Growth</li>
+<li>Recruitment</li>
+</ul>
+<blockquote>
+<p>Closer interacts more than distant</p>
+</blockquote>
+</section><section id="densities---individual" class="slide level2">
+<h2>Densities - Individual</h2>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1"></a>ind &lt;-<span class="st"> </span><span class="kw">sample_n</span>(trees, <span class="dv">1</span>)</span>
+<span id="cb6-2"><a href="#cb6-2"></a>ind.neigh &lt;-<span class="st"> </span><span class="kw">st_buffer</span>(ind, <span class="dv">5</span>)</span></code></pre></div>
+</section><section id="densities---neighbours" class="slide level2">
+<h2>Densities - Neighbours</h2>
+<div id="htmlwidget-88a756efd94bc96d766a" style="width:768px;height:480px;" class="leaflet html-widget"></div>
+<script type="application/json" data-for="htmlwidget-88a756efd94bc96d766a">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addCircles","args":[[5.64834274969898e-05,1.95862711711525e-05,1.9533020347397e-05,3.50804174262445e-05,8.50036274384398e-05,8.68212399026058e-05,6.67303341523399e-05,6.61342049445239e-05,4.83223281094404e-05,2.0500737108913e-07,5.49223603961952e-05,7.54742841312603e-05,6.77826520516622e-05,4.08335632256165e-05,4.83249158529433e-05,4.84680292927697e-05,1.24543486519354e-07,3.2078849467683e-05,5.52105870952652e-05,7.47654111741272e-05,3.21741013112716e-05,3.70367258381983e-05,5.17239528229697e-05,5.31853084877226e-05,6.49085963985038e-05,3.56241055575198e-05,8.2906460821425e-05,8.68178419246828e-05,2.10623655343407e-05,6.53451680244733e-05,8.15022011946662e-05,5.44296010717438e-05,5.69580192841723e-05,8.45463597232735e-05,7.67082355155207e-05,5.22962312906047e-05,7.4085506877545e-05,1.02567089824902e-05,6.89538355713694e-05,5.62460455548186e-05,1.33889579630258e-05,7.2393542722786e-06,4.18561770442829e-05,7.02941518777009e-05,6.61596468694142e-05,7.37090937319555e-05,1.53475953548301e-05,8.52078832458863e-05,2.64830408967078e-05,1.34453696650644e-05,6.48834613135354e-05,2.92305312522758e-05,7.02437589707623e-05,3.55761197500161e-05,6.12048412675059e-05,6.99745827036105e-05,1.69446165279814e-05,2.62335937033932e-06,1.22405377772073e-05,6.13465672467157e-05,8.43152023927808e-05,4.96511363080935e-05,5.42755633618595e-05,1.77676744518673e-05,4.8275006445483e-05,1.61948072918293e-05,4.0757342529207e-05,2.85962362403562e-05,1.04782310165113e-05,1.67852534065338e-05,6.5817100160247e-05,3.71482906015759e-05,3.73446978324691e-05,4.33209781517465e-05,3.85573333579808e-05,1.23105796185802e-05,7.43809349545807e-05,5.34221480487599e-05,7.16496533864985e-05,6.93619245844424e-05,8.28029643660571e-05,7.78038229543167e-05,2.8589189188496e-05,2.33836875394568e-05,6.69478072262554e-05,6.7407312473638e-05,8.27892167891572e-05,7.1540896840449e-05,1.20254994629942e-05,2.59532325176661e-05,1.75585744702227e-05,7.0721771980513e-05,1.16234648797999e-05,1.16430489531953e-05,6.51678038617173e-06,4.79194821537606e-06,4.79717562292917e-05,1.01295030249732e-05,6.70308995739759e-05,6.59600962956321e-05],[-55.4886619269417,-55.4886599318274,-55.4887182491556,-55.488669484609,-55.4886863904301,-55.488697378602,-55.4886778934646,-55.4887318196141,-55.4886850244689,-55.4886807176539,-55.4887028753176,-55.4886794591455,-55.4886601471299,-55.4887210005281,-55.488702467589,-55.488659668514,-55.4886562451087,-55.488733358699,-55.4887013294153,-55.4886936841971,-55.4886628922414,-55.4887314573487,-55.4886552896064,-55.4886590724086,-55.4887364988119,-55.4886978161699,-55.4887089260754,-55.4886627393387,-55.4887038403923,-55.4886689867923,-55.4886778032218,-55.4886712219824,-55.4887091137804,-55.4886825000562,-55.4887435306597,-55.4886692634612,-55.488743227325,-55.4887252802266,-55.4886626619959,-55.4886890751589,-55.4887098796868,-55.4887048436244,-55.4887405309434,-55.4886566649768,-55.4887052038091,-55.4886580951303,-55.4886643504505,-55.4886865487132,-55.4886568955161,-55.4886884426908,-55.4887140126567,-55.4887128192231,-55.4887081840949,-55.4886735837849,-55.4887403960708,-55.4886767998336,-55.4886832071761,-55.4887285408214,-55.4887204935249,-55.4886977981506,-55.4886833567562,-55.4886558338234,-55.4886758368403,-55.4886931327065,-55.4886677607111,-55.4887269094236,-55.4887195798291,-55.4886696896928,-55.4886817801878,-55.4887223339918,-55.4887400330253,-55.4887312988707,-55.4887244984257,-55.4887009350858,-55.488726198402,-55.4886794373188,-55.4887431779975,-55.4887102442549,-55.4886977986197,-55.4887437436846,-55.4886917785067,-55.4887297376688,-55.4887117190531,-55.4886860422467,-55.4886743783976,-55.4886933872867,-55.4887229469118,-55.4887358230392,-55.4887362144052,-55.4887165398836,-55.4886840896657,-55.4887438629879,-55.4887251986115,-55.488660293886,-55.4886609559002,-55.4886781169002,-55.4887140444802,-55.4886977398792,-55.4886772317233,-55.4886884139323],[0.560048268779925,0.552237554358386,0.449839567658008,0.592424095083637,0.466661329562109,0.505275690622803,0.478887205906557,0.493882491402251,0.509409651725075,0.50595804789985,0.49874537245663,0.505403636397102,0.475728238207667,0.474789143465605,0.416945046004259,0.480883313656309,0.47436748710611,0.63509455001724,0.431894188440514,0.50686281092793,0.425318746634185,0.42647821292816,0.50623511930985,0.450168043255798,0.499908869284765,0.478587055928709,0.469316419677525,0.398766107729045,0.438762602482001,0.508975822055897,0.528381029721177,0.475356132322326,0.500003144203268,0.556144482168998,0.57199278714881,0.445144311579709,0.494134021987491,0.560074920045985,0.476513520971685,0.49737652575305,0.495694635088145,0.455616049104678,0.477765799755763,0.498527756045588,0.479306557547104,0.55566930116841,0.475950357917301,0.478341548369964,0.534843128827605,0.447181579341455,0.497965076242439,0.422422758882621,0.558358477461784,0.486317714931296,0.476607733766387,0.438087383600689,0.499611898311134,0.459985891102417,0.473325383502478,0.564383762279229,0.491223706487894,0.446410880792466,0.508160344123369,0.481863079218602,0.529500677399367,0.57162109638655,0.450365374444525,0.522732514879014,0.504244902933924,0.544778279113227,0.488511093052687,0.541830953423031,0.412747206933165,0.584472946065669,0.543238898925929,0.492461200555713,0.427549643493042,0.532150435002099,0.524159693190738,0.499682218678931,0.507572794643121,0.47079455148251,0.518440336631512,0.514732716985976,0.486037031332871,0.433188167255342,0.535037440922002,0.527709831113702,0.458184670359929,0.420270591899688,0.510247929029382,0.482745601101356,0.512630585168223,0.435299876725772,0.452041477780982,0.554288742683995,0.520188745235786,0.529324376835965,0.590761422307698,0.506441071430119],null,null,{"interactive":true,"className":"","stroke":true,"color":["#26828E","#B4DE2C","#1F9E89","#B4DE2C","#35B779","#26828E","#1F9E89","#26828E","#482878","#440154","#440154","#26828E","#35B779","#35B779","#6DCD59","#1F9E89","#3E4A89","#6DCD59","#482878","#35B779","#3E4A89","#31688E","#440154","#26828E","#FDE725","#35B779","#482878","#6DCD59","#31688E","#3E4A89","#FDE725","#482878","#FDE725","#31688E","#6DCD59","#31688E","#35B779","#26828E","#482878","#3E4A89","#6DCD59","#440154","#3E4A89","#31688E","#440154","#482878","#1F9E89","#3E4A89","#31688E","#31688E","#482878","#3E4A89","#482878","#26828E","#FDE725","#482878","#6DCD59","#440154","#26828E","#35B779","#31688E","#31688E","#35B779","#FDE725","#482878","#6DCD59","#31688E","#FDE725","#3E4A89","#35B779","#FDE725","#B4DE2C","#35B779","#1F9E89","#482878","#440154","#FDE725","#482878","#440154","#35B779","#440154","#FDE725","#26828E","#31688E","#1F9E89","#35B779","#1F9E89","#482878","#26828E","#3E4A89","#6DCD59","#26828E","#FDE725","#FDE725","#26828E","#FDE725","#31688E","#3E4A89","#482878","#440154"],"weight":5,"opacity":0.5,"fill":true,"fillColor":["#26828E","#B4DE2C","#1F9E89","#B4DE2C","#35B779","#26828E","#1F9E89","#26828E","#482878","#440154","#440154","#26828E","#35B779","#35B779","#6DCD59","#1F9E89","#3E4A89","#6DCD59","#482878","#35B779","#3E4A89","#31688E","#440154","#26828E","#FDE725","#35B779","#482878","#6DCD59","#31688E","#3E4A89","#FDE725","#482878","#FDE725","#31688E","#6DCD59","#31688E","#35B779","#26828E","#482878","#3E4A89","#6DCD59","#440154","#3E4A89","#31688E","#440154","#482878","#1F9E89","#3E4A89","#31688E","#31688E","#482878","#3E4A89","#482878","#26828E","#FDE725","#482878","#6DCD59","#440154","#26828E","#35B779","#31688E","#31688E","#35B779","#FDE725","#482878","#6DCD59","#31688E","#FDE725","#3E4A89","#35B779","#FDE725","#B4DE2C","#35B779","#1F9E89","#482878","#440154","#FDE725","#482878","#440154","#35B779","#440154","#FDE725","#26828E","#31688E","#1F9E89","#35B779","#1F9E89","#482878","#26828E","#3E4A89","#6DCD59","#26828E","#FDE725","#FDE725","#26828E","#FDE725","#31688E","#3E4A89","#482878","#440154"],"fillOpacity":0.2},null,null,["Sp4","Sp8","Sp5","Sp8","Sp6","Sp4","Sp5","Sp4","Sp10","Sp1","Sp1","Sp4","Sp6","Sp6","Sp7","Sp5","Sp2","Sp7","Sp10","Sp6","Sp2","Sp3","Sp1","Sp4","Sp9","Sp6","Sp10","Sp7","Sp3","Sp2","Sp9","Sp10","Sp9","Sp3","Sp7","Sp3","Sp6","Sp4","Sp10","Sp2","Sp7","Sp1","Sp2","Sp3","Sp1","Sp10","Sp5","Sp2","Sp3","Sp3","Sp10","Sp2","Sp10","Sp4","Sp9","Sp10","Sp7","Sp1","Sp4","Sp6","Sp3","Sp3","Sp6","Sp9","Sp10","Sp7","Sp3","Sp9","Sp2","Sp6","Sp9","Sp8","Sp6","Sp5","Sp10","Sp1","Sp9","Sp10","Sp1","Sp6","Sp1","Sp9","Sp4","Sp3","Sp5","Sp6","Sp5","Sp10","Sp4","Sp2","Sp7","Sp4","Sp9","Sp9","Sp4","Sp9","Sp3","Sp2","Sp10","Sp1"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addPolygons","args":[[[[{"lng":[-55.4886442801708,-55.4886443415606,-55.4886445255621,-55.4886448316709,-55.4886452590481,-55.4886458065222,-55.4886464725927,-55.4886472554338,-55.4886481528999,-55.4886491625311,-55.48865028156,-55.4886515069195,-55.4886528352509,-55.4886542629134,-55.4886557859938,-55.4886574003176,-55.4886591014598,-55.4886608847579,-55.488662745324,-55.4886646780582,-55.4886666776632,-55.4886687386582,-55.4886708553941,-55.4886730220692,-55.4886752327446,-55.4886774813611,-55.4886797617554,-55.488682067677,-55.4886843928057,-55.4886867307684,-55.4886890751569,-55.4886914195453,-55.488693757508,-55.4886960826366,-55.4886983885583,-55.4887006689525,-55.488702917569,-55.4887051282443,-55.4887072949193,-55.4887094116551,-55.48871147265,-55.488713472255,-55.4887154049892,-55.4887172655551,-55.4887190488532,-55.4887207499954,-55.4887223643191,-55.4887238873996,-55.488725315062,-55.4887266433935,-55.488727868753,-55.488728987782,-55.4887299974133,-55.4887308948795,-55.4887316777208,-55.4887323437915,-55.4887328912658,-55.4887333186432,-55.4887336247524,-55.4887338087542,-55.4887338701443,-55.4887338087545,-55.4887336247531,-55.4887333186443,-55.4887328912672,-55.4887323437933,-55.488731677723,-55.488730894882,-55.4887299974161,-55.4887289877852,-55.4887278687565,-55.4887266433973,-55.4887253150661,-55.4887238874039,-55.4887223643237,-55.4887207500003,-55.4887190488583,-55.4887172655605,-55.4887154049948,-55.4887134722608,-55.488711472656,-55.4887094116613,-55.4887072949256,-55.4887051282507,-55.4887029175755,-55.4887006689592,-55.488698388565,-55.4886960826435,-55.4886937575149,-55.4886914195522,-55.4886890751638,-55.4886867307753,-55.4886843928126,-55.4886820676839,-55.4886797617621,-55.4886774813678,-55.4886752327511,-55.4886730220756,-55.4886708554004,-55.4886687386644,-55.4886666776692,-55.488664678064,-55.4886627453295,-55.4886608847633,-55.488659101465,-55.4886574003225,-55.4886557859985,-55.4886542629177,-55.488652835255,-55.4886515069232,-55.4886502815634,-55.4886491625342,-55.4886481529027,-55.4886472554363,-55.4886464725948,-55.488645806524,-55.4886452590495,-55.488644831672,-55.4886445255628,-55.4886443415609,-55.4886442801708],"lat":[5.62460490303284e-05,5.38858604129921e-05,5.15321409002715e-05,4.91913418749294e-05,4.68698793055445e-05,4.45741161607752e-05,4.23103449688923e-05,4.00847705703848e-05,3.79034931109121e-05,3.57724913212193e-05,3.36976061298418e-05,3.1684524653518e-05,2.97387646091911e-05,2.78656591903237e-05,2.6070342448981e-05,2.43577352237476e-05,2.27325316520487e-05,2.1199186303845e-05,1.97619019719672e-05,1.84246181525542e-05,1.71910002471724e-05,1.60644295162088e-05,1.50479938110773e-05,1.41444791106402e-05,1.33563618850417e-05,1.26858023078846e-05,1.21346383353552e-05,1.17043806685236e-05,1.13962086126292e-05,1.12109668446993e-05,1.11491630983603e-05,1.12109667721886e-05,1.13962084654137e-05,1.1704380442247e-05,1.21346380235635e-05,1.26858019021212e-05,1.33563613749723e-05,1.41444784842069e-05,1.50479930546789e-05,1.60644286149059e-05,1.71909991849148e-05,1.84246169124278e-05,1.97619005364575e-05,2.11991846551145e-05,2.27325297722238e-05,2.43577330952136e-05,2.60703400546793e-05,2.78656565140495e-05,2.97387616358876e-05,3.16845213695625e-05,3.36976025233217e-05,3.57724873821943e-05,3.79034888316581e-05,4.00847659456183e-05,4.23103399959714e-05,4.45741108398742e-05,4.68698736398012e-05,4.9191335870562e-05,5.15321345666633e-05,5.38858537627433e-05,5.62460420792742e-05,5.86062304053312e-05,6.0959949629964e-05,6.33007483735662e-05,6.56222106706457e-05,6.79179735555278e-05,7.0181744502789e-05,7.24073186746204e-05,7.45885959278459e-05,7.67195975339805e-05,7.87944825664997e-05,8.08075639104055e-05,8.27533238502056e-05,8.46264291935826e-05,8.64217458892984e-05,8.81343530992682e-05,8.97595566862342e-05,9.12929020800682e-05,9.27301864874399e-05,9.4067470411383e-05,9.53010884491859e-05,9.64276593390109e-05,9.74440952277034e-05,9.834761013439e-05,9.91357275866669e-05,9.98062874084477e-05,0.000100357451640866,0.000100787709580004,0.000101095881917639,0.000101281123973658,0.000101342928011276,0.000101281124628727,0.00010109588322359,0.000100787711528496,0.000100357454219485,9.98062906008147e-05,9.91357313725854e-05,9.83476144900269e-05,9.7444100125802e-05,9.64276647491333e-05,9.53010943379826e-05,9.40674767428876e-05,9.27301932233848e-05,9.12929091802182e-05,8.97595641087358e-05,8.81343608010095e-05,8.64217538262768e-05,8.46264373212761e-05,8.27533321239442e-05,8.08075722857392e-05,7.87944909995588e-05,7.67196059818249e-05,7.45886043488001e-05,7.24073270285904e-05,7.01817527515589e-05,6.79179816630324e-05,6.56222186032165e-05,6.33007561001493e-05,6.09599571223071e-05,5.86062376381386e-05,5.62460490303284e-05]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.5,"fill":true,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,null,{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]}],"limits":{"lat":[1.24543486519354e-07,0.000101342928011276],"lng":[-55.4887438629879,-55.4886442801708]}},"evals":[],"jsHooks":[]}</script>
+</section><section id="densities---value" class="slide level2">
+<h2>Densities - Value</h2>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1"></a><span class="kw">st_intersection</span>(trees, ind.neigh) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb7-2"><a href="#cb7-2"></a><span class="st">  </span><span class="kw">nrow</span>()</span></code></pre></div>
+<pre><code>## [1] 67</code></pre>
+</section><section id="densities" class="slide level2">
+<h2>Densities</h2>
+<blockquote>
+<p>Lack:</p>
+</blockquote>
+<ul>
+<li>size</li>
+<li>identity</li>
+<li>distance</li>
+</ul>
+<blockquote>
+<p>Individual neighbour interactions</p>
+</blockquote>
+</section><section id="interaction" class="slide level2">
+<h2>Interaction</h2>
+<ul>
+<li>a global parameter per individual</li>
+<li>local parameter for each neighbour (size, distance, …)</li>
+</ul>
+</section><section id="neighbourhood-crowding-index-nci" class="slide level2">
+<h2>Neighbourhood Crowding index (NCI)</h2>
+<p><span class="math display">\[NCI_i = \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}\]</span></p>
+<p><span class="math display">\[NCI_i = \sum_j exp[{\gamma.log(DBH_j)-(\delta.d_{i,j}^2})]\]</span></p>
+</section></section>
+<section><section id="growth" class="title-slide slide level1"><h1>Growth</h1></section><section id="growth-1" class="slide level2">
+<h2>Growth</h2>
+<p><span class="math display">\[growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 .NCI_i, \sigma)\]</span></p>
+<p><span class="math display">\[growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)\]</span></p>
+</section><section id="lets-simulate-1" class="slide level2">
+<h2>Let’s simulate !</h2>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1"></a>alpha &lt;-<span class="st"> </span><span class="fl">0.8</span> <span class="co"># intercept</span></span>
+<span id="cb9-2"><a href="#cb9-2"></a>beta1 &lt;-<span class="st"> </span><span class="fl">0.2</span> <span class="co"># dbh effect</span></span>
+<span id="cb9-3"><a href="#cb9-3"></a>beta2 &lt;-<span class="st"> </span><span class="fl">0.035</span> <span class="co"># NCI effect</span></span>
+<span id="cb9-4"><a href="#cb9-4"></a>gamma &lt;-<span class="st"> </span><span class="fl">0.1</span> <span class="co"># neighbour size effect </span></span>
+<span id="cb9-5"><a href="#cb9-5"></a>delta &lt;-<span class="st"> </span><span class="fl">0.05</span> <span class="co"># neighbour distance effect</span></span>
+<span id="cb9-6"><a href="#cb9-6"></a>sigma &lt;-<span class="st"> </span><span class="fl">0.01</span> <span class="co"># residual variation</span></span>
+<span id="cb9-7"><a href="#cb9-7"></a>D &lt;-<span class="st"> </span><span class="kw">as.matrix</span>(<span class="kw">st_distance</span>(trees))</span>
+<span id="cb9-8"><a href="#cb9-8"></a><span class="kw">units</span>(D) &lt;-<span class="st"> </span><span class="ot">NULL</span></span>
+<span id="cb9-9"><a href="#cb9-9"></a>S &lt;-<span class="st"> </span><span class="kw">matrix</span>(<span class="kw">rep</span>(trees<span class="op">$</span>dbh, N), <span class="dt">nrow =</span> N, <span class="dt">ncol =</span> N, <span class="dt">byrow =</span> T)</span>
+<span id="cb9-10"><a href="#cb9-10"></a>trees<span class="op">$</span>growth &lt;-<span class="st"> </span><span class="kw">rnorm</span>(N,</span>
+<span id="cb9-11"><a href="#cb9-11"></a>                      <span class="dt">mean =</span> alpha <span class="op">+</span></span>
+<span id="cb9-12"><a href="#cb9-12"></a><span class="st">                        </span>beta1 <span class="op">*</span><span class="st"> </span>trees<span class="op">$</span>dbh <span class="op">+</span></span>
+<span id="cb9-13"><a href="#cb9-13"></a><span class="st">                        </span>beta2 <span class="op">*</span><span class="st"> </span><span class="kw">rowSums</span>(<span class="kw">exp</span>(gamma<span class="op">*</span><span class="kw">log</span>(S)<span class="op">-</span>(D<span class="op">^</span><span class="dv">2</span><span class="op">*</span>delta))),</span>
+<span id="cb9-14"><a href="#cb9-14"></a>                      sigma)</span></code></pre></div>
+</section><section id="growth---have-a-look" class="slide level2">
+<h2>Growth - Have a look</h2>
+<pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
+<p><img data-src="Workshop11_Neighbourhood_files/figure-revealjs/unnamed-chunk-10-1.png" /><!-- --></p>
+</section><section id="growth---prepare-map" class="slide level2">
+<h2>Growth - Prepare map</h2>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1"></a>pal &lt;-<span class="st"> </span><span class="kw">colorNumeric</span>(<span class="st">&quot;inferno&quot;</span>, trees<span class="op">$</span>growth)</span>
+<span id="cb11-2"><a href="#cb11-2"></a>map &lt;-<span class="st"> </span><span class="kw">leaflet</span>(<span class="kw">st_transform</span>(trees, <span class="dt">crs =</span> crs)) <span class="op">%&gt;%</span></span>
+<span id="cb11-3"><a href="#cb11-3"></a><span class="st">  </span><span class="kw">addCircles</span>(<span class="dt">color =</span> <span class="op">~</span><span class="kw">pal</span>(growth),</span>
+<span id="cb11-4"><a href="#cb11-4"></a>             <span class="dt">label =</span> <span class="op">~</span><span class="kw">paste</span>(<span class="kw">round</span>(growth), <span class="st">&quot;mm&quot;</span>), <span class="dt">radius =</span> <span class="op">~</span><span class="st"> </span>dbh<span class="op">/</span><span class="dv">20</span>) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb11-5"><a href="#cb11-5"></a><span class="st">  </span><span class="kw">addLegend</span>(<span class="dt">pal =</span> pal, <span class="dt">values =</span> <span class="op">~</span><span class="st"> </span>growth)</span></code></pre></div>
+</section><section id="growth---have-a-look-1" class="slide level2">
+<h2>Growth - Have a look</h2>
+<div id="htmlwidget-d635381ae14f6dd89b0e" style="width:768px;height:480px;" class="leaflet html-widget"></div>
+<script type="application/json" data-for="htmlwidget-d635381ae14f6dd89b0e">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addCircles","args":[[5.64834274969898e-05,1.95862711711525e-05,1.9533020347397e-05,3.50804174262445e-05,8.50036274384398e-05,8.68212399026058e-05,6.67303341523399e-05,6.61342049445239e-05,4.83223281094404e-05,2.0500737108913e-07,5.49223603961952e-05,7.54742841312603e-05,6.77826520516622e-05,4.08335632256165e-05,4.83249158529433e-05,4.84680292927697e-05,1.24543486519354e-07,3.2078849467683e-05,5.52105870952652e-05,7.47654111741272e-05,3.21741013112716e-05,3.70367258381983e-05,5.17239528229697e-05,5.31853084877226e-05,6.49085963985038e-05,3.56241055575198e-05,8.2906460821425e-05,8.68178419246828e-05,2.10623655343407e-05,6.53451680244733e-05,8.15022011946662e-05,5.44296010717438e-05,5.69580192841723e-05,8.45463597232735e-05,7.67082355155207e-05,5.22962312906047e-05,7.4085506877545e-05,1.02567089824902e-05,6.89538355713694e-05,5.62460455548186e-05,1.33889579630258e-05,7.2393542722786e-06,4.18561770442829e-05,7.02941518777009e-05,6.61596468694142e-05,7.37090937319555e-05,1.53475953548301e-05,8.52078832458863e-05,2.64830408967078e-05,1.34453696650644e-05,6.48834613135354e-05,2.92305312522758e-05,7.02437589707623e-05,3.55761197500161e-05,6.12048412675059e-05,6.99745827036105e-05,1.69446165279814e-05,2.62335937033932e-06,1.22405377772073e-05,6.13465672467157e-05,8.43152023927808e-05,4.96511363080935e-05,5.42755633618595e-05,1.77676744518673e-05,4.8275006445483e-05,1.61948072918293e-05,4.0757342529207e-05,2.85962362403562e-05,1.04782310165113e-05,1.67852534065338e-05,6.5817100160247e-05,3.71482906015759e-05,3.73446978324691e-05,4.33209781517465e-05,3.85573333579808e-05,1.23105796185802e-05,7.43809349545807e-05,5.34221480487599e-05,7.16496533864985e-05,6.93619245844424e-05,8.28029643660571e-05,7.78038229543167e-05,2.8589189188496e-05,2.33836875394568e-05,6.69478072262554e-05,6.7407312473638e-05,8.27892167891572e-05,7.1540896840449e-05,1.20254994629942e-05,2.59532325176661e-05,1.75585744702227e-05,7.0721771980513e-05,1.16234648797999e-05,1.16430489531953e-05,6.51678038617173e-06,4.79194821537606e-06,4.79717562292917e-05,1.01295030249732e-05,6.70308995739759e-05,6.59600962956321e-05],[-55.4886619269417,-55.4886599318274,-55.4887182491556,-55.488669484609,-55.4886863904301,-55.488697378602,-55.4886778934646,-55.4887318196141,-55.4886850244689,-55.4886807176539,-55.4887028753176,-55.4886794591455,-55.4886601471299,-55.4887210005281,-55.488702467589,-55.488659668514,-55.4886562451087,-55.488733358699,-55.4887013294153,-55.4886936841971,-55.4886628922414,-55.4887314573487,-55.4886552896064,-55.4886590724086,-55.4887364988119,-55.4886978161699,-55.4887089260754,-55.4886627393387,-55.4887038403923,-55.4886689867923,-55.4886778032218,-55.4886712219824,-55.4887091137804,-55.4886825000562,-55.4887435306597,-55.4886692634612,-55.488743227325,-55.4887252802266,-55.4886626619959,-55.4886890751589,-55.4887098796868,-55.4887048436244,-55.4887405309434,-55.4886566649768,-55.4887052038091,-55.4886580951303,-55.4886643504505,-55.4886865487132,-55.4886568955161,-55.4886884426908,-55.4887140126567,-55.4887128192231,-55.4887081840949,-55.4886735837849,-55.4887403960708,-55.4886767998336,-55.4886832071761,-55.4887285408214,-55.4887204935249,-55.4886977981506,-55.4886833567562,-55.4886558338234,-55.4886758368403,-55.4886931327065,-55.4886677607111,-55.4887269094236,-55.4887195798291,-55.4886696896928,-55.4886817801878,-55.4887223339918,-55.4887400330253,-55.4887312988707,-55.4887244984257,-55.4887009350858,-55.488726198402,-55.4886794373188,-55.4887431779975,-55.4887102442549,-55.4886977986197,-55.4887437436846,-55.4886917785067,-55.4887297376688,-55.4887117190531,-55.4886860422467,-55.4886743783976,-55.4886933872867,-55.4887229469118,-55.4887358230392,-55.4887362144052,-55.4887165398836,-55.4886840896657,-55.4887438629879,-55.4887251986115,-55.488660293886,-55.4886609559002,-55.4886781169002,-55.4887140444802,-55.4886977398792,-55.4886772317233,-55.4886884139323],[0.560048268779925,0.552237554358386,0.449839567658008,0.592424095083637,0.466661329562109,0.505275690622803,0.478887205906557,0.493882491402251,0.509409651725075,0.50595804789985,0.49874537245663,0.505403636397102,0.475728238207667,0.474789143465605,0.416945046004259,0.480883313656309,0.47436748710611,0.63509455001724,0.431894188440514,0.50686281092793,0.425318746634185,0.42647821292816,0.50623511930985,0.450168043255798,0.499908869284765,0.478587055928709,0.469316419677525,0.398766107729045,0.438762602482001,0.508975822055897,0.528381029721177,0.475356132322326,0.500003144203268,0.556144482168998,0.57199278714881,0.445144311579709,0.494134021987491,0.560074920045985,0.476513520971685,0.49737652575305,0.495694635088145,0.455616049104678,0.477765799755763,0.498527756045588,0.479306557547104,0.55566930116841,0.475950357917301,0.478341548369964,0.534843128827605,0.447181579341455,0.497965076242439,0.422422758882621,0.558358477461784,0.486317714931296,0.476607733766387,0.438087383600689,0.499611898311134,0.459985891102417,0.473325383502478,0.564383762279229,0.491223706487894,0.446410880792466,0.508160344123369,0.481863079218602,0.529500677399367,0.57162109638655,0.450365374444525,0.522732514879014,0.504244902933924,0.544778279113227,0.488511093052687,0.541830953423031,0.412747206933165,0.584472946065669,0.543238898925929,0.492461200555713,0.427549643493042,0.532150435002099,0.524159693190738,0.499682218678931,0.507572794643121,0.47079455148251,0.518440336631512,0.514732716985976,0.486037031332871,0.433188167255342,0.535037440922002,0.527709831113702,0.458184670359929,0.420270591899688,0.510247929029382,0.482745601101356,0.512630585168223,0.435299876725772,0.452041477780982,0.554288742683995,0.520188745235786,0.529324376835965,0.590761422307698,0.506441071430119],null,null,{"interactive":true,"className":"","stroke":true,"color":["#EB6429","#9D2964","#89226A","#FC9F07","#8C2369","#9D2964","#E15635","#992766","#FCAC11","#5A116E","#FC9F07","#D44842","#8D2369","#D44942","#E45A32","#AB2F5E","#000004","#F67E14","#ED6825","#EA632A","#70196E","#771C6D","#9F2A63","#87216B","#87216B","#F67E14","#87216B","#02020C","#AD305D","#DF5337","#C83F4B","#E15635","#FA9008","#D24644","#781C6D","#C53C4E","#3F0966","#A22B62","#982766","#FCA50A","#A92E5E","#65156E","#6B176E","#801F6C","#EC6726","#AD305D","#61136E","#952667","#972766","#8B2369","#EB6429","#B3325A","#FB9506","#DE5238","#62146E","#BB3754","#C33B4F","#0F092C","#71196E","#F4DF53","#A32C61","#6D186E","#F8870E","#C33B4F","#F1711F","#C43C4E","#CF4446","#DA4E3C","#992865","#C13A50","#63146E","#D64B40","#902568","#FCFFA4","#EB6628","#972766","#06041A","#FCB317","#F68013","#500D6C","#C33B4F","#5F136E","#F2741C","#E9622B","#E05436","#D84C3E","#972766","#902568","#170C3B","#972766","#D14545","#3E0966","#7E1E6D","#140B35","#10092D","#9C2964","#FB9C07","#BF3952","#F9C72F","#F98D09"],"weight":5,"opacity":0.5,"fill":true,"fillColor":["#EB6429","#9D2964","#89226A","#FC9F07","#8C2369","#9D2964","#E15635","#992766","#FCAC11","#5A116E","#FC9F07","#D44842","#8D2369","#D44942","#E45A32","#AB2F5E","#000004","#F67E14","#ED6825","#EA632A","#70196E","#771C6D","#9F2A63","#87216B","#87216B","#F67E14","#87216B","#02020C","#AD305D","#DF5337","#C83F4B","#E15635","#FA9008","#D24644","#781C6D","#C53C4E","#3F0966","#A22B62","#982766","#FCA50A","#A92E5E","#65156E","#6B176E","#801F6C","#EC6726","#AD305D","#61136E","#952667","#972766","#8B2369","#EB6429","#B3325A","#FB9506","#DE5238","#62146E","#BB3754","#C33B4F","#0F092C","#71196E","#F4DF53","#A32C61","#6D186E","#F8870E","#C33B4F","#F1711F","#C43C4E","#CF4446","#DA4E3C","#992865","#C13A50","#63146E","#D64B40","#902568","#FCFFA4","#EB6628","#972766","#06041A","#FCB317","#F68013","#500D6C","#C33B4F","#5F136E","#F2741C","#E9622B","#E05436","#D84C3E","#972766","#902568","#170C3B","#972766","#D14545","#3E0966","#7E1E6D","#140B35","#10092D","#9C2964","#FB9C07","#BF3952","#F9C72F","#F98D09"],"fillOpacity":0.2},null,null,["5 mm","4 mm","4 mm","5 mm","4 mm","4 mm","5 mm","4 mm","5 mm","4 mm","5 mm","4 mm","4 mm","4 mm","5 mm","4 mm","3 mm","5 mm","5 mm","5 mm","4 mm","4 mm","4 mm","4 mm","4 mm","5 mm","4 mm","3 mm","4 mm","5 mm","4 mm","5 mm","5 mm","4 mm","4 mm","4 mm","4 mm","4 mm","4 mm","5 mm","4 mm","4 mm","4 mm","4 mm","5 mm","4 mm","4 mm","4 mm","4 mm","4 mm","5 mm","4 mm","5 mm","5 mm","4 mm","4 mm","4 mm","4 mm","4 mm","5 mm","4 mm","4 mm","5 mm","4 mm","5 mm","4 mm","4 mm","5 mm","4 mm","4 mm","4 mm","4 mm","4 mm","5 mm","5 mm","4 mm","4 mm","5 mm","5 mm","4 mm","4 mm","4 mm","5 mm","5 mm","5 mm","4 mm","4 mm","4 mm","4 mm","4 mm","4 mm","4 mm","4 mm","4 mm","4 mm","4 mm","5 mm","4 mm","5 mm","5 mm"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addLegend","args":[{"colors":["#000004 , #140B35 9.13210819461108%, #430A68 20.177237810943%, #70196E 31.2223674272748%, #9D2964 42.2674970436067%, #C73E4C 53.3126266599386%, #E8602D 64.3577562762705%, #F98F09 75.4028858926024%, #FAC52B 86.4480155089343%, #F4F78C 97.4931451252662%, #FCFFA4 "],"labels":["3.6","3.8","4.0","4.2","4.4","4.6","4.8","5.0","5.2"],"na_color":null,"na_label":"NA","opacity":0.5,"position":"topright","type":"numeric","title":"growth","extra":{"p_1":0.0913210819461108,"p_n":0.974931451252662},"layerId":null,"className":"info legend","group":null}]}],"limits":{"lat":[1.24543486519354e-07,8.68212399026058e-05],"lng":[-55.4887438629879,-55.4886552896064]}},"evals":[],"jsHooks":[]}</script>
+</section></section>
+<section><section id="pairwise-matrices" class="title-slide slide level1"><h1>Pairwise Matrices</h1></section><section id="example" class="slide level2">
+<h2>Example</h2>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1"></a><span class="kw">sample_n</span>(trees, <span class="dv">4</span>) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb12-2"><a href="#cb12-2"></a><span class="st">  </span><span class="kw">st_distance</span>() <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb12-3"><a href="#cb12-3"></a><span class="st">  </span><span class="kw">as.matrix</span>()</span></code></pre></div>
+<pre><code>## Units: [m]
+##          [,1]       [,2]     [,3]       [,4]
+## [1,] 0.000000 3.57963961 2.106889 3.56853196
+## [2,] 3.579640 0.00000000 5.512824 0.09899948
+## [3,] 2.106889 5.51282415 0.000000 5.51990892
+## [4,] 3.568532 0.09899948 5.519909 0.00000000</code></pre>
+</section><section id="larger-example" class="slide level2">
+<h2>Larger example</h2>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1"></a>(D &lt;-<span class="st"> </span><span class="kw">sample_n</span>(trees, <span class="dv">7</span>) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb14-2"><a href="#cb14-2"></a><span class="st">  </span><span class="kw">st_distance</span>() <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb14-3"><a href="#cb14-3"></a><span class="st">  </span><span class="kw">as.matrix</span>())</span></code></pre></div>
+<pre><code>## Units: [m]
+##          [,1]     [,2]       [,3]     [,4]     [,5]       [,6]     [,7]
+## [1,] 0.000000 9.283762 2.11349890 7.444182 4.573919 2.07023876 1.571797
+## [2,] 9.283762 0.000000 7.33623905 4.400862 4.989148 7.40587096 7.840168
+## [3,] 2.113499 7.336239 0.00000000 6.231229 3.080501 0.08103274 1.399841
+## [4,] 7.444182 4.400862 6.23122912 0.000000 3.173232 6.31185210 5.885280
+## [5,] 4.573919 4.989148 3.08050108 3.173232 0.000000 3.16152479 3.018877
+## [6,] 2.070239 7.405871 0.08103274 6.311852 3.161525 0.00000000 1.422760
+## [7,] 1.571797 7.840168 1.39984141 5.885280 3.018877 1.42275962 0.000000</code></pre>
+</section><section id="sparse-matrix" class="slide level2">
+<h2>Sparse matrix</h2>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1"></a>D[D <span class="op">&gt;</span><span class="st"> </span>units<span class="op">::</span><span class="kw">as_units</span>(<span class="dv">5</span>, <span class="st">&quot;m&quot;</span>)] &lt;-<span class="st"> </span><span class="dv">0</span></span>
+<span id="cb16-2"><a href="#cb16-2"></a>D</span></code></pre></div>
+<pre><code>## Units: [m]
+##          [,1]     [,2]       [,3]     [,4]     [,5]       [,6]     [,7]
+## [1,] 0.000000 0.000000 2.11349890 0.000000 4.573919 2.07023876 1.571797
+## [2,] 0.000000 0.000000 0.00000000 4.400862 4.989148 0.00000000 0.000000
+## [3,] 2.113499 0.000000 0.00000000 0.000000 3.080501 0.08103274 1.399841
+## [4,] 0.000000 4.400862 0.00000000 0.000000 3.173232 0.00000000 0.000000
+## [5,] 4.573919 4.989148 3.08050108 3.173232 0.000000 3.16152479 3.018877
+## [6,] 2.070239 0.000000 0.08103274 0.000000 3.161525 0.00000000 1.422760
+## [7,] 1.571797 0.000000 1.39984141 0.000000 3.018877 1.42275962 0.000000</code></pre>
+</section></section>
+<section><section id="segment-function" class="title-slide slide level1"><h1>Segment function</h1></section><section id="sparse-matrix-1" class="slide level2">
+<h2>Sparse matrix</h2>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1"></a>M &lt;-<span class="st"> </span><span class="kw">matrix</span>(<span class="kw">c</span>(<span class="dv">3</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">4</span>, <span class="dv">0</span>, <span class="dv">4</span>, <span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>), </span>
+<span id="cb18-2"><a href="#cb18-2"></a>            <span class="dt">nrow =</span> <span class="dv">4</span>, <span class="dt">byrow =</span> T)</span>
+<span id="cb18-3"><a href="#cb18-3"></a>M</span></code></pre></div>
+<pre><code>##      [,1] [,2] [,3] [,4]
+## [1,]    3    0    1    3
+## [2,]    0    0    0    0
+## [3,]    5    4    0    4
+## [4,]    2    1    1    0</code></pre>
+</section><section id="nb_b" class="slide level2">
+<h2><code>nb_b</code></h2>
+<pre><code>##      [,1] [,2] [,3] [,4]
+## [1,]    3    0    1    3
+## [2,]    0    0    0    0
+## [3,]    5    4    0    4
+## [4,]    2    1    1    0</code></pre>
+<blockquote>
+<p>amount of non 0 value in each row</p>
+</blockquote>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1"></a>nb_b &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dv">3</span>, <span class="dv">0</span>, <span class="dv">3</span>, <span class="dv">3</span>)</span></code></pre></div>
+</section><section id="x" class="slide level2">
+<h2><code>X</code></h2>
+<pre><code>##      [,1] [,2] [,3] [,4]
+## [1,]    3    0    1    3
+## [2,]    0    0    0    0
+## [3,]    5    4    0    4
+## [4,]    2    1    1    0</code></pre>
+<blockquote>
+<p>non 0 value in each row</p>
+</blockquote>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1"></a>X &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dv">3</span>, <span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">5</span>, <span class="dv">4</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">1</span>) </span></code></pre></div>
+</section><section id="pos" class="slide level2">
+<h2><code>pos</code></h2>
+<pre><code>##      [,1] [,2] [,3] [,4]
+## [1,]    3    0    1    3
+## [2,]    0    0    0    0
+## [3,]    5    4    0    4
+## [4,]    2    1    1    0</code></pre>
+<pre><code>## [1] 3 1 3 5 4 3 2 1 1</code></pre>
+<blockquote>
+<p>position of the first non 0 value in each row for the X vector</p>
+</blockquote>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1"></a>pos &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dv">1</span>, <span class="dv">4</span>, <span class="dv">7</span>) <span class="co"># </span></span></code></pre></div>
+</section><section id="nb_b-in-r" class="slide level2">
+<h2><code>nb_b</code> in R</h2>
+<pre><code>##      [,1] [,2] [,3] [,4]
+## [1,]    3    0    1    3
+## [2,]    0    0    0    0
+## [3,]    5    4    0    4
+## [4,]    2    1    1    0</code></pre>
+<blockquote>
+<p>amount of non 0 value in each row</p>
+</blockquote>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1"></a>n_nb &lt;-<span class="st"> </span><span class="kw">rowSums</span>(M <span class="op">!=</span><span class="st"> </span><span class="dv">0</span>)</span></code></pre></div>
+</section><section id="x-in-r" class="slide level2">
+<h2><code>X</code> in R</h2>
+<pre><code>##      [,1] [,2] [,3] [,4]
+## [1,]    3    0    1    3
+## [2,]    0    0    0    0
+## [3,]    5    4    0    4
+## [4,]    2    1    1    0</code></pre>
+<blockquote>
+<p>non 0 value in each row</p>
+</blockquote>
+<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1"></a>X &lt;-<span class="st"> </span>M[M <span class="op">&gt;</span><span class="st"> </span><span class="dv">0</span>]</span></code></pre></div>
+</section><section id="pos-in-r" class="slide level2">
+<h2><code>pos</code> in R</h2>
+<pre><code>##      [,1] [,2] [,3] [,4]
+## [1,]    3    0    1    3
+## [2,]    0    0    0    0
+## [3,]    5    4    0    4
+## [4,]    2    1    1    0</code></pre>
+<pre><code>## [1] 3 5 2 4 1 1 1 3 4</code></pre>
+<blockquote>
+<p>position of the first non 0 value in each row for the X vector</p>
+</blockquote>
+<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1"></a>pos[<span class="dv">1</span>] &lt;-<span class="st"> </span><span class="dv">1</span></span>
+<span id="cb33-2"><a href="#cb33-2"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">2</span><span class="op">:</span><span class="kw">nrow</span>(M))</span>
+<span id="cb33-3"><a href="#cb33-3"></a>  pos[i] &lt;-<span class="st"> </span>pos[i<span class="dv">-1</span>] <span class="op">+</span><span class="st"> </span>n_nb[i<span class="dv">-1</span>]</span></code></pre></div>
+</section></section>
+<section><section id="matrix-model" class="title-slide slide level1"><h1>Matrix model</h1></section><section id="matrices" class="slide level2">
+<h2>Matrices</h2>
+<div class="sourceCode" id="cb34"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1"></a>D &lt;-<span class="st"> </span><span class="kw">as.matrix</span>(<span class="kw">st_distance</span>(trees))</span>
+<span id="cb34-2"><a href="#cb34-2"></a>D[D <span class="op">&gt;</span><span class="st"> </span>units<span class="op">::</span><span class="kw">as_units</span>(<span class="dv">5</span>, <span class="st">&quot;m&quot;</span>)] &lt;-<span class="st"> </span><span class="dv">0</span></span>
+<span id="cb34-3"><a href="#cb34-3"></a><span class="kw">units</span>(D) &lt;-<span class="st"> </span><span class="ot">NULL</span></span>
+<span id="cb34-4"><a href="#cb34-4"></a>S &lt;-<span class="st"> </span><span class="kw">matrix</span>(<span class="kw">rep</span>(trees<span class="op">$</span>dbh, N), <span class="dt">nrow =</span> N, <span class="dt">ncol =</span> N, <span class="dt">byrow =</span> T)</span>
+<span id="cb34-5"><a href="#cb34-5"></a>S[D <span class="op">==</span><span class="st"> </span><span class="dv">0</span>] &lt;-<span class="st"> </span><span class="dv">0</span></span></code></pre></div>
+</section><section id="data-in-stan" class="slide level2">
+<h2>Data in stan</h2>
+<p><span class="math display">\[growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)\]</span></p>
+<pre class="stan"><code>data{  
+  int N ;                       // number of individuals  
+  vector&lt;lower=0&gt; [N] dbh ;     // diameter at breast height
+  vector [N] growth ;           // growth
+  vector [N] D[N] ;             // distance matrix
+  vector [N] S[N] ;             // size matrix
+}</code></pre>
+</section><section id="parameters-in-stan" class="slide level2">
+<h2>Parameters in stan</h2>
+<p><span class="math display">\[growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)\]</span></p>
+<pre class="stan"><code>parameters{
+  real alpha ;            // Intercept
+  real beta[2] ;          // DBH and NCI slopes
+  real&lt;lower=0&gt; gamma ;   // neighbour diameter effect
+  real&lt;lower=0&gt; delta ;   // neighbour distance effect
+  real&lt;lower=0&gt; sigma ;   // residual variation
+}</code></pre>
+</section><section id="transformed-parameters-in-stan" class="slide level2">
+<h2>Transformed parameters in stan</h2>
+<p><span class="math display">\[growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)\]</span></p>
+<pre class="stan"><code>transformed parameters{  
+  vector[N] NCI ;  
+  vector[N] smat[N] ;
+  vector[N] dmat[N] ;
+  for(i in 1:N){
+    for(j in 1:N){
+     smat[i,j] = S[i,j]^gamma ;  
+     dmat[i,j] = D[i,j]*D[i,j]*delta ;
+    }
+  }
+  for(n in 1:N)
+      NCI[n] = sum(smat[n] ./ exp(dmat[n])) ; // vectorial division
+}</code></pre>
+</section><section id="model-in-stan" class="slide level2">
+<h2>Model in stan</h2>
+<p><span class="math display">\[growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)\]</span></p>
+<pre class="stan"><code>model{
+  alpha ~ normal(0, 1) ;
+  beta ~ normal(0, 1) ;
+  gamma ~ normal(0, 1) ; 
+  delta ~ normal(0, 1) ; 
+  sigma ~ exponential(1) ;
+  growth ~ normal(alpha + 
+                  beta[1] * dbh +
+                  beta[2] * NCI,
+                  sigma) ;
+}</code></pre>
+</section><section id="all-in-stan" class="slide level2">
+<h2>All in stan</h2>
+<p><span class="math display">\[growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)\]</span></p>
+<pre class="stan"><code>data{  
+  int N ;                       // number of individuals  
+  vector&lt;lower=0&gt; [N] dbh ;     // diameter at breast height
+  vector [N] growth ;           // growth
+  vector [N] D[N] ;             // distance matrix
+  vector [N] S[N] ;             // size matrix
+}
+parameters{
+  real alpha ;            // Intercept
+  real beta[2] ;          // DBH and NCI slopes
+  real&lt;lower=0&gt; gamma ;   // neighbour diameter effect
+  real&lt;lower=0&gt; delta ;   // neighbour distance effect
+  real&lt;lower=0&gt; sigma ;   // residual variation
+}
+transformed parameters{  
+  vector[N] NCI ;  
+  vector[N] smat[N] ;
+  vector[N] dmat[N] ;
+  for(i in 1:N){
+    for(j in 1:N){
+     smat[i,j] = S[i,j]^gamma ;  
+     dmat[i,j] = D[i,j]*D[i,j]*delta ;
+    }
+  }
+  for(n in 1:N)
+      NCI[n] = sum(smat[n] ./ exp(dmat[n])) ; // vectorial division
+}
+model{
+  alpha ~ normal(0, 1) ;
+  beta ~ normal(0, 1) ;
+  gamma ~ normal(0, 1) ; 
+  delta ~ normal(0, 1) ; 
+  sigma ~ exponential(1) ;
+  growth ~ normal(alpha + 
+                  beta[1] * dbh +
+                  beta[2] * NCI,
+                  sigma) ;
+}</code></pre>
+</section><section id="data-in-r" class="slide level2">
+<h2>Data in R</h2>
+<div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1"></a>mdata1 &lt;-<span class="st"> </span><span class="kw">list</span>(</span>
+<span id="cb40-2"><a href="#cb40-2"></a>  <span class="dt">N =</span> <span class="kw">nrow</span>(trees),</span>
+<span id="cb40-3"><a href="#cb40-3"></a>  <span class="dt">dbh =</span> trees<span class="op">$</span>dbh,</span>
+<span id="cb40-4"><a href="#cb40-4"></a>  <span class="dt">growth =</span> trees<span class="op">$</span>growth,</span>
+<span id="cb40-5"><a href="#cb40-5"></a>  <span class="dt">D =</span> D,</span>
+<span id="cb40-6"><a href="#cb40-6"></a>  <span class="dt">S =</span> S</span>
+<span id="cb40-7"><a href="#cb40-7"></a>)</span></code></pre></div>
+</section><section id="fit" class="slide level2">
+<h2>Fit</h2>
+<div class="sourceCode" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1"></a>m1 &lt;-<span class="st"> </span><span class="kw">stan_model</span>(<span class="st">&quot;Wk11_models/m1.stan&quot;</span>)</span>
+<span id="cb41-2"><a href="#cb41-2"></a>fit1 &lt;-<span class="st"> </span><span class="kw">sampling</span>(m1, mdata1, <span class="dt">chains =</span> <span class="dv">2</span>, <span class="dt">iter =</span> <span class="dv">500</span>,</span>
+<span id="cb41-3"><a href="#cb41-3"></a>                 <span class="dt">include =</span> F, <span class="dt">pars =</span> <span class="kw">c</span>(<span class="st">&quot;NCI&quot;</span>, <span class="st">&quot;smat&quot;</span>, <span class="st">&quot;dmat&quot;</span>))</span>
+<span id="cb41-4"><a href="#cb41-4"></a><span class="kw">save</span>(m1, fit1, <span class="dt">file =</span> <span class="st">&quot;Wk11_save/m1.Rdata&quot;</span>)</span></code></pre></div>
+</section><section id="summary" class="slide level2">
+<h2>Summary</h2>
+<div class="sourceCode" id="cb42"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1"></a><span class="kw">load</span>(<span class="st">&quot;Wk11_save/m1.Rdata&quot;</span>)</span>
+<span id="cb42-2"><a href="#cb42-2"></a><span class="kw">tidyMCMC</span>(fit1, <span class="dt">rhat =</span> T, <span class="dt">drop.pars =</span> F, <span class="dt">robust =</span> T, <span class="dt">ess =</span> T) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb42-3"><a href="#cb42-3"></a><span class="st">  </span><span class="kw">mutate</span>(<span class="dt">expected =</span> <span class="kw">c</span>(alpha, beta1, beta2, delta, gamma, sigma, <span class="ot">NA</span>)) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb42-4"><a href="#cb42-4"></a><span class="st">  </span><span class="kw">kable</span>()</span></code></pre></div>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">term</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">std.error</th>
+<th style="text-align: right;">rhat</th>
+<th style="text-align: right;">ess</th>
+<th style="text-align: right;">expected</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">alpha</td>
+<td style="text-align: right;">1.0523791</td>
+<td style="text-align: right;">0.0418382</td>
+<td style="text-align: right;">1.0111948</td>
+<td style="text-align: right;">237</td>
+<td style="text-align: right;">0.800</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">beta[1]</td>
+<td style="text-align: right;">0.2020610</td>
+<td style="text-align: right;">0.0035966</td>
+<td style="text-align: right;">1.0127686</td>
+<td style="text-align: right;">246</td>
+<td style="text-align: right;">0.200</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">beta[2]</td>
+<td style="text-align: right;">0.0353509</td>
+<td style="text-align: right;">0.0082040</td>
+<td style="text-align: right;">1.0057919</td>
+<td style="text-align: right;">136</td>
+<td style="text-align: right;">0.035</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">gamma</td>
+<td style="text-align: right;">0.1251694</td>
+<td style="text-align: right;">0.0930442</td>
+<td style="text-align: right;">1.0080044</td>
+<td style="text-align: right;">133</td>
+<td style="text-align: right;">0.050</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">delta</td>
+<td style="text-align: right;">0.0535322</td>
+<td style="text-align: right;">0.0022973</td>
+<td style="text-align: right;">1.0038719</td>
+<td style="text-align: right;">276</td>
+<td style="text-align: right;">0.100</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">sigma</td>
+<td style="text-align: right;">0.0326287</td>
+<td style="text-align: right;">0.0026239</td>
+<td style="text-align: right;">0.9997283</td>
+<td style="text-align: right;">212</td>
+<td style="text-align: right;">0.010</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">lp__</td>
+<td style="text-align: right;">284.1310157</td>
+<td style="text-align: right;">1.5112373</td>
+<td style="text-align: right;">1.0127279</td>
+<td style="text-align: right;">161</td>
+<td style="text-align: right;">NA</td>
+</tr>
+</tbody>
+</table>
+</section><section id="trace" class="slide level2">
+<h2>Trace</h2>
+<div class="sourceCode" id="cb43"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1"></a>traces &lt;-<span class="st"> </span><span class="kw">mcmc_trace</span>(<span class="kw">as.array</span>(fit1, <span class="dt">pars =</span> <span class="kw">c</span>(<span class="st">&quot;beta&quot;</span>, <span class="st">&quot;gamma&quot;</span>, <span class="st">&quot;delta&quot;</span>))) <span class="op">+</span></span>
+<span id="cb43-2"><a href="#cb43-2"></a><span class="st">  </span><span class="kw">geom_hline</span>(<span class="kw">aes</span>(<span class="dt">yintercept =</span> expected), <span class="dt">col =</span> <span class="st">&quot;red&quot;</span>,</span>
+<span id="cb43-3"><a href="#cb43-3"></a>             <span class="dt">data =</span> <span class="kw">data.frame</span>(<span class="dt">parameter =</span> <span class="kw">c</span>(<span class="st">&quot;beta[1]&quot;</span>, <span class="st">&quot;beta[2]&quot;</span>,</span>
+<span id="cb43-4"><a href="#cb43-4"></a>                                             <span class="st">&quot;gamma&quot;</span>, <span class="st">&quot;delta&quot;</span>),</span>
+<span id="cb43-5"><a href="#cb43-5"></a>                               <span class="dt">expected =</span> <span class="kw">c</span>(beta1, beta2, gamma, delta)))</span></code></pre></div>
+</section><section id="trace-1" class="slide level2">
+<h2>Trace</h2>
+<p><img data-src="Workshop11_Neighbourhood_files/figure-revealjs/unnamed-chunk-39-1.png" /><!-- --></p>
+</section></section>
+<section><section id="segmented-model" class="title-slide slide level1"><h1>Segmented model</h1></section><section id="segments" class="slide level2">
+<h2>Segments</h2>
+<div class="sourceCode" id="cb44"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1"></a>n_nb &lt;-<span class="st"> </span><span class="kw">rowSums</span>(D <span class="op">!=</span><span class="st"> </span><span class="dv">0</span>)</span>
+<span id="cb44-2"><a href="#cb44-2"></a>d &lt;-<span class="st"> </span>D[D <span class="op">&gt;</span><span class="st"> </span><span class="dv">0</span>]</span>
+<span id="cb44-3"><a href="#cb44-3"></a>s &lt;-<span class="st"> </span>S[S <span class="op">&gt;</span><span class="st"> </span><span class="dv">0</span>]</span>
+<span id="cb44-4"><a href="#cb44-4"></a>pos &lt;-<span class="st"> </span><span class="kw">rep</span>(<span class="ot">NA</span>, N)</span>
+<span id="cb44-5"><a href="#cb44-5"></a>pos[<span class="dv">1</span>] &lt;-<span class="st"> </span><span class="dv">1</span></span>
+<span id="cb44-6"><a href="#cb44-6"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">2</span><span class="op">:</span>N)</span>
+<span id="cb44-7"><a href="#cb44-7"></a>  pos[i] &lt;-<span class="st"> </span>pos[i<span class="dv">-1</span>] <span class="op">+</span><span class="st"> </span>n_nb[i<span class="dv">-1</span>]</span></code></pre></div>
+</section><section id="data-in-stan-1" class="slide level2">
+<h2>Data in stan</h2>
+<p><span class="math display">\[growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)\]</span></p>
+<pre class="stan"><code>data{  
+  int N ;                       // number of individuals  
+  int M ;                       // number of distances
+  vector&lt;lower=0&gt; [N] dbh ;     // diameter at breast height
+  vector [N] growth ;           // growth
+  vector [M] d ;                // distance matrix
+  vector [M] s ;                // size matrix
+  int n_nb[N] ;                 // non zero values
+  int pos[N] ;                  // first non zero position
+}</code></pre>
+</section><section id="parameters-in-stan-1" class="slide level2">
+<h2>Parameters in stan</h2>
+<p><span class="math display">\[growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)\]</span></p>
+<pre class="stan"><code>parameters{
+  real alpha ;            // Intercept
+  real beta[2] ;          // DBH and NCI slopes
+  real&lt;lower=0&gt; gamma ;   // neighbour diameter effect
+  real&lt;lower=0&gt; delta ;   // neighbour distance effect
+  real&lt;lower=0&gt; sigma ;   // residual variation
+}</code></pre>
+</section><section id="transformed-parameters-in-stan-1" class="slide level2">
+<h2>Transformed parameters in stan</h2>
+<p><span class="math display">\[growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)\]</span></p>
+<pre class="stan"><code>transformed parameters{  
+  vector[N] NCI ;  
+  vector[M] svec ;
+  vector[M] dvec ;
+  for(m in 1:M){
+     svec[m] = s[m]^gamma ;  
+     dvec[m] = d[m]*d[m]*delta ;
+  }
+  for(n in 1:N)
+    NCI[n]=sum(exp(log(segment(svec, pos[n], n_nb[n])) -
+                  (segment(dvec, pos[n], n_nb[n])))) ;
+}</code></pre>
+</section><section id="model-in-stan-1" class="slide level2">
+<h2>Model in stan</h2>
+<p><span class="math display">\[growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)\]</span></p>
+<pre class="stan"><code>model{
+  alpha ~ normal(0, 1) ;
+  beta ~ normal(0, 1) ;
+  gamma ~ normal(0, 1) ; 
+  delta ~ normal(0, 1) ; 
+  sigma ~ exponential(1) ;
+  growth ~ normal(alpha + 
+                  beta[1] * dbh +
+                  beta[2] * NCI,
+                  sigma) ;
+}</code></pre>
+</section><section id="all-in-stan-1" class="slide level2">
+<h2>All in stan</h2>
+<p><span class="math display">\[growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)\]</span></p>
+<pre class="stan"><code>data{  
+  int N ;                       // number of individuals  
+  vector&lt;lower=0&gt; [N] dbh ;     // diameter at breast height
+  vector [N] growth ;           // growth
+  vector [N] D[N] ;             // distance matrix
+  vector [N] S[N] ;             // size matrix
+}
+parameters{
+  real alpha ;            // Intercept
+  real beta[2] ;          // DBH and NCI slopes
+  real&lt;lower=0&gt; gamma ;   // neighbour diameter effect
+  real&lt;lower=0&gt; delta ;   // neighbour distance effect
+  real&lt;lower=0&gt; sigma ;   // residual variation
+}
+transformed parameters{  
+  vector[N] NCI ;  
+  vector[N] smat[N] ;
+  vector[N] dmat[N] ;
+  for(i in 1:N){
+    for(j in 1:N){
+     smat[i,j] = S[i,j]^gamma ;  
+     dmat[i,j] = D[i,j]*D[i,j]*delta ;
+    }
+  }
+  for(n in 1:N)
+      NCI[n] = sum(smat[n] ./ exp(dmat[n])) ; // vectorial division
+}
+model{
+  alpha ~ normal(0, 1) ;
+  beta ~ normal(0, 1) ;
+  gamma ~ normal(0, 1) ; 
+  delta ~ normal(0, 1) ; 
+  sigma ~ exponential(1) ;
+  growth ~ normal(alpha + 
+                  beta[1] * dbh +
+                  beta[2] * NCI,
+                  sigma) ;
+}</code></pre>
+</section><section id="data-in-r-1" class="slide level2">
+<h2>Data in R</h2>
+<div class="sourceCode" id="cb50"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1"></a>mdata2 &lt;-<span class="st"> </span><span class="kw">list</span>(</span>
+<span id="cb50-2"><a href="#cb50-2"></a>  <span class="dt">N =</span> <span class="kw">nrow</span>(trees),</span>
+<span id="cb50-3"><a href="#cb50-3"></a>  <span class="dt">M =</span> <span class="kw">length</span>(d) ,</span>
+<span id="cb50-4"><a href="#cb50-4"></a>  <span class="dt">dbh =</span> trees<span class="op">$</span>dbh,</span>
+<span id="cb50-5"><a href="#cb50-5"></a>  <span class="dt">growth =</span> trees<span class="op">$</span>growth,</span>
+<span id="cb50-6"><a href="#cb50-6"></a>  <span class="dt">d =</span> d,</span>
+<span id="cb50-7"><a href="#cb50-7"></a>  <span class="dt">s =</span> s,</span>
+<span id="cb50-8"><a href="#cb50-8"></a>  <span class="dt">n_nb =</span> n_nb,</span>
+<span id="cb50-9"><a href="#cb50-9"></a>  <span class="dt">pos =</span> pos</span>
+<span id="cb50-10"><a href="#cb50-10"></a>)</span></code></pre></div>
+</section><section id="fit-1" class="slide level2">
+<h2>Fit</h2>
+<div class="sourceCode" id="cb51"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1"></a>m2 &lt;-<span class="st"> </span><span class="kw">stan_model</span>(<span class="st">&quot;Wk11_models/m2.stan&quot;</span>)</span>
+<span id="cb51-2"><a href="#cb51-2"></a>fit2 &lt;-<span class="st"> </span><span class="kw">sampling</span>(m2, mdata2, <span class="dt">chains =</span> <span class="dv">2</span>, <span class="dt">iter =</span> <span class="dv">500</span>,</span>
+<span id="cb51-3"><a href="#cb51-3"></a>                 <span class="dt">include =</span> F, <span class="dt">pars =</span> <span class="kw">c</span>(<span class="st">&quot;NCI&quot;</span>, <span class="st">&quot;svec&quot;</span>, <span class="st">&quot;dvec&quot;</span>))</span>
+<span id="cb51-4"><a href="#cb51-4"></a><span class="kw">save</span>(m2, fit2, <span class="dt">file =</span> <span class="st">&quot;Wk11_save/m2.Rdata&quot;</span>)</span></code></pre></div>
+</section><section id="summary-1" class="slide level2">
+<h2>Summary</h2>
+<div class="sourceCode" id="cb52"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1"></a><span class="kw">load</span>(<span class="st">&quot;Wk11_save/m2.Rdata&quot;</span>)</span>
+<span id="cb52-2"><a href="#cb52-2"></a><span class="kw">tidyMCMC</span>(fit2, <span class="dt">rhat =</span> T, <span class="dt">drop.pars =</span> F, <span class="dt">robust =</span> T, <span class="dt">ess =</span> T) <span class="op">%&gt;%</span></span>
+<span id="cb52-3"><a href="#cb52-3"></a><span class="st">  </span><span class="kw">mutate</span>(<span class="dt">expected =</span> <span class="kw">c</span>(alpha, beta1, beta2, delta, gamma, sigma, <span class="ot">NA</span>)) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb52-4"><a href="#cb52-4"></a><span class="st">  </span><span class="kw">kable</span>()</span></code></pre></div>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">term</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">std.error</th>
+<th style="text-align: right;">rhat</th>
+<th style="text-align: right;">ess</th>
+<th style="text-align: right;">expected</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">alpha</td>
+<td style="text-align: right;">1.1687719</td>
+<td style="text-align: right;">0.0720665</td>
+<td style="text-align: right;">1.161750</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">0.800</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">beta[1]</td>
+<td style="text-align: right;">0.1910548</td>
+<td style="text-align: right;">0.0070328</td>
+<td style="text-align: right;">1.149660</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">0.200</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">beta[2]</td>
+<td style="text-align: right;">0.0393094</td>
+<td style="text-align: right;">0.0044115</td>
+<td style="text-align: right;">1.160325</td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">0.035</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">gamma</td>
+<td style="text-align: right;">0.0693727</td>
+<td style="text-align: right;">0.0485921</td>
+<td style="text-align: right;">1.181932</td>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">0.050</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">delta</td>
+<td style="text-align: right;">0.0536963</td>
+<td style="text-align: right;">0.0018566</td>
+<td style="text-align: right;">1.031195</td>
+<td style="text-align: right;">123</td>
+<td style="text-align: right;">0.100</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">sigma</td>
+<td style="text-align: right;">0.0318250</td>
+<td style="text-align: right;">0.0018828</td>
+<td style="text-align: right;">1.014631</td>
+<td style="text-align: right;">139</td>
+<td style="text-align: right;">0.010</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">lp__</td>
+<td style="text-align: right;">284.1780070</td>
+<td style="text-align: right;">1.6282430</td>
+<td style="text-align: right;">1.006159</td>
+<td style="text-align: right;">116</td>
+<td style="text-align: right;">NA</td>
+</tr>
+</tbody>
+</table>
+</section><section id="trace-2" class="slide level2">
+<h2>Trace</h2>
+<div class="sourceCode" id="cb53"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1"></a>traces &lt;-<span class="st"> </span><span class="kw">mcmc_trace</span>(<span class="kw">as.array</span>(fit2, <span class="dt">pars =</span> <span class="kw">c</span>(<span class="st">&quot;beta&quot;</span>, <span class="st">&quot;gamma&quot;</span>, <span class="st">&quot;delta&quot;</span>))) <span class="op">+</span></span>
+<span id="cb53-2"><a href="#cb53-2"></a><span class="st">  </span><span class="kw">geom_hline</span>(<span class="kw">aes</span>(<span class="dt">yintercept =</span> expected), <span class="dt">col =</span> <span class="st">&quot;red&quot;</span>,</span>
+<span id="cb53-3"><a href="#cb53-3"></a>             <span class="dt">data =</span> <span class="kw">data.frame</span>(<span class="dt">parameter =</span> <span class="kw">c</span>(<span class="st">&quot;beta[1]&quot;</span>, <span class="st">&quot;beta[2]&quot;</span>,</span>
+<span id="cb53-4"><a href="#cb53-4"></a>                                             <span class="st">&quot;gamma&quot;</span>, <span class="st">&quot;delta&quot;</span>),</span>
+<span id="cb53-5"><a href="#cb53-5"></a>                               <span class="dt">expected =</span> <span class="kw">c</span>(beta1, beta2, gamma, delta)))</span></code></pre></div>
+</section><section id="trace-3" class="slide level2">
+<h2>Trace</h2>
+<p><img data-src="Workshop11_Neighbourhood_files/figure-revealjs/unnamed-chunk-50-1.png" /><!-- --></p>
+</section><section id="comparison" class="slide level2">
+<h2>Comparison</h2>
+<div class="sourceCode" id="cb54"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1"></a><span class="kw">lapply</span>(<span class="kw">lapply</span>(<span class="kw">c</span>(fit1, fit2), </span>
+<span id="cb54-2"><a href="#cb54-2"></a>       get_elapsed_time), data.frame) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb54-3"><a href="#cb54-3"></a><span class="st">  </span><span class="kw">bind_rows</span>(<span class="dt">.id =</span> <span class="st">&quot;model&quot;</span>) <span class="op">%&gt;%</span></span>
+<span id="cb54-4"><a href="#cb54-4"></a><span class="st">  </span><span class="kw">mutate</span>(<span class="dt">model =</span> <span class="kw">recode_factor</span>(model,</span>
+<span id="cb54-5"><a href="#cb54-5"></a>                               <span class="st">&quot;1&quot;</span> =<span class="st"> &quot;Matrix model&quot;</span>,</span>
+<span id="cb54-6"><a href="#cb54-6"></a>                               <span class="st">&quot;2&quot;</span> =<span class="st"> &quot;Segmented model&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb54-7"><a href="#cb54-7"></a><span class="st">  </span><span class="kw">mutate</span>(<span class="dt">total =</span> warmup <span class="op">+</span><span class="st"> </span>sample) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb54-8"><a href="#cb54-8"></a><span class="st">  </span><span class="kw">arrange</span>(total) <span class="op">%&gt;%</span><span class="st"> </span></span>
+<span id="cb54-9"><a href="#cb54-9"></a><span class="st">  </span><span class="kw">kable</span>(<span class="dt">caption =</span> <span class="st">&quot;Model speed comparison between matrix and segmented.&quot;</span>)</span></code></pre></div>
+<table>
+<caption>Model speed comparison between matrix and segmented.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">model</th>
+<th style="text-align: right;">warmup</th>
+<th style="text-align: right;">sample</th>
+<th style="text-align: right;">total</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Segmented model</td>
+<td style="text-align: right;">123.129</td>
+<td style="text-align: right;">63.9244</td>
+<td style="text-align: right;">187.0534</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Segmented model</td>
+<td style="text-align: right;">126.584</td>
+<td style="text-align: right;">87.2436</td>
+<td style="text-align: right;">213.8276</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Matrix model</td>
+<td style="text-align: right;">249.870</td>
+<td style="text-align: right;">196.0840</td>
+<td style="text-align: right;">445.9540</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Matrix model</td>
+<td style="text-align: right;">237.608</td>
+<td style="text-align: right;">332.4910</td>
+<td style="text-align: right;">570.0990</td>
+</tr>
+</tbody>
+</table>
+</section></section>
+    </div>
+  </div>
+
+  <script src="Workshop11_Neighbourhood_files/reveal.js-3.3.0.1/lib/js/head.min.js"></script>
+  <script src="Workshop11_Neighbourhood_files/reveal.js-3.3.0.1/js/reveal.js"></script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://github.com/hakimel/reveal.js#configuration
+      Reveal.initialize({
+        // Display the page number of the current slide
+        slideNumber: true,
+        // Push each slide change to the browser history
+        history: true,
+        // Vertical centering of slides
+        center: true,
+        // Opens links in an iframe preview overlay
+        previewLinks: true,
+        // Transition style
+        transition: 'default', // none/fade/slide/convex/concave/zoom
+        // Transition style for full page slide backgrounds
+        backgroundTransition: 'default', // none/fade/slide/convex/concave/zoom
+
+
+
+        chalkboard: {
+        },
+
+        keyboard: {
+          67: function() { RevealChalkboard.toggleNotesCanvas() },    // toggle notes canvas when 'c' is pressed
+          66: function() { RevealChalkboard.toggleChalkboard() }, // toggle chalkboard when 'b' is pressed
+          46: function() { RevealChalkboard.clear() },    // clear chalkboard when 'DEL' is pressed
+           8: function() { RevealChalkboard.reset() },    // reset chalkboard data on current slide when 'BACKSPACE' is pressed
+          68: function() { RevealChalkboard.download() }, // downlad recorded chalkboard drawing when 'd' is pressed
+        },
+
+        // Optional reveal.js plugins
+        dependencies: [
+          { src: 'Workshop11_Neighbourhood_files/reveal.js-3.3.0.1/plugin/chalkboard/chalkboard.js', async: true },
+        ]
+      });
+    </script>
+  <!-- dynamically load mathjax for compatibility with self-contained -->
+  <script>
+    (function () {
+      var script = document.createElement("script");
+      script.type = "text/javascript";
+      script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+      document.getElementsByTagName("head")[0].appendChild(script);
+    })();
+  </script>
+
+<script>
+  (function() {
+    if (window.jQuery) {
+      Reveal.addEventListener( 'slidechanged', function(event) {  
+        window.jQuery(event.previousSlide).trigger('hidden');
+        window.jQuery(event.currentSlide).trigger('shown');
+      });
+    }
+  })();
+</script>
+
+
+  </body>
+</html>

@@ -19,6 +19,7 @@ We are a small group of researchers, PhD students and post-docs who meet regular
 * [Workshop8 - Hidden Markov Models](https://juliettearchambeau.github.io/BiogecoBayes/Workshop8_HMMs.html#/)
 * [Workshop9 - State Space Models](https://juliettearchambeau.github.io/BiogecoBayes/Workshop9_SSMs.html#/)
 * [Workshop10 - HMMs and basketball](https://juliettearchambeau.github.io/BiogecoBayes/Workshop10_HMMandBasketball.html#/)
+* [Workshop11 - Neighbourhood and Segmentation](https://juliettearchambeau.github.io/BiogecoBayes/Workshop11_Neighbourhood.html#/)
 
 ### Course materials
 

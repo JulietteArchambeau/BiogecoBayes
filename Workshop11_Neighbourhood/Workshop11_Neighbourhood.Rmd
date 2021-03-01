@@ -65,13 +65,13 @@ trees <- src_sqlite(file.path("..", "..", "PhD", "data",
 ## Let's simulate !
 
 ```{r}
-N <- 500
+N <- 100
 S <- 10
 trees <- data.frame(
   id = 1:N,
-  Xutm = runif(N, min = 285059, max = 285178),
-  Yutm = runif(N, min = 581582, max = 581705),
-  DBH = rlnorm(N, meanlog = log(19), sdlog =  log(1.6)),
+  x = runif(N, min = 0, max = 10),
+  y = runif(N, min = 0, max = 10),
+  dbh = rnorm(N, mean = 10, sd =  1),
   Species = sample(paste0("Sp", 1:S), N, replace = T)
 )
 ```
@@ -80,7 +80,7 @@ trees <- data.frame(
 
 ```{r, message=F}
 trees <- trees %>% 
-  st_as_sf(coords = c("Xutm", "Yutm"),
+  st_as_sf(coords = c("x", "y"),
                  crs = '+proj=utm +zone=22 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0')
 crs <- '+proj=longlat +datum=WGS84'
 ```
@@ -91,76 +91,13 @@ crs <- '+proj=longlat +datum=WGS84'
 palSp <- colorFactor("viridis", trees$Species)
 map <- leaflet(data = st_transform(trees, crs = crs)) %>%
   addCircles(color = ~palSp(Species),
-             label = ~ Species, radius = ~ DBH/20) %>% 
+             label = ~ Species, radius = ~ dbh/50) %>% 
   addLegend(pal = palSp, values = ~ Species)
 ```
 
 ## View
 
 ```{r, echo=F}
-map
-```
-
-## Neighbourhood Crowding index (NCI)
-
-
-$$NCI_{t,i} = \sum_j DBH_{j,t}^\gamma . e^{-\delta.d_{i,j}}$$
-
-$$NCI_{t,i} = \sum_j e^{\gamma.log(DBH_{j,t})-\delta.d_{i,j}}$$
-
-## Growth
-
-$$DBH_{i,t+1} - DBH_{i,t} = \Delta DBH_{t+1} = growth(DBH_{i,t},NCI_{i,t})$$
-
-$$\Delta DBH_{t+1} \sim \mathcal N (\alpha + \beta_1 . log(DBH_t) + \beta_2 .NCI_{t,i}, \sigma)$$
-
-## Growth
-
-$$\Delta DBH_{t+1} \sim \mathcal N (\alpha + \beta_1 . log(DBH_t) +\\ \beta_2 \sum_j \frac{ DBH_{j,t}^\gamma}{-\delta.d_{i,j}}, \sigma)$$
-
-## Growth - Single line
-
-$$DBH_{i,t+1} -  DBH_{i,t} \sim \mathcal N (\alpha + \beta_1 . log(DBH_t) +\\ \beta_2 \sum_j e^{\gamma.log(DBH_{j,t})-\delta.d_{i,j}}$$
-## Let's simulate !
-
-```{r, message=FALSE}
-alpha <- 0.5
-beta1 <- 0.2
-beta2 <- -0.03
-gamma <- 0.02
-delta <- 0.5
-sigma <- 0.01
-D <- as.matrix(st_distance(trees))
-units(D) <- NULL
-trees$DBH2 <- trees$DBH +
-  rnorm(N,
-        mean = alpha +
-          beta1*log(trees$DBH) +
-         beta2*rowSums(exp(gamma*log(trees$DBH)-(D*delta))),
-        sigma)
-trees$growth <- trees$DBH2 - trees$DBH
-```
-
-## Growth - Have a look
-
-```{r, echo=F}
-ggplot(trees, aes(growth)) +
-  geom_histogram() + xlab(expression(Delta[DBH]))
-```
-
-## Growth - Prepare map
-
-```{r }
-pal <- colorNumeric("inferno", trees$growth)
-map <- leaflet(st_transform(trees, crs = crs)) %>%
-  addCircles(color = ~pal(growth),
-             label = ~paste(round(growth), "mm"), radius = ~ DBH/20) %>% 
-  addLegend(pal = pal, values = ~ growth)
-```
-
-## Growth - Have a look
-
-```{r , echo=F}
 map
 ```
 
@@ -180,7 +117,7 @@ map
 
 ```{r }
 ind <- sample_n(trees, 1)
-ind.neigh <- st_buffer(ind, 20)
+ind.neigh <- st_buffer(ind, 5)
 ```
 
 ## Densities - Neighbours
@@ -189,7 +126,7 @@ ind.neigh <- st_buffer(ind, 20)
 leaflet() %>%
   addCircles(data = st_transform(trees, crs = crs), 
              color = ~palSp(Species),
-             label = ~ Species, radius = ~ DBH/20) %>% 
+             label = ~ Species, radius = ~ dbh/20) %>% 
   addPolygons(data = st_transform(ind.neigh, crs = crs),
               color = "red")
 ```
@@ -216,6 +153,63 @@ st_intersection(trees, ind.neigh) %>%
 * a global parameter per individual
 * local parameter for each neighbour (size, distance, ...)
 
+## Neighbourhood Crowding index (NCI)
+
+
+$$NCI_i = \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}$$
+
+$$NCI_i = \sum_j exp[{\gamma.log(DBH_j)-(\delta.d_{i,j}^2})]$$
+
+# Growth
+
+## Growth
+
+$$growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 .NCI_i, \sigma)$$
+
+$$growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)$$
+
+## Let's simulate !
+
+```{r }
+alpha <- 0.8 # intercept
+beta1 <- 0.2 # dbh effect
+beta2 <- 0.035 # NCI effect
+gamma <- 0.1 # neighbour size effect 
+delta <- 0.05 # neighbour distance effect
+sigma <- 0.01 # residual variation
+D <- as.matrix(st_distance(trees))
+units(D) <- NULL
+S <- matrix(rep(trees$dbh, N), nrow = N, ncol = N, byrow = T)
+trees$growth <- rnorm(N,
+                      mean = alpha +
+                        beta1 * trees$dbh +
+                        beta2 * rowSums(exp(gamma*log(S)-(D^2*delta))),
+                      sigma)
+```
+
+## Growth - Have a look
+
+```{r, echo=F}
+ggplot(trees, aes(growth)) +
+  geom_histogram()
+```
+
+## Growth - Prepare map
+
+```{r }
+pal <- colorNumeric("inferno", trees$growth)
+map <- leaflet(st_transform(trees, crs = crs)) %>%
+  addCircles(color = ~pal(growth),
+             label = ~paste(round(growth), "mm"), radius = ~ dbh/20) %>% 
+  addLegend(pal = pal, values = ~ growth)
+```
+
+## Growth - Have a look
+
+```{r , echo=F}
+map
+```
+
 # Pairwise Matrices
 
 ## Example
@@ -237,7 +231,7 @@ sample_n(trees, 4) %>%
 ## Sparse matrix
 
 ```{r}
-D[D > units::as_units(50, "m")] <- 0
+D[D > units::as_units(5, "m")] <- 0
 D
 ```
 
@@ -251,42 +245,214 @@ M <- matrix(c(3, 0, 1, 3, 0, 0, 0, 0, 5, 4, 0, 4, 2, 1, 1, 0),
 M
 ```
 
-## Segments
+## `nb_b`
 
-```{r}
-X <- c(3, 1, 3, 5, 4, 3, 2, 1, 1) # Non 0 values
-nb_b <- c(3, 0, 3, 3) # amount of non 0 value in each row
-pos <- c(1, 4, 7) # position of the first non zero value for each row in the X vector
+```{r, echo=F}
+M
 ```
 
-## Segments
+> amount of non 0 value in each row
+
+```{r}
+nb_b <- c(3, 0, 3, 3)
+```
+
+## `X`
+
+```{r, echo=F}
+M
+```
+
+> non 0 value in each row
+
+```{r}
+X <- c(3, 1, 3, 5, 4, 3, 2, 1, 1) 
+```
+
+## `pos` 
+
+```{r, echo=F}
+M
+X
+```
+
+> position of the first non 0 value in each row for the X vector
+
+```{r}
+pos <- c(1, 4, 7) # 
+```
+
+## `nb_b` in R
+
+```{r, echo=F}
+M
+```
+
+> amount of non 0 value in each row
+
+```{r}
+n_nb <- rowSums(M != 0)
+```
+
+## `X` in R
+
+```{r, echo=F}
+M
+```
+
+> non 0 value in each row
 
 ```{r}
 X <- M[M > 0]
-nb_b <- rowSums(M != 0)
-pos <- c(1, cumsum(nb_b[nb_b > 0][-1])+1)
+```
+
+## `pos` in R
+
+```{r, echo=F}
+M
+X
+```
+
+> position of the first non 0 value in each row for the X vector
+
+```{r}
+pos[1] <- 1
+for(i in 2:nrow(M))
+  pos[i] <- pos[i-1] + n_nb[i-1]
 ```
 
 # Matrix model
 
-## Model data - D
+## Matrices
 
 ```{r}
-subtrees <- sample_n(trees, 20)
-D <- as.matrix(st_distance(subtrees))
-D[D > units::as_units(40, "m")] <- 0
+D <- as.matrix(st_distance(trees))
+D[D > units::as_units(5, "m")] <- 0
 units(D) <- NULL
-D[1:5, 1:5]
+S <- matrix(rep(trees$dbh, N), nrow = N, ncol = N, byrow = T)
+S[D == 0] <- 0
 ```
 
-## Model data
+## Data in stan
+
+$$growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)$$
+
+```{stan output.var="m1", eval=F, cache=F}
+data{  
+  int N ;                       // number of individuals  
+  vector<lower=0> [N] dbh ;     // diameter at breast height
+  vector [N] growth ;           // growth
+  vector [N] D[N] ;             // distance matrix
+  vector [N] S[N] ;             // size matrix
+}
+```
+
+## Parameters in stan
+
+$$growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)$$
+
+```{stan output.var="m1", eval=F, cache=F}
+parameters{
+  real alpha ;            // Intercept
+  real beta[2] ;          // DBH and NCI slopes
+  real<lower=0> gamma ;   // neighbour diameter effect
+  real<lower=0> delta ;   // neighbour distance effect
+  real<lower=0> sigma ;   // residual variation
+}
+```
+
+## Transformed parameters in stan
+
+$$growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)$$
+
+```{stan output.var="m1", eval=F, cache=F}
+transformed parameters{  
+  vector[N] NCI ;  
+  vector[N] smat[N] ;
+  vector[N] dmat[N] ;
+  for(i in 1:N){
+    for(j in 1:N){
+     smat[i,j] = S[i,j]^gamma ;  
+     dmat[i,j] = D[i,j]*D[i,j]*delta ;
+    }
+  }
+  for(n in 1:N)
+      NCI[n] = sum(smat[n] ./ exp(dmat[n])) ; // vectorial division
+}
+```
+
+## Model in stan
+
+$$growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)$$
+
+```{stan output.var="m1", eval=F, cache=F}
+model{
+  alpha ~ normal(0, 1) ;
+  beta ~ normal(0, 1) ;
+  gamma ~ normal(0, 1) ; 
+  delta ~ normal(0, 1) ; 
+  sigma ~ exponential(1) ;
+  growth ~ normal(alpha + 
+                  beta[1] * dbh +
+                  beta[2] * NCI,
+                  sigma) ;
+}
+```
+
+## All in stan
+
+$$growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)$$
+
+```{stan output.var="m1", eval=F, cache=F}
+data{  
+  int N ;                       // number of individuals  
+  vector<lower=0> [N] dbh ;     // diameter at breast height
+  vector [N] growth ;           // growth
+  vector [N] D[N] ;             // distance matrix
+  vector [N] S[N] ;             // size matrix
+}
+parameters{
+  real alpha ;            // Intercept
+  real beta[2] ;          // DBH and NCI slopes
+  real<lower=0> gamma ;   // neighbour diameter effect
+  real<lower=0> delta ;   // neighbour distance effect
+  real<lower=0> sigma ;   // residual variation
+}
+transformed parameters{  
+  vector[N] NCI ;  
+  vector[N] smat[N] ;
+  vector[N] dmat[N] ;
+  for(i in 1:N){
+    for(j in 1:N){
+     smat[i,j] = S[i,j]^gamma ;  
+     dmat[i,j] = D[i,j]*D[i,j]*delta ;
+    }
+  }
+  for(n in 1:N)
+      NCI[n] = sum(smat[n] ./ exp(dmat[n])) ; // vectorial division
+}
+model{
+  alpha ~ normal(0, 1) ;
+  beta ~ normal(0, 1) ;
+  gamma ~ normal(0, 1) ; 
+  delta ~ normal(0, 1) ; 
+  sigma ~ exponential(1) ;
+  growth ~ normal(alpha + 
+                  beta[1] * dbh +
+                  beta[2] * NCI,
+                  sigma) ;
+}
+```
+
+## Data in R
 
 ```{r}
 mdata1 <- list(
-  N = nrow(subtrees),
-  dbh = subtrees$DBH,
-  growth = subtrees$growth,
-  D = D
+  N = nrow(trees),
+  dbh = trees$dbh,
+  growth = trees$growth,
+  D = D,
+  S = S
 )
 ```
 
@@ -294,7 +460,8 @@ mdata1 <- list(
 
 ```{r, eval=F}
 m1 <- stan_model("Wk11_models/m1.stan")
-fit1 <- sampling(m1, mdata1, include = F, pars = "dbh_gamma")
+fit1 <- sampling(m1, mdata1, chains = 2, iter = 500,
+                 include = F, pars = c("NCI", "smat", "dmat"))
 save(m1, fit1, file = "Wk11_save/m1.Rdata")
 ```
 
@@ -303,39 +470,164 @@ save(m1, fit1, file = "Wk11_save/m1.Rdata")
 ```{r}
 load("Wk11_save/m1.Rdata")
 tidyMCMC(fit1, rhat = T, drop.pars = F, robust = T, ess = T) %>% 
-  mutate(expected = c(alpha, beta1, beta2, delta, gamma, sigma, NA))
+  mutate(expected = c(alpha, beta1, beta2, delta, gamma, sigma, NA)) %>% 
+  kable()
 ```
 
 ## Trace
 
 ```{r}
-mcmc_trace(fit1) +
+traces <- mcmc_trace(as.array(fit1, pars = c("beta", "gamma", "delta"))) +
   geom_hline(aes(yintercept = expected), col = "red",
-             data = data.frame(parameter = c("alpha", "beta[1]", "beta[2]",
-                                             "gamma", "delta", "sigma"),
-                               expected = c(alpha, beta1, beta2, gamma, delta, sigma)))
+             data = data.frame(parameter = c("beta[1]", "beta[2]",
+                                             "gamma", "delta"),
+                               expected = c(beta1, beta2, gamma, delta)))
+```
+
+## Trace
+
+```{r, echo=F}
+traces
 ```
 
 # Segmented model
 
-## Model data - Segments
+## Segments
 
 ```{r}
+n_nb <- rowSums(D != 0)
 d <- D[D > 0]
-nb_b <- rowSums(D != 0)
-pos <- c(1, cumsum(nb_b[nb_b > 0][-1])+1)
+s <- S[S > 0]
+pos <- rep(NA, N)
+pos[1] <- 1
+for(i in 2:N)
+  pos[i] <- pos[i-1] + n_nb[i-1]
 ```
 
-## Model data
+## Data in stan
+
+$$growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)$$
+
+```{stan output.var="m1", eval=F, cache=F}
+data{  
+  int N ;                       // number of individuals  
+  int M ;                       // number of distances
+  vector<lower=0> [N] dbh ;     // diameter at breast height
+  vector [N] growth ;           // growth
+  vector [M] d ;                // distance matrix
+  vector [M] s ;                // size matrix
+  int n_nb[N] ;                 // non zero values
+  int pos[N] ;                  // first non zero position
+}
+```
+
+## Parameters in stan
+
+$$growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)$$
+
+```{stan output.var="m1", eval=F, cache=F}
+parameters{
+  real alpha ;            // Intercept
+  real beta[2] ;          // DBH and NCI slopes
+  real<lower=0> gamma ;   // neighbour diameter effect
+  real<lower=0> delta ;   // neighbour distance effect
+  real<lower=0> sigma ;   // residual variation
+}
+```
+
+## Transformed parameters in stan
+
+$$growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)$$
+
+```{stan output.var="m1", eval=F, cache=F}
+transformed parameters{  
+  vector[N] NCI ;  
+  vector[M] svec ;
+  vector[M] dvec ;
+  for(m in 1:M){
+     svec[m] = s[m]^gamma ;  
+     dvec[m] = d[m]*d[m]*delta ;
+  }
+  for(n in 1:N)
+    NCI[n]=sum(exp(log(segment(svec, pos[n], n_nb[n])) -
+                  (segment(dvec, pos[n], n_nb[n])))) ;
+}
+```
+
+## Model in stan
+
+$$growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)$$
+
+```{stan output.var="m1", eval=F, cache=F}
+model{
+  alpha ~ normal(0, 1) ;
+  beta ~ normal(0, 1) ;
+  gamma ~ normal(0, 1) ; 
+  delta ~ normal(0, 1) ; 
+  sigma ~ exponential(1) ;
+  growth ~ normal(alpha + 
+                  beta[1] * dbh +
+                  beta[2] * NCI,
+                  sigma) ;
+}
+```
+
+## All in stan
+
+$$growth_i \sim \mathcal N (\alpha + \beta_1 . DBH_i + \beta_2 . \sum_j dbh_j^\gamma e^{-\delta.d_{i,j}^2}, \sigma)$$
+
+```{stan output.var="m1", eval=F, cache=F}
+data{  
+  int N ;                       // number of individuals  
+  vector<lower=0> [N] dbh ;     // diameter at breast height
+  vector [N] growth ;           // growth
+  vector [N] D[N] ;             // distance matrix
+  vector [N] S[N] ;             // size matrix
+}
+parameters{
+  real alpha ;            // Intercept
+  real beta[2] ;          // DBH and NCI slopes
+  real<lower=0> gamma ;   // neighbour diameter effect
+  real<lower=0> delta ;   // neighbour distance effect
+  real<lower=0> sigma ;   // residual variation
+}
+transformed parameters{  
+  vector[N] NCI ;  
+  vector[N] smat[N] ;
+  vector[N] dmat[N] ;
+  for(i in 1:N){
+    for(j in 1:N){
+     smat[i,j] = S[i,j]^gamma ;  
+     dmat[i,j] = D[i,j]*D[i,j]*delta ;
+    }
+  }
+  for(n in 1:N)
+      NCI[n] = sum(smat[n] ./ exp(dmat[n])) ; // vectorial division
+}
+model{
+  alpha ~ normal(0, 1) ;
+  beta ~ normal(0, 1) ;
+  gamma ~ normal(0, 1) ; 
+  delta ~ normal(0, 1) ; 
+  sigma ~ exponential(1) ;
+  growth ~ normal(alpha + 
+                  beta[1] * dbh +
+                  beta[2] * NCI,
+                  sigma) ;
+}
+```
+
+## Data in R
 
 ```{r}
 mdata2 <- list(
-  N = nrow(subtrees),
+  N = nrow(trees),
   M = length(d) ,
-  dbh = subtrees$DBH,
-  growth = subtrees$growth,
+  dbh = trees$dbh,
+  growth = trees$growth,
   d = d,
-  nb_b = nb_b,
+  s = s,
+  n_nb = n_nb,
   pos = pos
 )
 ```
@@ -344,7 +636,8 @@ mdata2 <- list(
 
 ```{r, eval=F}
 m2 <- stan_model("Wk11_models/m2.stan")
-fit2 <- sampling(m2, mdata2)
+fit2 <- sampling(m2, mdata2, chains = 2, iter = 500,
+                 include = F, pars = c("NCI", "svec", "dvec"))
 save(m2, fit2, file = "Wk11_save/m2.Rdata")
 ```
 
@@ -352,16 +645,37 @@ save(m2, fit2, file = "Wk11_save/m2.Rdata")
 
 ```{r}
 load("Wk11_save/m2.Rdata")
-tidyMCMC(fit2, rhat = T, drop.pars = F, robust = T, ess = T) %>% 
-  mutate(expected = c(alpha, beta1, beta2, delta, gamma, sigma, NA))
+tidyMCMC(fit2, rhat = T, drop.pars = F, robust = T, ess = T) %>%
+  mutate(expected = c(alpha, beta1, beta2, delta, gamma, sigma, NA)) %>% 
+  kable()
 ```
 
 ## Trace
 
 ```{r}
-mcmc_trace(fit2) +
+traces <- mcmc_trace(as.array(fit2, pars = c("beta", "gamma", "delta"))) +
   geom_hline(aes(yintercept = expected), col = "red",
-             data = data.frame(parameter = c("alpha", "beta[1]", "beta[2]",
-                                             "gamma", "delta", "sigma"),
-                               expected = c(alpha, beta1, beta2, gamma, delta, sigma)))
+             data = data.frame(parameter = c("beta[1]", "beta[2]",
+                                             "gamma", "delta"),
+                               expected = c(beta1, beta2, gamma, delta)))
+```
+
+## Trace
+
+```{r, echo=F}
+traces
+```
+
+## Comparison
+
+```{r }
+lapply(lapply(c(fit1, fit2), 
+       get_elapsed_time), data.frame) %>% 
+  bind_rows(.id = "model") %>%
+  mutate(model = recode_factor(model,
+                               "1" = "Matrix model",
+                               "2" = "Segmented model")) %>% 
+  mutate(total = warmup + sample) %>% 
+  arrange(total) %>% 
+  kable(caption = "Model speed comparison between matrix and segmented.")
 ```
