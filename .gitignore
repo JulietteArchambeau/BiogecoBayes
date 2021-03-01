@@ -7,3 +7,4 @@
 /Workshop*/*_files 
 /Workshop*/*.rds
 data/*
+/Workshop*/*_save 

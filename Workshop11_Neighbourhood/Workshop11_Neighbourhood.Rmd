@@ -28,14 +28,340 @@ link-citations: yes
 ## Setup
 
 ```{r setup, message=FALSE, warning=FALSE}
-rm(list = ls()) ; gc()
-library(knitr)
-library(kableExtra)
+rm(list = ls()) ; invisible(gc()) ; set.seed(42)
+library(knitr) 
 library(tidyverse)
 library(rstan)
 library(bayesplot)
+library(sf)
+library(leaflet)
+library(broom.mixed)
 theme_set(bayesplot::theme_default())
 options(mc.cores = parallel::detectCores())
 rstan_options(auto_write = T)
 opts_chunk$set(echo = T, eval = T, cache = T, fig.height = 5)
+```
+
+## Origin
+
+> [Cristina Barber's talk StanCon20](https://www.youtube.com/watch?v=w3w2rsozjJc&list=PLCrWEzJgSUqzI3goQEAKkDsHg72inmqbe&index=22&t=2s)
+> [Cristina Barber et al. case study](https://mc-stan.org/users/documentation/case-studies/plantInteractions.html)
+
+# Data 
+
+## Paracou P16-C1
+
+```{r, eval=F}
+trees <- src_sqlite(file.path("..", "..", "PhD", "data", 
+                              "Paracou","trees", "Paracou.sqlite")) %>% 
+  tbl("Paracou") %>% 
+  filter(CensusYear == 2015) %>% 
+  filter(Plot == 16, SubPlot == 1) %>%
+  mutate(SpeciesLong = paste0(substr(Genus, 1, 1), ". ", Species)) %>% 
+  mutate(DBH = CircCorr/pi) %>% 
+  collect()
+```
+
+## Let's simulate !
+
+```{r}
+N <- 500
+S <- 10
+trees <- data.frame(
+  id = 1:N,
+  Xutm = runif(N, min = 285059, max = 285178),
+  Yutm = runif(N, min = 581582, max = 581705),
+  DBH = rlnorm(N, meanlog = log(19), sdlog =  log(1.6)),
+  Species = sample(paste0("Sp", 1:S), N, replace = T)
+)
+```
+
+## Spatialize it
+
+```{r, message=F}
+trees <- trees %>% 
+  st_as_sf(coords = c("Xutm", "Yutm"),
+                 crs = '+proj=utm +zone=22 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0')
+crs <- '+proj=longlat +datum=WGS84'
+```
+
+## Prepare map
+
+```{r }
+palSp <- colorFactor("viridis", trees$Species)
+map <- leaflet(data = st_transform(trees, crs = crs)) %>%
+  addCircles(color = ~palSp(Species),
+             label = ~ Species, radius = ~ DBH/20) %>% 
+  addLegend(pal = palSp, values = ~ Species)
+```
+
+## View
+
+```{r, echo=F}
+map
+```
+
+## Neighbourhood Crowding index (NCI)
+
+
+$$NCI_{t,i} = \sum_j DBH_{j,t}^\gamma . e^{-\delta.d_{i,j}}$$
+
+$$NCI_{t,i} = \sum_j e^{\gamma.log(DBH_{j,t})-\delta.d_{i,j}}$$
+
+## Growth
+
+$$DBH_{i,t+1} - DBH_{i,t} = \Delta DBH_{t+1} = growth(DBH_{i,t},NCI_{i,t})$$
+
+$$\Delta DBH_{t+1} \sim \mathcal N (\alpha + \beta_1 . log(DBH_t) + \beta_2 .NCI_{t,i}, \sigma)$$
+
+## Growth
+
+$$\Delta DBH_{t+1} \sim \mathcal N (\alpha + \beta_1 . log(DBH_t) +\\ \beta_2 \sum_j \frac{ DBH_{j,t}^\gamma}{-\delta.d_{i,j}}, \sigma)$$
+
+## Growth - Single line
+
+$$DBH_{i,t+1} -  DBH_{i,t} \sim \mathcal N (\alpha + \beta_1 . log(DBH_t) +\\ \beta_2 \sum_j e^{\gamma.log(DBH_{j,t})-\delta.d_{i,j}}$$
+## Let's simulate !
+
+```{r, message=FALSE}
+alpha <- 0.5
+beta1 <- 0.2
+beta2 <- -0.03
+gamma <- 0.02
+delta <- 0.5
+sigma <- 0.01
+D <- as.matrix(st_distance(trees))
+units(D) <- NULL
+trees$DBH2 <- trees$DBH +
+  rnorm(N,
+        mean = alpha +
+          beta1*log(trees$DBH) +
+         beta2*rowSums(exp(gamma*log(trees$DBH)-(D*delta))),
+        sigma)
+trees$growth <- trees$DBH2 - trees$DBH
+```
+
+## Growth - Have a look
+
+```{r, echo=F}
+ggplot(trees, aes(growth)) +
+  geom_histogram() + xlab(expression(Delta[DBH]))
+```
+
+## Growth - Prepare map
+
+```{r }
+pal <- colorNumeric("inferno", trees$growth)
+map <- leaflet(st_transform(trees, crs = crs)) %>%
+  addCircles(color = ~pal(growth),
+             label = ~paste(round(growth), "mm"), radius = ~ DBH/20) %>% 
+  addLegend(pal = pal, values = ~ growth)
+```
+
+## Growth - Have a look
+
+```{r , echo=F}
+map
+```
+
+# Neighbourhood interactions
+
+## Interactions
+
+> Between plants
+
+* Survival
+* Growth
+* Recruitment
+
+> Closer interacts more than distant
+
+## Densities - Individual
+
+```{r }
+ind <- sample_n(trees, 1)
+ind.neigh <- st_buffer(ind, 20)
+```
+
+## Densities - Neighbours
+
+```{r, echo=F}
+leaflet() %>%
+  addCircles(data = st_transform(trees, crs = crs), 
+             color = ~palSp(Species),
+             label = ~ Species, radius = ~ DBH/20) %>% 
+  addPolygons(data = st_transform(ind.neigh, crs = crs),
+              color = "red")
+```
+
+## Densities - Value
+
+```{r, message=F, warning=F}
+st_intersection(trees, ind.neigh) %>% 
+  nrow()
+```
+
+## Densities
+
+> Lack:
+
+* size
+* identity
+* distance
+
+> Individual neighbour interactions
+
+## Interaction
+
+* a global parameter per individual
+* local parameter for each neighbour (size, distance, ...)
+
+# Pairwise Matrices
+
+## Example
+
+```{r}
+sample_n(trees, 4) %>% 
+  st_distance() %>% 
+  as.matrix()
+```
+
+## Larger example
+
+```{r}
+(D <- sample_n(trees, 7) %>% 
+  st_distance() %>% 
+  as.matrix())
+```
+
+## Sparse matrix
+
+```{r}
+D[D > units::as_units(50, "m")] <- 0
+D
+```
+
+# Segment function
+
+## Sparse matrix
+
+```{r}
+M <- matrix(c(3, 0, 1, 3, 0, 0, 0, 0, 5, 4, 0, 4, 2, 1, 1, 0), 
+            nrow = 4, byrow = T)
+M
+```
+
+## Segments
+
+```{r}
+X <- c(3, 1, 3, 5, 4, 3, 2, 1, 1) # Non 0 values
+nb_b <- c(3, 0, 3, 3) # amount of non 0 value in each row
+pos <- c(1, 4, 7) # position of the first non zero value for each row in the X vector
+```
+
+## Segments
+
+```{r}
+X <- M[M > 0]
+nb_b <- rowSums(M != 0)
+pos <- c(1, cumsum(nb_b[nb_b > 0][-1])+1)
+```
+
+# Matrix model
+
+## Model data - D
+
+```{r}
+subtrees <- sample_n(trees, 20)
+D <- as.matrix(st_distance(subtrees))
+D[D > units::as_units(40, "m")] <- 0
+units(D) <- NULL
+D[1:5, 1:5]
+```
+
+## Model data
+
+```{r}
+mdata1 <- list(
+  N = nrow(subtrees),
+  dbh = subtrees$DBH,
+  growth = subtrees$growth,
+  D = D
+)
+```
+
+## Fit
+
+```{r, eval=F}
+m1 <- stan_model("Wk11_models/m1.stan")
+fit1 <- sampling(m1, mdata1, include = F, pars = "dbh_gamma")
+save(m1, fit1, file = "Wk11_save/m1.Rdata")
+```
+
+## Summary
+
+```{r}
+load("Wk11_save/m1.Rdata")
+tidyMCMC(fit1, rhat = T, drop.pars = F, robust = T, ess = T) %>% 
+  mutate(expected = c(alpha, beta1, beta2, delta, gamma, sigma, NA))
+```
+
+## Trace
+
+```{r}
+mcmc_trace(fit1) +
+  geom_hline(aes(yintercept = expected), col = "red",
+             data = data.frame(parameter = c("alpha", "beta[1]", "beta[2]",
+                                             "gamma", "delta", "sigma"),
+                               expected = c(alpha, beta1, beta2, gamma, delta, sigma)))
+```
+
+# Segmented model
+
+## Model data - Segments
+
+```{r}
+d <- D[D > 0]
+nb_b <- rowSums(D != 0)
+pos <- c(1, cumsum(nb_b[nb_b > 0][-1])+1)
+```
+
+## Model data
+
+```{r}
+mdata2 <- list(
+  N = nrow(subtrees),
+  M = length(d) ,
+  dbh = subtrees$DBH,
+  growth = subtrees$growth,
+  d = d,
+  nb_b = nb_b,
+  pos = pos
+)
+```
+
+## Fit
+
+```{r, eval=F}
+m2 <- stan_model("Wk11_models/m2.stan")
+fit2 <- sampling(m2, mdata2)
+save(m2, fit2, file = "Wk11_save/m2.Rdata")
+```
+
+## Summary
+
+```{r}
+load("Wk11_save/m2.Rdata")
+tidyMCMC(fit2, rhat = T, drop.pars = F, robust = T, ess = T) %>% 
+  mutate(expected = c(alpha, beta1, beta2, delta, gamma, sigma, NA))
+```
+
+## Trace
+
+```{r}
+mcmc_trace(fit2) +
+  geom_hline(aes(yintercept = expected), col = "red",
+             data = data.frame(parameter = c("alpha", "beta[1]", "beta[2]",
+                                             "gamma", "delta", "sigma"),
+                               expected = c(alpha, beta1, beta2, gamma, delta, sigma)))
 ```
