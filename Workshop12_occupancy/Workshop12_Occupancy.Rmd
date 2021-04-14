@@ -1,0 +1,302 @@
+---
+title: "Workshop 12 - Occupancy modelling"
+author: Frédéric Barraquand
+date: '`r Sys.Date()`'
+output: 
+  revealjs::revealjs_presentation:
+    css: styles.css
+    theme: simple
+    highlight: tango
+    transition: none
+    center: true
+    fig_caption: true
+    self_contained: false
+    reveal_plugins: ["chalkboard"]
+    slide_level: 2
+    reveal_options:
+      slideNumber: true
+      previewLinks: true
+  # pdf_document: default
+  # html_document:
+  #   theme: readable
+  #   toc: true
+  #   toc_float: yes
+csl: mee.csl
+bibliography: occupancy.bib
+link-citations: yes
+---
+
+```{r setup, message=FALSE, echo=FALSE, include = FALSE }
+rm(list = ls()) ; gc()
+library(knitr)
+#library(kableExtra)
+#library(tidyverse)
+library(rstan)
+library(bayesplot)
+theme_set(bayesplot::theme_default())
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = T)
+opts_chunk$set(echo = T, eval = T, cache = T, fig.height = 5)
+```
+
+# Introduction
+
+## What is an occupancy model? 
+
+Assume a site occupancy probability $\psi$ and a site detection probability $p$. Introduced by @mackenzie2002estimating
+
+```{r occ_uses1, out.width = "50%", echo=F}
+include_graphics("figs/mackenzie1.png")
+```
+
+From @mackenzie2017occupancy
+
+## Camera traps 
+
+(when we can recognize species not individuals)
+```{r occ_uses2, out.width = "75%", echo=F}
+#include_graphics("figs/mackenzie2.png")
+include_graphics("figs/mackenzie3.png")
+```
+
+##  eDNA / metabarcoding
+
+Like a camera trap where we would have species ID but not individual ID
+
+## Biased citizen science data
+
+Correcting for changes in detection probability
+
+```{r occ_uses3, out.width = "75%", echo=F}
+include_graphics("figs/kery2010.png")
+```
+
+From @kery2010site
+
+## Biased citizen science data
+
+Correcting for changes in detection probability
+
+```{r occ_uses4, out.width = "75%", echo=F}
+include_graphics("figs/kery2010_2.png")
+```
+
+From @kery2010site
+
+## Generated strong debates but now standard
+
+* Do we need to account for Pr(detection)? [@welsh2013fitting, @guillera2014ignoring]
+
+* See [Dynamic ecology blog's perhaps most commented post ](https://dynamicecology.wordpress.com/2013/01/11/is-using-detection-probabilities-a-case-of-statistical-machismo/) and 
+[Detection probabilities, statistical machismo, and estimator theory](https://dynamicecology.wordpress.com/2014/09/15/detection-probabilities-statistical-machismo-and-estimator-theory/)
+
+* Now standard tools, used whenever variation in Pr(detection) is expected or true occupancy/abundance is needed [@bailey2014advances, @mackenzie2017occupancy]
+
+# The basic occupancy model
+
+## What is an occupancy model? 
+
+Assume a site occupancy probability $\psi$ and a site detection probability $p$. 
+We visit several sites and want to know both $\psi$ and $p$. Is that possible? 
+
+## Basic model (1) 
+
+$i$ site index in 1:I
+
+$$
+X_i|Z_i \sim \text{Bernoulli}(Z_i p)
+$$
+
+$$
+Z_i \sim \text{Bernoulli}(\psi)
+$$
+
+## Basic model (2) 
+One can prove this is equivalent to
+
+$$
+X_i \sim \text{Bernoulli}(p \psi)
+$$
+
+(btw: true with binomial not just Bernoulli variables)
+
+Problem: $p \psi$ is just one parameter. 
+
+## Basic model (3) 
+
+$i$ site index in 1:I
+
+$t$ visit in 1:T
+
+$$
+X_{it}|Z_i \sim \text{Bernoulli}(Z_i p)
+$$
+
+$$
+Z_i \sim \text{Bernoulli}(\psi)
+$$
+
+Robust design (similar to Pollock's design in capture-recapture models). Identifiable now. 
+
+[(McKenzie et al. 2002)](https://esajournals.onlinelibrary.wiley.com/doi/10.1890/0012-9658%282002%29083%5B2248%3AESORWD%5D2.0.CO%3B2)
+
+## Basic model (4) 
+
+Define $Y_i = \sum_{t=1}^{T} X_{it}$. 
+
+$$
+Y_{i}|Z_i \sim \text{Binomial}(Z_i p,T)
+$$
+
+$$
+Z_i \sim \text{Bernoulli}(\psi)
+$$
+
+# Implementing this into code
+
+## JAGS/BUGS stuff 
+
+Super easy because we can use discrete latent variables
+
+```{r, eval=F}
+model {
+  # Priors
+    p~dunif(0,1)
+    psi~dunif(0,1)
+  # Likelihood
+    for(i in 1:nsite){
+      mu[i]<- p*z[i]
+      z[i]~dbern(psi)
+      y[i]~dbin(mu[i],T)
+      }
+    x<-sum(z[])
+    }
+```
+
+
+## Simulating the occupancy model
+
+```{r simulating-data}
+set.seed(42) 
+# Code by Bob Carpenter after Kéry & Schaub's BPA book. 
+I <- 250; 
+T <- 10;
+p <- 0.4;
+psi <- 0.3;
+
+z <- rbinom(I,1,psi); # latent occupancy state
+y <- matrix(NA,I,T);  # observed state
+for (i in 1:I){  y[i,] <- rbinom(T,1,z[i] * p);}
+
+```
+
+
+## Stan version
+
+Marginalizing the latent discrete state $Z$
+
+* [Richard A. Erickson's code](https://github.com/rerickson-usgs/StanOccupancyModelTutorials)
+
+* [Chapter's 13 BPA translated to Stan](https://github.com/stan-dev/example-models/tree/master/BPA/Ch.13)
+
+* [MB Joseph's guide to marginalizing](https://mbjoseph.github.io/posts/2020-04-28-a-step-by-step-guide-to-marginalizing-over-discrete-parameters-for-ecologists-using-stan/)
+
+* [J Socolar's guide (messed with my brain)](https://jsocolar.github.io/occupancyModels/)
+
+* [Basic dynamic occupancy in Stan examples](https://github.com/stan-dev/example-models/blob/master/misc/ecology/occupancy/occupancy.stan) 
+
+## Basic occupancy code
+
+```{stan output.var="occupancy"}
+data {
+  int<lower=0> I;
+  int<lower=0> T;
+  int<lower=0,upper=1> y[I,T];
+}
+parameters {
+  real<lower=0,upper=1> psi1;
+  real<lower=0,upper=1> p;
+}
+model {
+  // local variables to avoid recomputing log(psi1) and log(1 - psi1)
+  real log_psi1;
+  real log1m_psi1;
+  log_psi1 = log(psi1);
+  log1m_psi1 = log1m(psi1);
+
+  // priors
+  psi1 ~ uniform(0,1);
+  p ~ uniform(0,1);
+  
+  // likelihood
+  for (i in 1:I) {
+    if (sum(y[i]) > 0)
+      target += log_psi1 + bernoulli_lpmf(y[i] | p);
+    else
+      target += log_sum_exp(log_psi1 + bernoulli_lpmf(y[i] | p),
+			    log1m_psi1);
+  }
+}
+```
+
+## Analysing the occupancy model
+
+```{r fit_model,cache=TRUE,eval=TRUE}
+data = list(I=I,T=T,y=y)
+## Parameters monitored
+params <- c("p", "psi1")
+fit <- sampling(occupancy, data = data, iter = 1000, chains = 2, cores = 2)
+```
+
+## Analysing the occupancy model
+
+```{r print_model, cache=TRUE,eval=TRUE}
+print(fit, probs = c(0.10, 0.5, 0.9))
+```
+
+# Dynamic version 
+
+## Dynamic occupancy model
+
+> a.k.a. "Multiple season version". $\psi$ changes between "seasons". 
+
+How do we model this? Similar to metapop models: extinction and colonization probabilities. 
+
+* Pr(colonization of site $i$) = $\gamma_i$ (you can make this dependent on many things)
+
+* Pr(extinction in site $i$) = $\epsilon_i$
+
+See @mackenzie2003estimating, @kery2011bayesian
+
+## Mathematical formulation
+
+$$
+Z_{k+1}|Z_k \sim \text{Bernoulli}(\phi_k Z_k + (1-Z_k)\gamma_k)
+$$
+
+where $\phi_k = 1-\epsilon_k$. 
+
+You can have $\gamma_k = f(\text{covariates}_k)$ for instance. 
+
+Notations from Kery and Schaub BPA book (@kery2011bayesian). 
+
+```{r, eval=F,echo=F}
+Code here if I find the time...
+```
+
+## And even more applications...
+
+* Static and dynamic models with covariates
+
+* Multistate models
+
+* Spatial models (random spatial effects, spatial coordinates)
+
+* Multispecies models
+
+* Any combination of the above
+
+## References {#refs}
+
+
+
