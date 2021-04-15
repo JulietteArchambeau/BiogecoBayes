@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="author" content="Frédéric Barraquand" />
+  <meta name="dcterms.date" content="2021-04-15" />
+  <title>Workshop 12 - Occupancy modelling</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="Workshop12_Occupancy_files/reveal.js-3.3.0.1/css/reveal.css"/>
+
+
+<style type="text/css">
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; background-color: #f8f8f8; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+pre, code { background-color: #f8f8f8; }
+code > span.kw { color: #204a87; font-weight: bold; }
+code > span.dt { color: #204a87; }
+code > span.dv { color: #0000cf; }
+code > span.bn { color: #0000cf; }
+code > span.fl { color: #0000cf; }
+code > span.ch { color: #4e9a06; }
+code > span.st { color: #4e9a06; }
+code > span.co { color: #8f5902; font-style: italic; }
+code > span.ot { color: #8f5902; }
+code > span.al { color: #ef2929; }
+code > span.fu { color: #000000; }
+code > span.er { font-weight: bold; }
+</style>
+
+<link rel="stylesheet" href="Workshop12_Occupancy_files/reveal.js-3.3.0.1/css/theme/simple.css" id="theme">
+
+
+  <!-- some tweaks to reveal css -->
+  <style type="text/css">
+    .reveal h1 { font-size: 2.0em; }
+    .reveal h2 { font-size: 1.5em;  }
+    .reveal h3 { font-size: 1.25em;	}
+    .reveal h4 { font-size: 1em;	}
+
+    .reveal .slides>section,
+    .reveal .slides>section>section {
+      padding: 0px 0px;
+    }
+
+
+
+    .reveal table {
+      border-width: 1px;
+      border-spacing: 2px;
+      border-style: dotted;
+      border-color: gray;
+      border-collapse: collapse;
+      font-size: 0.7em;
+    }
+
+    .reveal table th {
+      border-width: 1px;
+      padding-left: 10px;
+      padding-right: 25px;
+      font-weight: bold;
+      border-style: dotted;
+      border-color: gray;
+    }
+
+    .reveal table td {
+      border-width: 1px;
+      padding-left: 10px;
+      padding-right: 25px;
+      border-style: dotted;
+      border-color: gray;
+    }
+
+
+  </style>
+
+    <style type="text/css">code{white-space: pre;}</style>
+
+    <link rel="stylesheet" href="styles.css"/>
+
+<!-- Printing and PDF exports -->
+<script id="paper-css" type="application/dynamic-css">
+
+/* Default Print Stylesheet Template
+   by Rob Glazebrook of CSSnewbie.com
+   Last Updated: June 4, 2008
+
+   Feel free (nay, compelled) to edit, append, and
+   manipulate this file as you see fit. */
+
+
+@media print {
+
+	/* SECTION 1: Set default width, margin, float, and
+	   background. This prevents elements from extending
+	   beyond the edge of the printed page, and prevents
+	   unnecessary background images from printing */
+	html {
+		background: #fff;
+		width: auto;
+		height: auto;
+		overflow: visible;
+	}
+	body {
+		background: #fff;
+		font-size: 20pt;
+		width: auto;
+		height: auto;
+		border: 0;
+		margin: 0 5%;
+		padding: 0;
+		overflow: visible;
+		float: none !important;
+	}
+
+	/* SECTION 2: Remove any elements not needed in print.
+	   This would include navigation, ads, sidebars, etc. */
+	.nestedarrow,
+	.controls,
+	.fork-reveal,
+	.share-reveal,
+	.state-background,
+	.reveal .progress,
+	.reveal .backgrounds {
+		display: none !important;
+	}
+
+	/* SECTION 3: Set body font face, size, and color.
+	   Consider using a serif font for readability. */
+	body, p, td, li, div {
+		font-size: 20pt!important;
+		font-family: Georgia, "Times New Roman", Times, serif !important;
+		color: #000;
+	}
+
+	/* SECTION 4: Set heading font face, sizes, and color.
+	   Differentiate your headings from your body text.
+	   Perhaps use a large sans-serif for distinction. */
+	h1,h2,h3,h4,h5,h6 {
+		color: #000!important;
+		height: auto;
+		line-height: normal;
+		font-family: Georgia, "Times New Roman", Times, serif !important;
+		text-shadow: 0 0 0 #000 !important;
+		text-align: left;
+		letter-spacing: normal;
+	}
+	/* Need to reduce the size of the fonts for printing */
+	h1 { font-size: 28pt !important;  }
+	h2 { font-size: 24pt !important; }
+	h3 { font-size: 22pt !important; }
+	h4 { font-size: 22pt !important; font-variant: small-caps; }
+	h5 { font-size: 21pt !important; }
+	h6 { font-size: 20pt !important; font-style: italic; }
+
+	/* SECTION 5: Make hyperlinks more usable.
+	   Ensure links are underlined, and consider appending
+	   the URL to the end of the link for usability. */
+	a:link,
+	a:visited {
+		color: #000 !important;
+		font-weight: bold;
+		text-decoration: underline;
+	}
+	/*
+	.reveal a:link:after,
+	.reveal a:visited:after {
+		content: " (" attr(href) ") ";
+		color: #222 !important;
+		font-size: 90%;
+	}
+	*/
+
+
+	/* SECTION 6: more reveal.js specific additions by @skypanther */
+	ul, ol, div, p {
+		visibility: visible;
+		position: static;
+		width: auto;
+		height: auto;
+		display: block;
+		overflow: visible;
+		margin: 0;
+		text-align: left !important;
+	}
+	.reveal pre,
+	.reveal table {
+		margin-left: 0;
+		margin-right: 0;
+	}
+	.reveal pre code {
+		padding: 20px;
+		border: 1px solid #ddd;
+	}
+	.reveal blockquote {
+		margin: 20px 0;
+	}
+	.reveal .slides {
+		position: static !important;
+		width: auto !important;
+		height: auto !important;
+
+		left: 0 !important;
+		top: 0 !important;
+		margin-left: 0 !important;
+		margin-top: 0 !important;
+		padding: 0 !important;
+		zoom: 1 !important;
+
+		overflow: visible !important;
+		display: block !important;
+
+		text-align: left !important;
+		-webkit-perspective: none;
+		   -moz-perspective: none;
+		    -ms-perspective: none;
+		        perspective: none;
+
+		-webkit-perspective-origin: 50% 50%;
+		   -moz-perspective-origin: 50% 50%;
+		    -ms-perspective-origin: 50% 50%;
+		        perspective-origin: 50% 50%;
+	}
+	.reveal .slides section {
+		visibility: visible !important;
+		position: static !important;
+		width: auto !important;
+		height: auto !important;
+		display: block !important;
+		overflow: visible !important;
+
+		left: 0 !important;
+		top: 0 !important;
+		margin-left: 0 !important;
+		margin-top: 0 !important;
+		padding: 60px 20px !important;
+		z-index: auto !important;
+
+		opacity: 1 !important;
+
+		page-break-after: always !important;
+
+		-webkit-transform-style: flat !important;
+		   -moz-transform-style: flat !important;
+		    -ms-transform-style: flat !important;
+		        transform-style: flat !important;
+
+		-webkit-transform: none !important;
+		   -moz-transform: none !important;
+		    -ms-transform: none !important;
+		        transform: none !important;
+
+		-webkit-transition: none !important;
+		   -moz-transition: none !important;
+		    -ms-transition: none !important;
+		        transition: none !important;
+	}
+	.reveal .slides section.stack {
+		padding: 0 !important;
+	}
+	.reveal section:last-of-type {
+		page-break-after: avoid !important;
+	}
+	.reveal section .fragment {
+		opacity: 1 !important;
+		visibility: visible !important;
+
+		-webkit-transform: none !important;
+		   -moz-transform: none !important;
+		    -ms-transform: none !important;
+		        transform: none !important;
+	}
+	.reveal section img {
+		display: block;
+		margin: 15px 0px;
+		background: rgba(255,255,255,1);
+		border: 1px solid #666;
+		box-shadow: none;
+	}
+
+	.reveal section small {
+		font-size: 0.8em;
+	}
+
+}  
+</script>
+
+
+<script id="pdf-css" type="application/dynamic-css">
+    
+/**
+ * This stylesheet is used to print reveal.js
+ * presentations to PDF.
+ *
+ * https://github.com/hakimel/reveal.js#pdf-export
+ */
+
+* {
+	-webkit-print-color-adjust: exact;
+}
+
+body {
+	margin: 0 auto !important;
+	border: 0;
+	padding: 0;
+	float: none !important;
+	overflow: visible;
+}
+
+html {
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+
+/* Remove any elements not needed in print. */
+.nestedarrow,
+.reveal .controls,
+.reveal .progress,
+.reveal .playback,
+.reveal.overview,
+.fork-reveal,
+.share-reveal,
+.state-background {
+	display: none !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	text-shadow: 0 0 0 #000 !important;
+}
+
+.reveal pre code {
+	overflow: hidden !important;
+	font-family: Courier, 'Courier New', monospace !important;
+}
+
+ul, ol, div, p {
+	visibility: visible;
+	position: static;
+	width: auto;
+	height: auto;
+	display: block;
+	overflow: visible;
+	margin: auto;
+}
+.reveal {
+	width: auto !important;
+	height: auto !important;
+	overflow: hidden !important;
+}
+.reveal .slides {
+	position: static;
+	width: 100%;
+	height: auto;
+
+	left: auto;
+	top: auto;
+	margin: 0 !important;
+	padding: 0 !important;
+
+	overflow: visible;
+	display: block;
+
+	-webkit-perspective: none;
+	   -moz-perspective: none;
+	    -ms-perspective: none;
+	        perspective: none;
+
+	-webkit-perspective-origin: 50% 50%; /* there isn't a none/auto value but 50-50 is the default */
+	   -moz-perspective-origin: 50% 50%;
+	    -ms-perspective-origin: 50% 50%;
+	        perspective-origin: 50% 50%;
+}
+
+.reveal .slides section {
+	page-break-after: always !important;
+
+	visibility: visible !important;
+	position: relative !important;
+	display: block !important;
+	position: relative !important;
+
+	margin: 0 !important;
+	padding: 0 !important;
+	box-sizing: border-box !important;
+	min-height: 1px;
+
+	opacity: 1 !important;
+
+	-webkit-transform-style: flat !important;
+	   -moz-transform-style: flat !important;
+	    -ms-transform-style: flat !important;
+	        transform-style: flat !important;
+
+	-webkit-transform: none !important;
+	   -moz-transform: none !important;
+	    -ms-transform: none !important;
+	        transform: none !important;
+}
+
+.reveal section.stack {
+	margin: 0 !important;
+	padding: 0 !important;
+	page-break-after: avoid !important;
+	height: auto !important;
+	min-height: auto !important;
+}
+
+.reveal img {
+	box-shadow: none;
+}
+
+.reveal .roll {
+	overflow: visible;
+	line-height: 1em;
+}
+
+/* Slide backgrounds are placed inside of their slide when exporting to PDF */
+.reveal section .slide-background {
+	display: block !important;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	z-index: -1;
+}
+
+/* All elements should be above the slide-background */
+.reveal section>* {
+	position: relative;
+	z-index: 1;
+}
+
+/* Display slide speaker notes when 'showNotes' is enabled */
+.reveal .speaker-notes-pdf {
+	display: block;
+	width: 100%;
+	max-height: none;
+	left: auto;
+	top: auto;
+	z-index: 100;
+}
+
+/* Display slide numbers when 'slideNumber' is enabled */
+.reveal .slide-number-pdf {
+	display: block;
+	position: absolute;
+	font-size: 14px;
+}
+
+</script>
+
+
+<script>
+var style = document.createElement( 'style' );
+style.type = 'text/css';
+var style_script_id = window.location.search.match( /print-pdf/gi ) ? 'pdf-css' : 'paper-css';
+var style_script = document.getElementById(style_script_id).text;
+style.innerHTML = style_script;
+document.getElementsByTagName('head')[0].appendChild(style);
+</script>
+
+    <link href="Workshop12_Occupancy_files/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+    <link href="Workshop12_Occupancy_files/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+<section>
+    <h1 class="title">Workshop 12 - Occupancy modelling</h1>
+    <h2 class="author">Frédéric Barraquand</h2>
+    <h3 class="date">2021-04-15</h3>
+</section>
+
+<section><section id="introduction" class="titleslide slide level1"><h1>Introduction</h1></section><section id="what-is-an-occupancy-model" class="slide level2">
+<h1>What is an occupancy model?</h1>
+<p>Assume a site occupancy probability <span class="math">\(\psi\)</span> and a site detection probability <span class="math">\(p\)</span>. Introduced by <span class="citation" data-cites="mackenzie2002estimating">MacKenzie et al. (2002)</span></p>
+<p><img src="wk12_figs/mackenzie1.png" width="50%" /></p>
+<p>From <span class="citation" data-cites="mackenzie2017occupancy">MacKenzie et al. (2017)</span></p>
+</section><section id="camera-traps" class="slide level2">
+<h1>Camera traps</h1>
+<p>(when we can recognize species not individuals) <img src="wk12_figs/mackenzie3.png" width="75%" /></p>
+</section><section id="edna-metabarcoding" class="slide level2">
+<h1>eDNA / metabarcoding</h1>
+<p>Like a camera trap where we would have species ID but not individual ID</p>
+</section><section id="biased-citizen-science-data" class="slide level2">
+<h1>Biased citizen science data</h1>
+<p>Correcting for changes in detection probability</p>
+<p><img src="wk12_figs/kery2010.png" width="75%" /></p>
+<p>From <span class="citation" data-cites="kery2010site">Kery et al. (2010)</span></p>
+</section><section id="biased-citizen-science-data-1" class="slide level2">
+<h1>Biased citizen science data</h1>
+<p>Correcting for changes in detection probability</p>
+<p><img src="wk12_figs/kery2010_2.png" width="75%" /></p>
+<p>From <span class="citation" data-cites="kery2010site">Kery et al. (2010)</span></p>
+</section><section id="generated-strong-debates-but-now-standard" class="slide level2">
+<h1>Generated strong debates but now standard</h1>
+<ul>
+<li><p>Do we need to account for Pr(detection)? <span class="citation" data-cites="welsh2013fitting">(Welsh <em>et al.</em> 2013, <span class="citation" data-cites="guillera2014ignoring">Guillera-Arroita et al. (2014)</span>)</span></p></li>
+<li><p>See <a href="https://dynamicecology.wordpress.com/2013/01/11/is-using-detection-probabilities-a-case-of-statistical-machismo/">Dynamic ecology blog’s perhaps most commented post</a> and Brian McGill’s further comments on <a href="https://dynamicecology.wordpress.com/2014/09/15/detection-probabilities-statistical-machismo-and-estimator-theory/">Detection probabilities, statistical machismo, and estimator theory</a></p></li>
+<li><p>Now standard tools, used whenever variation in Pr(detection) is expected or true occupancy/abundance is needed <span class="citation" data-cites="bailey2014advances">(Bailey <em>et al.</em> 2014, <span class="citation" data-cites="mackenzie2017occupancy">MacKenzie et al. (2017)</span>)</span></p></li>
+</ul>
+</section></section>
+<section><section id="the-basic-occupancy-model" class="titleslide slide level1"><h1>The basic occupancy model</h1></section><section id="what-is-an-occupancy-model-1" class="slide level2">
+<h1>What is an occupancy model?</h1>
+<p>Assume a site occupancy probability <span class="math">\(\psi\)</span> and a site detection probability <span class="math">\(p\)</span>. We visit several sites and want to know both <span class="math">\(\psi\)</span> and <span class="math">\(p\)</span>. Is that possible?</p>
+</section><section id="basic-model-1" class="slide level2">
+<h1>Basic model (1)</h1>
+<p><span class="math">\(i\)</span> site index in 1:I</p>
+<p><span class="math">\[
+X_i|Z_i \sim \text{Bernoulli}(Z_i p)
+\]</span></p>
+<p><span class="math">\[
+Z_i \sim \text{Bernoulli}(\psi)
+\]</span></p>
+</section><section id="basic-model-2" class="slide level2">
+<h1>Basic model (2)</h1>
+<p>One can prove this is equivalent to</p>
+<p><span class="math">\[
+X_i \sim \text{Bernoulli}(p \psi)
+\]</span></p>
+<p>(btw: true with binomial not just Bernoulli variables)</p>
+<p>Problem: <span class="math">\(p \psi\)</span> is just one parameter.</p>
+</section><section id="basic-model-3" class="slide level2">
+<h1>Basic model (3)</h1>
+<p><span class="math">\(i\)</span> site index in 1:I</p>
+<p><span class="math">\(t\)</span> visit in 1:T</p>
+<p><span class="math">\[
+X_{it}|Z_i \sim \text{Bernoulli}(Z_i p)
+\]</span></p>
+<p><span class="math">\[
+Z_i \sim \text{Bernoulli}(\psi)
+\]</span></p>
+<p>Robust design (similar to Pollock’s design in capture-recapture models). Identifiable now.</p>
+<p><a href="https://esajournals.onlinelibrary.wiley.com/doi/10.1890/0012-9658%282002%29083%5B2248%3AESORWD%5D2.0.CO%3B2">(McKenzie et al. 2002)</a></p>
+</section><section id="basic-model-4" class="slide level2">
+<h1>Basic model (4)</h1>
+<p>Define <span class="math">\(Y_i = \sum_{t=1}^{T} X_{it}\)</span>.</p>
+<p><span class="math">\[
+Y_{i}|Z_i \sim \text{Binomial}(T,Z_i p)
+\]</span></p>
+<p><span class="math">\[
+Z_i \sim \text{Bernoulli}(\psi)
+\]</span></p>
+</section></section>
+<section><section id="implementing-this-into-code" class="titleslide slide level1"><h1>Implementing this into code</h1></section><section id="jagsbugs-stuff" class="slide level2">
+<h1>JAGS/BUGS stuff</h1>
+<p>Super easy because we can use discrete latent variables</p>
+<pre class="sourceCode r"><code class="sourceCode r">model {
+  <span class="co"># Priors</span>
+    p~<span class="kw">dunif</span>(<span class="dv">0</span>,<span class="dv">1</span>)
+    psi~<span class="kw">dunif</span>(<span class="dv">0</span>,<span class="dv">1</span>)
+  <span class="co"># Likelihood</span>
+    for(i in <span class="dv">1</span>:nsite){
+      mu[i]&lt;-<span class="st"> </span>p*z[i]
+      z[i]~<span class="kw">dbern</span>(psi)
+      y[i]~<span class="kw">dbin</span>(mu[i],T)
+      }
+    x&lt;-<span class="kw">sum</span>(z[])
+    }</code></pre>
+</section><section id="simulating-the-occupancy-model" class="slide level2">
+<h1>Simulating the occupancy model</h1>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">set.seed</span>(<span class="dv">42</span>) 
+<span class="co"># Code by Bob Carpenter after Kéry &amp; Schaub&#39;s BPA book. </span>
+I &lt;-<span class="st"> </span><span class="dv">250</span>; 
+T &lt;-<span class="st"> </span><span class="dv">10</span>;
+p &lt;-<span class="st"> </span><span class="fl">0.4</span>;
+psi &lt;-<span class="st"> </span><span class="fl">0.3</span>;
+
+z &lt;-<span class="st"> </span><span class="kw">rbinom</span>(I,<span class="dv">1</span>,psi); <span class="co"># latent occupancy state</span>
+y &lt;-<span class="st"> </span><span class="kw">matrix</span>(<span class="ot">NA</span>,I,T);  <span class="co"># observed state</span>
+for (i in <span class="dv">1</span>:I){  y[i,] &lt;-<span class="st"> </span><span class="kw">rbinom</span>(T,<span class="dv">1</span>,z[i] *<span class="st"> </span>p);}</code></pre>
+</section><section id="stan-version" class="slide level2">
+<h1>Stan version</h1>
+<p>Marginalizing the latent discrete state <span class="math">\(Z\)</span>. Tutorials:</p>
+<ul>
+<li><p><a href="https://jsocolar.github.io/occupancyModels/">J Socolar’s guide</a></p></li>
+<li><p><a href="https://mbjoseph.github.io/posts/2020-04-28-a-step-by-step-guide-to-marginalizing-over-discrete-parameters-for-ecologists-using-stan/">MB Joseph’s guide</a></p></li>
+</ul>
+<p>Code</p>
+<ul>
+<li><p><a href="https://github.com/rerickson-usgs/StanOccupancyModelTutorials">Richard A. Erickson’s code</a></p></li>
+<li><p><a href="https://github.com/stan-dev/example-models/tree/master/BPA/Ch.13">Chapter’s 13 of BPA translated to Stan</a></p></li>
+<li><p><a href="https://github.com/stan-dev/example-models/blob/master/misc/ecology/occupancy/occupancy.stan">Basic occupancy model in Stan classic examples</a></p></li>
+</ul>
+</section><section id="basic-occupancy-code" class="slide level2">
+<h1>Basic occupancy code</h1>
+<pre class="stan"><code>data {
+  int&lt;lower=0&gt; I;
+  int&lt;lower=0&gt; T;
+  int&lt;lower=0,upper=1&gt; y[I,T];
+}
+parameters {
+  real&lt;lower=0,upper=1&gt; psi1;
+  real&lt;lower=0,upper=1&gt; p;
+}
+model {
+  // local variables to avoid recomputing log(psi1) and log(1 - psi1)
+  real log_psi1;
+  real log1m_psi1;
+  log_psi1 = log(psi1);
+  log1m_psi1 = log1m(psi1);
+
+  // priors
+  psi1 ~ uniform(0,1);
+  p ~ uniform(0,1);
+  
+  // likelihood
+  for (i in 1:I) {
+    if (sum(y[i]) &gt; 0)
+      target += log_psi1 + bernoulli_lpmf(y[i] | p);
+    else
+      target += log_sum_exp(log_psi1 + bernoulli_lpmf(y[i] | p),
+                log1m_psi1);
+  }
+}</code></pre>
+</section><section id="analysing-the-occupancy-model" class="slide level2">
+<h1>Analysing the occupancy model</h1>
+<pre class="sourceCode r"><code class="sourceCode r">data =<span class="st"> </span><span class="kw">list</span>(<span class="dt">I=</span>I,<span class="dt">T=</span>T,<span class="dt">y=</span>y)
+## Parameters monitored
+params &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;p&quot;</span>, <span class="st">&quot;psi1&quot;</span>)
+fit &lt;-<span class="st"> </span><span class="kw">sampling</span>(occupancy, <span class="dt">data =</span> data, <span class="dt">iter =</span> <span class="dv">1000</span>, <span class="dt">chains =</span> <span class="dv">2</span>, <span class="dt">cores =</span> <span class="dv">2</span>)</code></pre>
+</section><section id="analysing-the-occupancy-model-1" class="slide level2">
+<h1>Analysing the occupancy model</h1>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(fit, <span class="dt">probs =</span> <span class="kw">c</span>(<span class="fl">0.10</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span>))</code></pre>
+<pre><code>## Inference for Stan model: d7cd568dae7053058194d5de14b2fd8a.
+## 2 chains, each with iter=1000; warmup=500; thin=1; 
+## post-warmup draws per chain=500, total post-warmup draws=1000.
+## 
+##         mean se_mean   sd     10%     50%     90% n_eff Rhat
+## psi1    0.33    0.00 0.03    0.30    0.33    0.38   462    1
+## p       0.36    0.00 0.02    0.34    0.36    0.38   872    1
+## lp__ -698.65    0.05 0.98 -700.03 -698.37 -697.73   438    1
+## 
+## Samples were drawn using NUTS(diag_e) at Thu Apr 15 09:12:28 2021.
+## For each parameter, n_eff is a crude measure of effective sample size,
+## and Rhat is the potential scale reduction factor on split chains (at 
+## convergence, Rhat=1).</code></pre>
+</section></section>
+<section><section id="real-life-example" class="titleslide slide level1"><h1>Real-life example</h1></section><section id="what-are-we-studying" class="slide level2">
+<h1>What are we studying?</h1>
+<p>Bluebug </p>
+<p><img src="wk12_figs/bluebug.png" width="50%" /></p>
+</section><section id="the-dataset" class="slide level2">
+<h1>The dataset</h1>
+<ul>
+<li><p>27 sites (woodpiles), 6 replicated counts for each.</p></li>
+<li><p>Covariates: <code>forest_edge</code> (edge or more interior), <code>dateX</code>, <code>hX</code> (date and hour of day)</p></li>
+<li><p>Detection at 10 of 27 woodpiles and from 1 to 5 times</p></li>
+<li>Questions:
+<ul>
+<li>Have some bluebugs been likely missed in some sites?</li>
+<li>How many times should one visit a woodpile?</li>
+<li>Effect of forest edge?</li>
+</ul></li>
+</ul>
+</section><section id="gathering-the-data" class="slide level2">
+<h1>Gathering the data</h1>
+<pre class="sourceCode r"><code class="sourceCode r">## BPA Kéry &amp; Schaub, translation by Hiroki Itô &amp; Bob Carpenter
+## 13.4. Analysis of real data set: Single-season occupancy model
+
+## Read data
+## The data file &quot;bluebug.txt&quot; is available at
+## http://www.vogelwarte.ch/de/projekte/publikationen/bpa/complete-code-and-data-files-of-the-book.html
+data &lt;-<span class="st"> </span><span class="kw">read.table</span>(<span class="st">&quot;bluebug.txt&quot;</span>, <span class="dt">header =</span> <span class="ot">TRUE</span>)
+
+<span class="co"># Collect the data into suitable structures</span>
+y &lt;-<span class="st"> </span><span class="kw">as.matrix</span>(data[, <span class="dv">4</span>:<span class="dv">9</span>])
+y[y &gt;<span class="st"> </span><span class="dv">1</span>] &lt;-<span class="st"> </span><span class="dv">1</span>
+edge &lt;-<span class="st"> </span>data$forest_edge
+dates &lt;-<span class="st"> </span><span class="kw">as.matrix</span>(data[, <span class="dv">10</span>:<span class="dv">15</span>])
+hours &lt;-<span class="st"> </span><span class="kw">as.matrix</span>(data[, <span class="dv">16</span>:<span class="dv">21</span>])
+
+<span class="co"># Standardize covariates</span>
+mean.date &lt;-<span class="st"> </span><span class="kw">mean</span>(dates, <span class="dt">na.rm =</span> <span class="ot">TRUE</span>)
+sd.date &lt;-<span class="st"> </span><span class="kw">sd</span>(dates[!<span class="kw">is.na</span>(dates)])
+DATES &lt;-<span class="st"> </span>(dates-mean.date) /<span class="st"> </span>sd.date
+DATES[<span class="kw">is.na</span>(DATES)] &lt;-<span class="st"> </span><span class="dv">0</span>
+
+mean.hour &lt;-<span class="st"> </span><span class="kw">mean</span>(hours, <span class="dt">na.rm =</span> <span class="ot">TRUE</span>)
+sd.hour &lt;-<span class="st"> </span><span class="kw">sd</span>(hours[!<span class="kw">is.na</span>(hours)])
+HOURS &lt;-<span class="st"> </span>(hours-mean.hour) /<span class="st"> </span>sd.hour
+HOURS[<span class="kw">is.na</span>(HOURS)] &lt;-<span class="st"> </span><span class="dv">0</span>
+
+last &lt;-<span class="st"> </span><span class="kw">sapply</span>(<span class="dv">1</span>:<span class="kw">dim</span>(y)[<span class="dv">1</span>],
+               function(i) <span class="kw">max</span>(<span class="kw">grep</span>(<span class="ot">FALSE</span>, <span class="kw">is.na</span>(y[i, ]))))
+y[<span class="kw">is.na</span>(y)] &lt;-<span class="st"> </span><span class="dv">0</span>
+
+stan_data &lt;-<span class="st"> </span><span class="kw">list</span>(<span class="dt">y =</span> y, <span class="dt">R =</span> <span class="kw">nrow</span>(y), <span class="dt">T =</span> <span class="kw">ncol</span>(y), <span class="dt">edge =</span> edge,
+                  <span class="dt">DATES =</span> DATES, <span class="dt">HOURS =</span> HOURS, <span class="dt">last =</span> last)</code></pre>
+</section><section id="model-specification" class="slide level2">
+<h1>Model specification</h1>
+<pre class="stan"><code>// BPA Kéry &amp; Schaub, translation by Hiroki Itô &amp; Bob Carpenter
+// Single-season occupancy model
+data {
+  int&lt;lower=1&gt; R;
+  int&lt;lower=1&gt; T;
+  int&lt;lower=0,upper=1&gt; y[R, T];
+  int&lt;lower=0,upper=1&gt; edge[R];
+  matrix[R, T] DATES;
+  matrix[R, T] HOURS;
+  int last[R];
+}
+
+transformed data {
+  int&lt;lower=0,upper=T&gt; sum_y[R];
+  int&lt;lower=0,upper=R&gt; occ_obs;  // Number of observed occupied sites
+  matrix[R, T] DATES2;
+  matrix[R, T] HOURS2;
+
+  occ_obs = 0;
+  for (i in 1:R) {
+    sum_y[i] = sum(y[i]);
+    if (sum_y[i])
+      occ_obs = occ_obs + 1;
+  }
+  DATES2 = DATES .* DATES;
+  HOURS2 = HOURS .* HOURS;
+}
+
+parameters {
+  real alpha_psi;
+  real beta_psi;
+  real alpha_p;
+  real beta1_p;
+  real beta2_p;
+  real beta3_p;
+  real beta4_p;
+}
+
+transformed parameters {
+  vector[R] logit_psi;  // Logit occupancy prob.
+  matrix[R, T] logit_p; // Logit detection prob.
+
+  for (i in 1:R)
+    logit_psi[i] = alpha_psi + beta_psi * edge[i];
+  logit_p = alpha_p
+      + beta1_p * DATES + beta2_p * DATES2
+      + beta3_p * HOURS + beta4_p * HOURS2;
+}
+
+model {
+  // Priors
+  alpha_psi ~ normal(0, 10);
+  beta_psi ~ normal(0, 10);
+  alpha_p ~ normal(0, 10);
+  beta1_p ~ normal(0, 10);
+  beta2_p ~ normal(0, 10);
+  beta3_p ~ normal(0, 10);
+  beta4_p ~ normal(0, 10);
+
+  // Likelihood
+  for (i in 1:R) {
+    if (sum_y[i]) { // Occupied and observed
+      target += bernoulli_logit_lpmf(1 |  logit_psi[i])
+        + bernoulli_logit_lpmf(y[i, 1:last[i]] | logit_p[i, 1:last[i]]);
+    } else {        // Never observed
+                            // Occupied and not observed
+      target += log_sum_exp(bernoulli_logit_lpmf(1 | logit_psi[i])
+                            + bernoulli_logit_lpmf(0 | logit_p[i, 1:last[i]]),
+                            // Not occupied
+                            bernoulli_logit_lpmf(0 | logit_psi[i]));
+    }
+  }
+}
+
+generated quantities {
+  real&lt;lower=0,upper=1&gt; mean_p = inv_logit(alpha_p);
+  int occ_fs;       // Number of occupied sites
+  real psi_con[R];  // prob present | data
+  int z[R];         // occupancy indicator, 0/1
+  
+  for (i in 1:R) {
+    if (sum_y[i] == 0) {  // species not detected
+      real psi = inv_logit(logit_psi[i]);
+      vector[last[i]] q = inv_logit(-logit_p[i, 1:last[i]])&#39;;  // q = 1 - p
+      real qT = prod(q[]);
+      psi_con[i] = (psi * qT) / (psi * qT + (1 - psi));
+      z[i] = bernoulli_rng(psi_con[i]);
+    } else {             // species detected at least once
+      psi_con[i] = 1;
+      z[i] = 1;
+    }
+  }
+  occ_fs = sum(z);
+}
+</code></pre>
+</section><section id="model-fitting" class="slide level2">
+<h1>Model fitting</h1>
+<pre class="sourceCode r"><code class="sourceCode r">## Parameters monitored
+params &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;alpha_psi&quot;</span>, <span class="st">&quot;beta_psi&quot;</span>, <span class="st">&quot;mean_p&quot;</span>, <span class="st">&quot;occ_fs&quot;</span>,
+            <span class="st">&quot;alpha_p&quot;</span>, <span class="st">&quot;beta1_p&quot;</span>, <span class="st">&quot;beta2_p&quot;</span>, <span class="st">&quot;beta3_p&quot;</span>, <span class="st">&quot;beta4_p&quot;</span>)
+
+## MCMC settings
+ni &lt;-<span class="st"> </span><span class="dv">6000</span>
+nt &lt;-<span class="st"> </span><span class="dv">5</span>
+nb &lt;-<span class="st"> </span><span class="dv">1000</span>
+nc &lt;-<span class="st"> </span><span class="dv">4</span>
+
+## Initial values
+inits &lt;-<span class="st"> </span><span class="kw">lapply</span>(<span class="dv">1</span>:nc, function(i)
+    <span class="kw">list</span>(<span class="dt">alpha_psi =</span> <span class="kw">runif</span>(<span class="dv">1</span>, -<span class="dv">3</span>, <span class="dv">3</span>),
+         <span class="dt">alpha_p =</span> <span class="kw">runif</span>(<span class="dv">1</span>, -<span class="dv">3</span>, <span class="dv">3</span>)))
+
+## Call Stan from R
+out &lt;-<span class="st"> </span><span class="kw">sampling</span>(bluebug,
+            <span class="dt">data =</span> stan_data,
+            <span class="dt">init =</span> inits, <span class="dt">pars =</span> params,
+            <span class="dt">chains =</span> nc, <span class="dt">iter =</span> ni, <span class="dt">warmup =</span> nb, <span class="dt">thin =</span> nt,
+            <span class="dt">seed =</span> <span class="dv">1</span>,
+            <span class="dt">control =</span> <span class="kw">list</span>(<span class="dt">adapt_delta =</span> <span class="fl">0.8</span>),
+            <span class="dt">open_progress =</span> <span class="ot">FALSE</span>)</code></pre>
+</section><section id="model-results" class="slide level2">
+<h1>Model results</h1>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(out, <span class="dt">digits =</span> <span class="dv">2</span>)</code></pre>
+<pre><code>## Inference for Stan model: 91261483fdb19348e2d9fabf8f9cba34.
+## 4 chains, each with iter=6000; warmup=1000; thin=5; 
+## post-warmup draws per chain=1000, total post-warmup draws=4000.
+## 
+##             mean se_mean   sd   2.5%    25%    50%    75%  97.5% n_eff Rhat
+## alpha_psi   4.77    0.07 4.11  -0.02   1.64   3.58   6.97  15.12  3067    1
+## beta_psi   -5.56    0.07 4.14 -15.91  -7.79  -4.41  -2.52  -0.39  3078    1
+## mean_p      0.57    0.00 0.15   0.27   0.47   0.58   0.69   0.85  3709    1
+## occ_fs     16.91    0.04 2.41  12.00  16.00  17.00  18.00  21.00  3697    1
+## alpha_p     0.33    0.01 0.70  -0.99  -0.13   0.32   0.78   1.74  3703    1
+## beta1_p     0.33    0.01 0.40  -0.46   0.08   0.33   0.60   1.14  3871    1
+## beta2_p     0.19    0.01 0.48  -0.75  -0.13   0.19   0.51   1.15  3706    1
+## beta3_p    -0.49    0.01 0.42  -1.38  -0.76  -0.47  -0.20   0.28  3906    1
+## beta4_p    -0.60    0.01 0.33  -1.28  -0.81  -0.59  -0.38   0.01  3916    1
+## lp__      -41.24    0.03 2.05 -46.28 -42.33 -40.91 -39.73 -38.35  3700    1
+## 
+## Samples were drawn using NUTS(diag_e) at Thu Apr 15 09:30:15 2021.
+## For each parameter, n_eff is a crude measure of effective sample size,
+## and Rhat is the potential scale reduction factor on split chains (at 
+## convergence, Rhat=1).</code></pre>
+<pre class="sourceCode r"><code class="sourceCode r">## Posteriors of alpha_psi and beta_psi will be somewhat different
+## from those in the book. This may be because convergences of these
+## parameters in WinBUGS are not good, as described in the text.
+## JAGS will produce more similar results to Stan.</code></pre>
+</section><section id="overall-occupancy" class="slide level2">
+<h1>Overall occupancy</h1>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">hist</span>(<span class="kw">extract</span>(out, <span class="dt">pars =</span> <span class="st">&quot;occ_fs&quot;</span>)$occ_fs, <span class="dt">nclass =</span> <span class="dv">30</span>, <span class="dt">col =</span> <span class="st">&quot;gray&quot;</span>)</code></pre>
+<p><img src="Workshop12_Occupancy_files/figure-revealjs/results2-1.png" /><!-- --></p>
+</section></section>
+<section><section id="dynamic-version" class="titleslide slide level1"><h1>Dynamic version</h1></section><section id="dynamic-occupancy-model" class="slide level2">
+<h1>Dynamic occupancy model</h1>
+<blockquote>
+<p>a.k.a. “Multiple season version”. <span class="math">\(\psi\)</span> changes between “seasons”.</p>
+</blockquote>
+<p>How do we model this? Similar to metapop models: extinction and colonization probabilities.</p>
+<ul>
+<li><p>Pr(colonization of site <span class="math">\(i\)</span>) = <span class="math">\(\gamma_i\)</span> (you can make this dependent on many things)</p></li>
+<li><p>Pr(extinction in site <span class="math">\(i\)</span>) = <span class="math">\(\epsilon_i\)</span></p></li>
+</ul>
+<p>See <span class="citation" data-cites="mackenzie2003estimating">MacKenzie et al. (2003)</span>, <span class="citation" data-cites="kery2011bayesian">K<span>é</span>ry &amp; Schaub (2011)</span></p>
+</section><section id="mathematical-formulation" class="slide level2">
+<h1>Mathematical formulation</h1>
+<p><span class="math">\[
+Z_{k+1}|Z_k \sim \text{Bernoulli}(\phi_k Z_k + (1-Z_k)\gamma_k)
+\]</span></p>
+<p>where <span class="math">\(\phi_k = 1-\epsilon_k\)</span>.</p>
+<p>You can have <span class="math">\(\gamma_k = f(\text{covariates}_k)\)</span> for instance.</p>
+<p>Notations from Kery and Schaub BPA book (<span class="citation" data-cites="kery2011bayesian">K<span>é</span>ry &amp; Schaub (2011)</span>).</p>
+</section><section id="and-even-more-applications" class="slide level2">
+<h1>And even more applications…</h1>
+<ul>
+<li><p>Static and dynamic models with covariates</p></li>
+<li><p>Multistate models</p></li>
+<li><p>Spatial models (random spatial effects, spatial coordinates)</p></li>
+<li><p>Multispecies models</p></li>
+<li><p>Any combination of the above</p></li>
+</ul>
+</section><section id="refs" class="slide level2 unnumbered">
+<h1>References</h1>
+<div class="references">
+<p>Bailey, L.L., MacKenzie, D.I. &amp; Nichols, J.D. (2014). Advances and applications of occupancy models. <em>Methods in Ecology and Evolution</em>, <strong>5</strong>, 1269–1279.</p>
+<p>Guillera-Arroita, G., Lahoz-Monfort, J.J., MacKenzie, D.I., Wintle, B.A. &amp; McCarthy, M.A. (2014). Ignoring imperfect detection in biological surveys is dangerous: A response to ‘fitting and interpreting occupancy models’. <em>PloS one</em>, <strong>9</strong>, e99571.</p>
+<p>Kery, M., Royle, J.A., Schmid, H., Schaub, M., Volet, B., Haefliger, G. &amp; Zbinden, N. (2010). Site-occupancy distribution modeling to correct population-trend estimates derived from opportunistic observations. <em>Conservation Biology</em>, <strong>24</strong>, 1388–1397.</p>
+<p>K<span>é</span>ry, M. &amp; Schaub, M. (2011). <em>Bayesian population analysis using winBUGS: A hierarchical perspective</em>. Academic Press.</p>
+<p>MacKenzie, D.I., Nichols, J.D., Hines, J.E., Knutson, M.G. &amp; Franklin, A.B. (2003). Estimating site occupancy, colonization, and local extinction when a species is detected imperfectly. <em>Ecology</em>, <strong>84</strong>, 2200–2207.</p>
+<p>MacKenzie, D.I., Nichols, J.D., Lachman, G.B., Droege, S., Andrew Royle, J. &amp; Langtimm, C.A. (2002). Estimating site occupancy rates when detection probabilities are less than one. <em>Ecology</em>, <strong>83</strong>, 2248–2255.</p>
+<p>MacKenzie, D.I., Nichols, J.D., Royle, J.A., Pollock, K.H., Bailey, L. &amp; Hines, J.E. (2017). <em>Occupancy estimation and modeling: Inferring patterns and dynamics of species occurrence</em>. Elsevier.</p>
+<p>Welsh, A.H., Lindenmayer, D.B. &amp; Donnelly, C.F. (2013). Fitting and interpreting occupancy models. <em>PLoS One</em>, <strong>8</strong>, e52015.</p>
+</div>
+</section></section>
+    </div>
+  </div>
+
+  <script src="Workshop12_Occupancy_files/reveal.js-3.3.0.1/lib/js/head.min.js"></script>
+  <script src="Workshop12_Occupancy_files/reveal.js-3.3.0.1/js/reveal.js"></script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://github.com/hakimel/reveal.js#configuration
+      Reveal.initialize({
+        // Display the page number of the current slide
+        slideNumber: true,
+        // Push each slide change to the browser history
+        history: true,
+        // Vertical centering of slides
+        center: true,
+        // Opens links in an iframe preview overlay
+        previewLinks: true,
+        // Transition style
+        transition: 'none', // none/fade/slide/convex/concave/zoom
+        // Transition style for full page slide backgrounds
+        backgroundTransition: 'default', // none/fade/slide/convex/concave/zoom
+
+
+
+        chalkboard: {
+        },
+
+        keyboard: {
+          67: function() { RevealChalkboard.toggleNotesCanvas() },    // toggle notes canvas when 'c' is pressed
+          66: function() { RevealChalkboard.toggleChalkboard() }, // toggle chalkboard when 'b' is pressed
+          46: function() { RevealChalkboard.clear() },    // clear chalkboard when 'DEL' is pressed
+           8: function() { RevealChalkboard.reset() },    // reset chalkboard data on current slide when 'BACKSPACE' is pressed
+          68: function() { RevealChalkboard.download() }, // downlad recorded chalkboard drawing when 'd' is pressed
+        },
+
+        // Optional reveal.js plugins
+        dependencies: [
+          { src: 'Workshop12_Occupancy_files/reveal.js-3.3.0.1/plugin/chalkboard/chalkboard.js', async: true },
+        ]
+      });
+    </script>
+  <!-- dynamically load mathjax for compatibility with self-contained -->
+  <script>
+    (function () {
+      var script = document.createElement("script");
+      script.type = "text/javascript";
+      script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+      document.getElementsByTagName("head")[0].appendChild(script);
+    })();
+  </script>
+
+<script>
+  (function() {
+    if (window.jQuery) {
+      Reveal.addEventListener( 'slidechanged', function(event) {  
+        window.jQuery(event.previousSlide).trigger('hidden');
+        window.jQuery(event.currentSlide).trigger('shown');
+      });
+    }
+  })();
+</script>
+
+
+  </body>
+</html>
