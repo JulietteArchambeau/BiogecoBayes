@@ -16,7 +16,7 @@ We are a small group of researchers, PhD students and post-docs who meet regular
 * [Workshop5 - Population dynamics and time series](https://juliettearchambeau.github.io/BiogecoBayes/workshop5_populationDynamics_and_timeSeries.html)
 * [Workshop6 - ODE SIR](https://juliettearchambeau.github.io/BiogecoBayes/workshop6_ODE_SIR.html)
 * [Workshop7 - Dirichlet Multinomial](https://juliettearchambeau.github.io/BiogecoBayes/Workshop7_DirichletMultinomial.html) with the [video](https://visio.u-bordeaux.fr/playback/presentation/2.0/playback.html?meetingId=ba1a861b69e0fc3d39fec52f4dd934078367aac2-1602502758497)
-* [Workshop8 - Hidden Markov Models](https://juliettearchambeau.github.io/BiogecoBayes/Workshop8_HMMs.html#/)
+* [Workshop8 - Hidden Markov Models](https://juliettearchambeau.github.io/BiogecoBayes/Workshop8_HMMs.html#/) with the [video](https://visio.u-bordeaux.fr/playback/presentation/2.0/playback.html?meetingId=ba1a861b69e0fc3d39fec52f4dd934078367aac2-1603889441849)
 * [Workshop9 - State Space Models](https://juliettearchambeau.github.io/BiogecoBayes/Workshop9_SSMs.html#/)
 * [Workshop10 - HMMs and basketball](https://juliettearchambeau.github.io/BiogecoBayes/Workshop10_HMMandBasketball.html#/)
 * [Workshop11 - Neighbourhood and Segmentation](https://juliettearchambeau.github.io/BiogecoBayes/Workshop11_Neighbourhood.html#/)
