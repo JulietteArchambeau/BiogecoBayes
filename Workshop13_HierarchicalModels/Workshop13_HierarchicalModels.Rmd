@@ -1,0 +1,212 @@
+---
+title: "Hierarchical Models"
+author: "Guillaume Ravel & Juliette Archambeau"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    # code_fold: hide
+    toc: true
+    toc_depth: 5
+    toc_float:
+       collapsed: false
+    number_sections: true
+    theme: paper
+    highlight: textmate
+bibliography: references.bib 
+editor_options: 
+  chunk_output_type: console
+---
+
+
+<style>
+pre {
+  overflow-x: auto;
+}
+pre code {
+  word-wrap: normal;
+  white-space: pre;
+}
+</style>
+
+<style type="text/css">
+body{ /* Normal  */
+      font-size: 18px;
+  }
+div.main-container {
+  max-width: 2000px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+
+```{css, echo=FALSE,eval=F}
+pre {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+pre[class] {
+  max-height: 600px;
+}
+```
+
+```{r setup, include=FALSE}
+library(knitr)
+options(width = 300)
+knitr::opts_chunk$set(fig.width = 8, fig.height = 5, cache = F)
+library(readxl)
+library(rstan)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+library(bayesplot)
+color_scheme_set("green")
+library(ggplot2)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(kableExtra)
+```
+
+The present workshop is based on the tutorial ["Modèle Hiérarchique avec Stan"](https://stateofther.github.io/post/rstan/WorkingWithStan_part2.html) of Matthieu Authier & Eric Parent.
+
+# The data
+
+In this workshop, we use **flowering date** data collected between 1978 and 2016 and published in @wenden2016collection. Data can be downloaded in [this driad repository](https://datadryad.org/stash/dataset/doi:10.5061/dryad.1d28m). This dataset contains flowering dates of **9,691 indivuals/clones** of 
+Prunus avium in Europe. 
+
+Below is a figure from @wenden2016collection showing the 25 studied sites in 11 European countries. Flowering dates were recorded in 12 sites. Size of the circle is proportional to the number of cultivars recorded in each site.
+
+<div align='center'>
+  <img src="SiteLocation.png" width="900"/>
+</div>
+
+
+```{r LoadData, warning =F,message =F}
+data <- read_excel("data/Sweet_cherry_phenology_data_1978-2015.xlsx", sheet = 1)
+
+data <- data %>% 
+  dplyr::rename(Flowering="Full Flowering") %>%       # response variable: the date of flowering
+  filter(!is.na(Flowering),!is.na(Plantation)) %>%    # remove missing values
+  dplyr::mutate(Age = Year - Plantation,              # create the "age" variable
+         Age = ifelse(Age > 14, 14, Age)) %>% 
+  dplyr::select(Site,Age,Cultivar,Flowering)          # select the columns we are going to use
+
+# Show the first 10 lines of the dataset
+data[1:10,] %>%
+  kable(digits=3) %>%
+  kable_styling(font_size=12,
+                bootstrap_options = c("striped","hover", "condensed"), full_width = F)
+```
+
+
+Variation in flowering date with tree age (14 age classes):
+
+```{r VariationAge, message=F}
+data %>% 
+  group_by(Age) %>% 
+  summarize(Effectif = n(),
+            Flowering_mean = round(mean(Flowering, na.rm = TRUE), 1)) %>% 
+  kable() %>%
+  kable_styling(font_size=12,
+                bootstrap_options = c("striped","hover", "condensed"), full_width = F)
+```
+
+Variation in flowering date by site (12 sites):
+
+```{r VariationSite, message=F}
+data %>% 
+  group_by(Site) %>% 
+  summarize(Effectif = n(),
+            Flowering_mean = round(mean(Flowering, na.rm = TRUE), 1)) %>% 
+  kable() %>%
+  kable_styling(font_size=12,
+                bootstrap_options = c("striped","hover", "condensed"), full_width = F)
+```
+
+# The baseline statistical model
+
+We start with a simple model in which we aim to model the flowering date $y_{ijk}$ of each individual $i$ as a function of its age $j$ and its site $k$, such as:
+
+
+\begin{align}
+y_{ijk} & \sim \mathcal{N}(\mu_{ijk},\sigma) \tag*{Likelihood}\\[3pt]
+\mu_{ijk} & = \beta_{0} + \alpha_{j} + \alpha_{k} \tag*{Linear model}\\[3pt]
+\beta_{0} & \sim \mathcal{N}(\mu_{y}, 10) \tag*{Global intercept prior}\\[3pt]
+\alpha_{j} & \sim \mathcal{N}(0,\sigma_{age})\tag*{Distribution of varying age intercepts}\\[3pt]
+\alpha_{k} & \sim \mathcal{N}(0,\sigma_{site}) \tag*{Distribution of varying site intercepts}\\
+\end{align}
+
+We want to specify the priors for $\sigma$, $\sigma_{age}$ and $\sigma_{site}$. For that, we partition the total variance $\sigma_{TOT}$ as follows:
+
+\begin{align}
+\sigma^{2}_{TOT} & = \sigma^{2} + \sigma^{2}_{age} + \sigma^{2}_{site}\\[3pt]
+\sigma & = \sigma_{TOT} \times \sqrt(\pi_{1})\\[3pt]
+\sigma & = \sigma_{TOT} \times \sqrt(\pi_{2})\\[3pt]
+\sigma & = \sigma_{TOT} \times \sqrt(\pi_{3})\\[3pt]
+\end{align}
+
+with $\sum_{l=1}^{3}\pi_{l} = 1$ (see the [unit simplex](https://mc-stan.org/docs/2_26/reference-manual/simplex-transform-section.html) in stan) and $\sigma_{TOT} \sim \mathcal{S}^{+}(0,1,3)$ (student prior with 3 degrees of freedom).
+
+
+```{r ListStan}
+list.stan = list(n_obs = nrow(data),
+                 n_age = length(unique(data$Age)),
+                 n_site = length(unique(data$Site)),
+                 FLOWERING = data$Flowering,
+                 AGE = data$Age,
+                 SITE = as.numeric(factor(data$Site, levels = unique(data$Site))),
+                 prior_location_beta0 = mean(data$Flowering),
+                 prior_scale_beta0 = 10)
+```
+
+```{r BaselineModelCompile,message=F}
+baseline.model <- stan_model("Workshop13_HierarchicalModels/BaselineModelCode.stan")
+```
+
+```{r RunBaselineModel,eval=F}
+fit.baseline.model <- sampling(baseline.model, 
+                               data = list.stan, 
+                               pars = c("beta0", "alpha", "delta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "y_rep", "log_lik"),
+                               iter = 2500, chains = 4, cores = 4,thin=1)
+saveRDS(fit.baseline.model ,file="Workshop13_HierarchicalModels/BaselineModel.rds")
+```
+
+```{r LoadBaselineModel}
+fit.baseline.model <- readRDS(file="Workshop13_HierarchicalModels/BaselineModel.rds")
+```
+
+
+Checking parameter convergence:
+
+```{r CheckingConvergence, fig.height=4,fig.height=4,message=F}
+stan_rhat(fit.baseline.model)
+```
+
+Parameter estimations:
+
+```{r BaselineModelIntervals, fig.height=4,fig.height=4}
+fit.baseline.model %>%  mcmc_intervals(regex_pars = "^pi",
+                    prob=0.95,
+                    prob_outer=0.99,
+                    point_est = "median") +  theme_bw() +
+  theme(axis.text = element_text(size=16))
+
+fit.baseline.model %>%  mcmc_intervals(regex_pars = "^sigma",
+                    prob=0.95,
+                    prob_outer=0.99,
+                    point_est = "median") +  theme_bw() +
+  theme(axis.text = element_text(size=16))
+```
+
+Posterior predictive checks:
+
+```{r PPCBaselineModel, fig.height=4,fig.height=4}
+ppc_dens_overlay(y = data$Flowering,
+                 as.matrix(fit.baseline.model, pars = "y_rep")[1:50, ]) +
+  theme_bw() + 
+  theme(legend.text=element_text(size=25), legend.title=element_text(size=18),
+        axis.text = element_text(size=18), legend.position = c(0.8,0.6))
+```
+
+# References
