@@ -78,7 +78,7 @@ Prunus avium in Europe.
 Below is a figure from @wenden2016collection showing the 25 studied sites in 11 European countries. Flowering dates were recorded in 12 sites. Size of the circle is proportional to the number of cultivars recorded in each site.
 
 <div align='center'>
-  <img src="SiteLocation.png" width="900"/>
+  <img src="figures/SiteLocationWenden2016.png" width="900"/>
 </div>
 
 
@@ -168,7 +168,7 @@ baseline.model <- stan_model("Workshop13_HierarchicalModels/BaselineModelCode.st
 fit.baseline.model <- sampling(baseline.model, 
                                data = list.stan, 
                                pars = c("beta0", "alpha", "delta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "y_rep", "log_lik"),
-                               iter = 2500, chains = 4, cores = 4,thin=1)
+                               iter = 2000, chains = 4, cores = 4,thin=1)
 saveRDS(fit.baseline.model ,file="Workshop13_HierarchicalModels/BaselineModel.rds")
 ```
 
