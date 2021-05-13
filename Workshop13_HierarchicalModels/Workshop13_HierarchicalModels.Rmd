@@ -85,9 +85,9 @@ Below is a figure from @wenden2016collection showing the 25 studied sites in 11 
 
 
 ```{r LoadData, warning =F,message =F}
-dataSakura <- read_excel("data/Sweet_cherry_phenology_data_1978-2015.xlsx", sheet = 1)
+dataSakura <- read_excel("../data/Sweet_cherry_phenology_data_1978-2015.xlsx", sheet = 1)
 
-dataSakura <- dataSakura[1:1000,] %>% 
+dataSakura <- dataSakura[1:1000,] %>%
   dplyr::rename(Flowering="Full Flowering") %>%       # response variable: the date of flowering
   filter(!is.na(Flowering),!is.na(Plantation)) %>%    # remove missing values
   dplyr::mutate(Age = Year - Plantation,              # create the "age" variable
@@ -105,7 +105,7 @@ dataSakura[1:10,] %>%
 Variation in flowering date with tree age (14 age classes):
 
 ```{r VariationAge, message=F}
-dataSakura %>% 
+dataSakura %>%
   group_by(Age) %>% 
   summarize(Effectif = n(),
             Flowering_mean = round(mean(Flowering, na.rm = TRUE), 1)) %>% 
@@ -224,22 +224,25 @@ list.stan = list(n_obs = nrow(dataSakura),
 
 Compilation:
 
-```{r BaselineModelCompile,message=F,eval=F}
+```{r BaselineModelCompile,message=F}
 baseline.model <- stan_model("BaselineModelCode.stan")
 ```
 
 Sampling:
 
-```{r RunBaselineModel,eval=F}
+```{r RunBaselineModel}
 fit.baseline.model <- sampling(baseline.model, 
                                data = list.stan, 
-                               pars = c("beta0", "alpha", "delta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "y_rep", "log_lik"),
-                               iter = 2000, chains = 4, cores = 4,thin=1)
-saveRDS(fit.baseline.model ,file="BaselineModel.rds")
+                               pars = c("beta0", "alpha", "delta", 
+                                        "sigma", "sigma_age", "sigma_site", "sigma_tot", 
+                                        "pi", "y_rep", "log_lik"),
+                               save_warmup = F, 
+                               iter = 2000, 
+                               chains = 4, cores = 4,thin=1)
 ```
 
-```{r LoadBaselineModel}
-fit.baseline.model <- readRDS(file="BaselineModel.rds")
+```{r LooBaselineModel}
+loo.baseline.model <- loo::loo(fit.baseline.model) # to compare model predictive ability
 ```
 
 ## Stan results
@@ -474,43 +477,43 @@ listMix.stan = list(n_obs = nrow(dataSakura),
 
 Compilation:
 
-```{r mixTargetModelCompile,message=F,eval=F}
-mixTarget.model <- stan_model("MixModelCode_target.stan")
+```{r mixTargetModelCompile,message=F}
+mixTarget.code <- stan_model("MixModelCode_target.stan") # I renamed it to make the difference clear btw the model sampling and the model code
 ```
 
 Sampling:
 
-```{r RunMixTargetModel,eval=F}
-fit.mixTarget.model <- sampling(mixTarget.model, 
+```{r RunMixTargetModel}
+fit.mixTarget.model <- sampling(mixTarget.code, 
                                data = listMix.stan, 
                                pars = c("p", "beta", "alpha", "delta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "difference", "y_rep", "log_lik"),
-                               iter = 2000, chains = 4, cores = 4,thin=1)
-saveRDS(fit.mixTarget.model ,file="mixTargetModel.rds")
+                               save_warmup = F, 
+                               iter = 2000, 
+                               chains = 4, 
+                               cores = 4,
+                               thin=1)
 ```
 
 Compilation (with the function block):
 
-```{r mixTargetGaussianModelCompile,message=F,eval=F}
-mixTargetGaussian.model <- stan_model("MixModelCode_targetGaussianMixture.stan")
+```{r mixTargetGaussianModelCompile,message=F}
+mixTargetGaussian.code <- stan_model("MixModelCode_targetGaussianMixture.stan")
 ```
 
 Sampling (with the fuctin block):
 
-```{r RunMixTargetGaussianModel,eval=F}
-fit.mixTargetGaussian.model <- sampling(mixTargetGaussian.model, 
+```{r RunMixTargetGaussianModel}
+fit.mixTargetGaussianMixture.model <- sampling(mixTargetGaussian.code, 
                                data = listMix.stan, 
                                pars = c("p", "beta", "alpha", "delta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "difference", "y_rep", "log_lik"),
-                               iter = 2000, chains = 4, cores = 4,thin=1)
-saveRDS(fit.mixTargetGaussian.model ,file="mixTargetGaussianMixtureModel.rds")
+                               save_warmup = F, 
+                               iter = 2000, 
+                               chains = 4, 
+                               cores = 4,
+                               thin=1)
 ```
 
-```{r LoadmixTargetModel}
-fit.mixTarget.model <- readRDS(file="mixTargetModel.rds")
-```
 
-```{r LoadmixTargetModel2}
-fit.mixTargetGaussianMixture.model <- readRDS(file="mixTargetGaussianMixtureModel.rds")
-```
 
 ## Stan results
 
@@ -537,9 +540,13 @@ print(fit.mixTargetGaussianMixture.model, digits = 3, pars = c("p", "beta", "sig
 Comparison of the estimation of the log-likelihood between the baseline and the mix models (using WAIC):
 
 ```{r comparison}
-loo::compare(loo::waic(rstan::extract(fit.baseline.model, "log_lik")$log_lik),
-             loo::waic(rstan::extract(fit.mixTarget.model, "log_lik")$log_lik)
-             )
+# WAIC
+loo::loo_compare(loo::waic(rstan::extract(fit.baseline.model, "log_lik")$log_lik),
+                 loo::waic(rstan::extract(fit.mixTarget.model, "log_lik")$log_lik))
+
+# LOO-CV
+loo.mixTarget.model <- loo(fit.mixTarget.model)
+loo::loo_compare(loo.baseline.model,loo.mixTarget.model)
 ```
 
 Importance of each factor (age, site, others) in the total variance:
@@ -694,24 +701,27 @@ listMixCultivar.stan = list(n_obs = nrow(dataSakura),
 
 Compilation:
 
-```{r mixModelCultivarCompile,message=F,eval=F}
-mixCultivar.model <- stan_model("MixModelCultivarCode.stan")
+```{r mixModelCultivarCompile,message=F}
+mixCultivar.code <- stan_model("MixModelCultivarCode.stan")
 ```
 
 Sampling:
 
-```{r RunMixCultivarModel,eval=F}
-fit.mixCultivar.model <- sampling(mixCultivar.model, 
+```{r RunMixCultivarModel}
+fit.mixCultivar.model <- sampling(mixCultivar.code, 
                                data = listMixCultivar.stan, 
-                               pars = c("eta0", "eta", "sigma_cultivar", "beta", "alpha", "delta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "difference", "log_lik"),
+                               pars = c("eta0", "eta", "sigma_cultivar", 
+                                        "beta", "alpha", "delta", 
+                                        "sigma", "sigma_age", "sigma_site", "sigma_tot", 
+                                        "pi", "difference", "log_lik"),
                                #pars = c("p", "beta", "alpha", "delta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "difference", "y_rep", "log_lik"),
-                               iter = 2000, chains = 4, cores = 4,thin=1)
-saveRDS(fit.mixCultivar.model ,file="mixModelCultivar.rds")
+                               save_warmup = F, 
+                               iter = 2000, 
+                               chains = 4, 
+                               cores = 4,
+                               thin=1)
 ```
 
-```{r LoadmixModelCultivar}
-fit.mixCultivar.model <- readRDS(file="mixModelCultivar.rds")
-```
 
 ## Stan results
 
@@ -730,9 +740,13 @@ print(fit.mixCultivar.model, digits = 3, pars = c("eta0", "sigma_cultivar", "bet
 Comparison of the estimation of the log-likelihood between the two mix models (w or w/o cultivar variables):
 
 ```{r comparison2}
-loo::compare(loo::waic(rstan::extract(fit.mixTarget.model, "log_lik")$log_lik),
+# WAIC
+loo::loo_compare(loo::waic(rstan::extract(fit.mixTarget.model, "log_lik")$log_lik),
              loo::waic(rstan::extract(fit.mixCultivar.model, "log_lik")$log_lik)
              )
+# LOO-CV
+loo.mixCultivar.model <- loo(fit.mixCultivar.model)
+loo::loo_compare(x=list(loo.baseline.model,loo.mixTarget.model,loo.mixCultivar.model))
 ```
 
 Finally, we can display the correlation between cultivars and the probability of late flowering:
