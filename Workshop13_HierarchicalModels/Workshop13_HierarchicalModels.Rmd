@@ -67,8 +67,29 @@ library(ggplot2)
 library(tibble)
 library(dplyr)
 library(tidyr)
+library(parallel)
+library(tidybayes)
+library(cowplot)
 library(kableExtra)
+theme_set(theme_bw(base_size = 16))
 ```
+
+<!-- Things to talk about during the skype: : 
+
+- change the model names to make it more informative
+
+- remove the y_rep and function block in model "MixModelCode_target"
+
+- I don't think we need to run both "MixModelCode_target" and "MixModelCode_targetGaussianMixture", one is enough. But show both model codes, so that we can understand both options.
+
+- compile the models in the rmarkdown (in the stan block)
+
+- add more comments in general
+
+- change the second title? (instead of "towards the target function", something like "incrementing our own likelihood")
+
+-->
+
 
 The present workshop is based on the tutorial ["Modèle Hiérarchique avec Stan"](https://stateofther.github.io/post/rstan/WorkingWithStan_part2.html) of Matthieu Authier & Eric Parent.
 
@@ -87,7 +108,7 @@ Below is a figure from @wenden2016collection showing the 25 studied sites in 11 
 ```{r LoadData, warning =F,message =F}
 dataSakura <- read_excel("../data/Sweet_cherry_phenology_data_1978-2015.xlsx", sheet = 1)
 
-dataSakura <- dataSakura[1:1000,] %>%
+dataSakura <- dataSakura[1:1000,] %>%                 # keep only 1000 individuals (to shorten the model running time)
   dplyr::rename(Flowering="Full Flowering") %>%       # response variable: the date of flowering
   filter(!is.na(Flowering),!is.na(Plantation)) %>%    # remove missing values
   dplyr::mutate(Age = Year - Plantation,              # create the "age" variable
@@ -126,9 +147,9 @@ dataSakura %>%
                 bootstrap_options = c("striped","hover", "condensed"), full_width = F)
 ```
 
-# The baseline statistical model (introducing the simplex type)
+# Baseline statistical model
 
-## Background model
+## Model equation
 
 We start with a simple model in which we aim to model the flowering date $y_{ijk}$ of each individual $i$ as a function of its age $j$ and its site $k$, such as:
 
@@ -153,8 +174,9 @@ with $\sum_{l=1}^3\pi_l = 1$ (see the [unit simplex](https://mc-stan.org/docs/2_
 
 This model is an ANOVA with 2 factors (age & site).
 
-## Stan model
-```{stan output.var='anova.baseline',eval=F}
+## Stan code
+
+```{stan output.var='baseline.model'}
 /*----------------------- Data --------------------------*/
 data {
   int<lower = 1> n_obs;                               // Total number of observations
@@ -209,10 +231,12 @@ generated quantities {
 }
 ```
 
+## Running the model
+
 Input data:
 
 ```{r ListStan}
-list.stan = list(n_obs = nrow(dataSakura),
+list.baseline.model = list(n_obs = nrow(dataSakura),
                  n_age = length(unique(dataSakura$Age)),
                  n_site = length(unique(dataSakura$Site)),
                  FLOWERING = dataSakura$Flowering,
@@ -222,9 +246,10 @@ list.stan = list(n_obs = nrow(dataSakura),
                  prior_scale_beta0 = 10)
 ```
 
-Compilation:
+<!-- Are you ok to remove the chunk below? to compile directly in the rmarkdown -->
 
-```{r BaselineModelCompile,message=F}
+```{r BaselineModelCompile,message=F,eval=F,echo=F}
+# Compilation:
 baseline.model <- stan_model("BaselineModelCode.stan")
 ```
 
@@ -232,7 +257,7 @@ Sampling:
 
 ```{r RunBaselineModel}
 fit.baseline.model <- sampling(baseline.model, 
-                               data = list.stan, 
+                               data = list.baseline.model, 
                                pars = c("beta0", "alpha", "delta", 
                                         "sigma", "sigma_age", "sigma_site", "sigma_tot", 
                                         "pi", "y_rep", "log_lik"),
@@ -245,7 +270,8 @@ fit.baseline.model <- sampling(baseline.model,
 loo.baseline.model <- loo::loo(fit.baseline.model) # to compare model predictive ability
 ```
 
-## Stan results
+
+## Model outputs
 
 Checking parameter convergence:
 
@@ -257,7 +283,6 @@ Parameter estimations and importance of each factor (age, site, others) in the t
 
 ```{r BaselineModelIntervals, fig.height=4,fig.height=4}
 print(fit.baseline.model, digits = 3, pars = c("beta0", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi"))
-#print(fit_1, digits = 3, pars = c("beta0", "alpha", "delta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "flower_new", "earliest", "latest", "R_squared"))
 
 fit.baseline.model %>%  mcmc_intervals(regex_pars = "^pi",
                     prob=0.95,
@@ -295,13 +320,11 @@ summary_anova %>%
   ylab("Estimate") + xlab("Source of variation") +
   coord_flip() +
   theme_bw()
-
-
 ```
 
 As sites seem to considerably impact the total variance, we can display the parameters $\delta_k$:
 
-```{r }
+```{r SiteFreqFig, message=F}
 freq <- dataSakura %>% 
   group_by(Site) %>% 
   summarize(effectif = n(),
@@ -344,7 +367,12 @@ ppc_dens_overlay(y = dataSakura$Flowering,
 
 # The mix model (towards the target function)
 
-## Background model
+<!-- changing the title? -->
+
+## Model equation
+
+<!-- Maybe give more details here -->
+
 Let's assume there are two types of cultivars depending on the flowering date : either early or late flowering. 
 Let's $p$ be the probability of a late individual $i$ and $1-p$ the probability of an early individual. 
 
@@ -370,11 +398,12 @@ l(y_{ijk}) = \log{[(1-p) \times \mathcal{N}(\beta_1 + \alpha_j + \delta_k, \sigm
 \\
 \end{align}
 
-## Stan model
+## Stan code
+
 Due to the presence of a discrete variable $z_{ijk}$, the likelihood is then implemented using the \textit{target} function instead of $\sim$. 
 Note custom-functions can be implemented by using the \textit{function} block:
 
-```{stan output.var='anova.mix',eval=F}
+```{stan output.var='mixTarget.code',eval=F}
 /*--------------------- Functions ------------------------*/
 functions {
   real TwoGaussianMixture_lpdf(real y, real prob, vector location, real scale) {
@@ -460,6 +489,8 @@ generated quantities {
 }
 ```
 
+## Running the model
+
 Input data:
 
 ```{r ListMixStan}
@@ -475,10 +506,12 @@ listMix.stan = list(n_obs = nrow(dataSakura),
                  prior_scale_diff = 3)
 ```
 
+<!-- Maybe in the model below, it would be better not to use the function block, and not calculate the y_rep. So that in this model, we introduce the calculation of the loglikelihood with the function target, and then in the second model, we introduce the use of the function block, to discuss :)  -->
+
 Compilation:
 
-```{r mixTargetModelCompile,message=F}
-mixTarget.code <- stan_model("MixModelCode_target.stan") # I renamed it to make the difference clear btw the model sampling and the model code
+```{r mixTargetModelCompile,message=F,eval=T,echo=T}
+mixTarget.code <- stan_model("MixModelCode_target.stan")
 ```
 
 Sampling:
@@ -486,7 +519,9 @@ Sampling:
 ```{r RunMixTargetModel}
 fit.mixTarget.model <- sampling(mixTarget.code, 
                                data = listMix.stan, 
-                               pars = c("p", "beta", "alpha", "delta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "difference", "y_rep", "log_lik"),
+                               pars = c("p", "beta", "alpha", "delta", 
+                                        "sigma", "sigma_age", "sigma_site", "sigma_tot", 
+                                        "pi", "difference", "y_rep", "log_lik"),
                                save_warmup = F, 
                                iter = 2000, 
                                chains = 4, 
@@ -497,13 +532,13 @@ fit.mixTarget.model <- sampling(mixTarget.code,
 Compilation (with the function block):
 
 ```{r mixTargetGaussianModelCompile,message=F}
-mixTargetGaussian.code <- stan_model("MixModelCode_targetGaussianMixture.stan")
+mixTargetGaussianMixture.code <- stan_model("MixModelCode_targetGaussianMixture.stan")
 ```
 
 Sampling (with the fuctin block):
 
 ```{r RunMixTargetGaussianModel}
-fit.mixTargetGaussianMixture.model <- sampling(mixTargetGaussian.code, 
+fit.mixTargetGaussianMixture.model <- sampling(mixTargetGaussianMixture.code, 
                                data = listMix.stan, 
                                pars = c("p", "beta", "alpha", "delta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "difference", "y_rep", "log_lik"),
                                save_warmup = F, 
@@ -515,25 +550,22 @@ fit.mixTargetGaussianMixture.model <- sampling(mixTargetGaussian.code,
 
 
 
-## Stan results
+## Model outputs
 
 Checking parameter convergence:
 
-```{r CheckingConvergence2, fig.height=4,fig.height=4,message=F}
-stan_rhat(fit.mixTarget.model)
+```{r CheckingConvergence2, fig.height=4,fig.width=10,message=F}
+plot_grid(stan_rhat(fit.mixTarget.model),
+          stan_rhat(fit.mixTargetGaussianMixture.model),
+          labels=c("fit.mixTarget.model","fit.mixTargetGaussianMixture.model"))
 ```
 
-```{r CheckingConvergence2.2, fig.height=4,fig.height=4,message=F}
-stan_rhat(fit.mixTargetGaussianMixture.model)
-```
 
 Parameter estimations:
 
-```{r mixTargetModelIntervals, fig.height=4,fig.height=4}
+```{r mixTargetModelIntervals}
 print(fit.mixTarget.model, digits = 3, pars = c("p", "beta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "difference"))
-```
 
-```{r mixTargetModelIntervals2, fig.height=4,fig.height=4}
 print(fit.mixTargetGaussianMixture.model, digits = 3, pars = c("p", "beta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "difference"))
 ```
 
@@ -578,7 +610,7 @@ summary_anova %>%
 
 Cultivars are now considered as predictor variables for estimating the latent state $z_{ijk}$.
 
-## Background model
+## Model equation
 
 Now, the latent discrete variable $z_{ijk}$ is recovered by using predictors such as the different cultivars (~190). The logistic regression can be written as:
 \begin{align}
@@ -587,8 +619,10 @@ logit(p_i) &= \eta_0 + \eta_{Cultivar}
 \\
 \end{align}
 
-## Stan model
-```{stan output.var='anova.mix',eval=F}
+
+## Running the model
+
+```{stan output.var='mixCultivar.code'}
 /*--------------------- Functions ------------------------*/
 functions {
   real TwoGaussianMixture_lpdf(real y, real prob, vector location, real scale) {
@@ -699,9 +733,10 @@ listMixCultivar.stan = list(n_obs = nrow(dataSakura),
                  prior_scale_eta0 = 1.5)
 ```
 
-Compilation:
 
-```{r mixModelCultivarCompile,message=F}
+
+```{r mixModelCultivarCompile,message=F,eval=F, echo=F}
+# Compilation: (I think we can skip this chunk and compile directly in the rmarkdown)
 mixCultivar.code <- stan_model("MixModelCultivarCode.stan")
 ```
 
@@ -714,7 +749,6 @@ fit.mixCultivar.model <- sampling(mixCultivar.code,
                                         "beta", "alpha", "delta", 
                                         "sigma", "sigma_age", "sigma_site", "sigma_tot", 
                                         "pi", "difference", "log_lik"),
-                               #pars = c("p", "beta", "alpha", "delta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "difference", "y_rep", "log_lik"),
                                save_warmup = F, 
                                iter = 2000, 
                                chains = 4, 
@@ -723,7 +757,7 @@ fit.mixCultivar.model <- sampling(mixCultivar.code,
 ```
 
 
-## Stan results
+## Model outputs
 
 Checking parameter convergence:
 
@@ -766,6 +800,121 @@ data.frame(id = unique(dataSakura$Cultivar),
   xlab("cultivar") + ylab("Pr(Late Flowering)") +
   coord_flip() +
   theme(axis.text.y = element_text(size = 6))
+```
+
+# Baseline model without the simplex
+
+By curiosity, we would like to see whether not using the simplex changes the estimates of $\sigma$, $\sigma_{age}$ and $\sigma_{site}$. So, we redo the baseline model but without the simplex.
+
+
+```{r BaselineModelWithoutSimplexCompile,message=F,eval=F}
+baseline.model.nosimplex <- stan_model("BaselineModelCode_NoSimplex.stan")
+```
+
+```{stan output.var='baseline.model.nosimplex'}
+data {
+  int<lower = 1> n_obs;                                              // Total number of observations
+  int<lower = 1> n_age;                                              // Number of different age classes
+  int<lower = 1> n_site;                                             // Number of different sites
+  vector[n_obs] FLOWERING;                                           // Response variable (flowering dates)
+  int<lower = 1, upper = n_age> AGE[n_obs];                          // Age variable
+  int<lower = 1, upper = n_site> SITE[n_obs];                        // Site variable
+  real prior_location_beta0;
+  real<lower = 0.0> prior_scale_beta0;
+}
+
+parameters {
+  real beta0;                                                        // global intercept
+  vector[n_age] alpha;                                               // Age intercepts
+  vector[n_site] delta;                                              // Site intercepts
+  real sigma;                                                        // Residual standard deviation
+  real sigma_age;                                                    // Standard deviation of the age intercepts
+  real sigma_site;                                                   // Standard deviation of the site intercepts
+}
+
+transformed parameters {
+  vector[n_obs] mu;                                                  // linear predictor
+  
+  mu = rep_vector(beta0, n_obs) + alpha[AGE] + delta[SITE];
+}
+
+model {
+  // Priors
+  beta0 ~ normal(prior_location_beta0, prior_scale_beta0);           // Prior of the global intercept
+  alpha ~ normal(0.0, sigma_age);                                    // Prior of the age intercepts
+  delta ~ normal(0.0, sigma_site);                                   // Prior of the site intercepts
+  sigma ~ exponential(1);
+  sigma_age ~ exponential(1);
+  sigma_site ~ exponential(1);
+  
+  // Likelihood
+  FLOWERING ~ normal(mu, sigma);
+}
+
+generated quantities {
+  vector[n_obs] log_lik;                                             // Log-likelihood
+  vector[n_obs] y_rep;                                               // posterior predictive check
+  
+  for(i in 1:n_obs) {
+    log_lik[i] = normal_lpdf(FLOWERING[i]| mu[i], sigma);
+    y_rep[i] = normal_rng(mu[i], sigma);
+  }
+}
+```
+
+```{r RunBaselineModelWithoutSimplex}
+fit.baseline.model.nosimplex <- sampling(baseline.model.nosimplex, 
+                               data = list.baseline.model, 
+                               pars = c("beta0", "alpha", "delta", 
+                                        "sigma", "sigma_age", "sigma_site",
+                                        "y_rep", "log_lik"),
+                               save_warmup = F, 
+                               iter = 2000, 
+                               chains = 4, cores = 4,thin=1)
+
+print(fit.baseline.model.nosimplex, 
+      digits = 3, pars = c("beta0", "sigma", "sigma_age", "sigma_site"))
+```
+
+There are more warnings in this model, compared to the baseline model with a simplex. 
+
+```{r ComparingModelsWithWithoutSimplex,fig.height=6,fig.width=10}
+list(baseline.model=fit.baseline.model,baseline.model.nosimplex=fit.baseline.model.nosimplex) %>% 
+  mclapply(function(x) {
+    broom::tidyMCMC(x,pars=c("sigma","sigma_site","sigma_age"),
+                droppars = NULL, estimate.method = "median", 
+                ess = F, rhat = F, 
+                conf.int = T,conf.level = 0.95)}) %>%  
+  bind_rows(.id="model") %>% 
+  ggplot(aes(x = term, y = estimate,ymin = conf.low, ymax = conf.high,color=model)) +
+  geom_pointinterval(position = position_dodge(width = .8),point_size=5,alpha=0.6,size=8) +
+  xlab("") +
+  ylab("Standard deviation estimates") +
+  labs(color = "Models") +
+  theme(axis.text = element_text(size=20),
+        panel.grid.minor.x=element_blank(),
+        panel.grid.major.x=element_blank())
+
+```
+
+```{r CorrPlots,fig.height=7,fig.width=7}
+# Baseline model with the simplex
+np <- nuts_params(fit.baseline.model)
+mcmc_pairs(as.array(fit.baseline.model),
+           np = np,
+           pars = c("sigma","sigma_site","sigma_age"),
+           off_diag_args = list(size = 1, alpha = 1/3),
+           np_style = pairs_style_np(div_size=1, div_shape = 19),
+           max_treedepth = 10)
+
+# Baseline model without the simplex
+np <- nuts_params(fit.baseline.model.nosimplex)
+mcmc_pairs(as.array(fit.baseline.model.nosimplex),
+           np = np,
+           pars = c("sigma","sigma_site","sigma_age"),
+           off_diag_args = list(size = 1, alpha = 1/3),
+           np_style = pairs_style_np(div_size=1, div_shape = 19),
+           max_treedepth = 10)
 ```
 
 # References
