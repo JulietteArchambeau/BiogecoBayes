@@ -69,6 +69,7 @@ library(dplyr)
 library(tidyr)
 library(parallel)
 library(tidybayes)
+library(broom.mixed)
 library(cowplot)
 library(kableExtra)
 theme_set(theme_bw(base_size = 16))
@@ -881,7 +882,7 @@ There are more warnings in this model, compared to the baseline model with a sim
 ```{r ComparingModelsWithWithoutSimplex,fig.height=6,fig.width=10}
 list(baseline.model=fit.baseline.model,baseline.model.nosimplex=fit.baseline.model.nosimplex) %>% 
   mclapply(function(x) {
-    broom::tidyMCMC(x,pars=c("sigma","sigma_site","sigma_age"),
+    broom.mixed::tidyMCMC(x,pars=c("sigma","sigma_site","sigma_age"),
                 droppars = NULL, estimate.method = "median", 
                 ess = F, rhat = F, 
                 conf.int = T,conf.level = 0.95)}) %>%  
