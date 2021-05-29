@@ -41,6 +41,7 @@ We are a small group of researchers, PhD students and post-docs who meet regular
 
 * [Statistical Rethinking of McElreath.](https://xcelab.net/rm/statistical-rethinking/)
 * [Stan Guide](https://mc-stan.org/docs/2_21/stan-users-guide/index.html)
+* [Regression and Other Stories by Andrew Gelman, Jennifer Hill and Aki Vehtari](https://www.cambridge.org/core/books/regression-and-other-stories/DD20DD6C9057118581076E54E40C372C) with the [code and data for the examples available here](https://avehtari.github.io/ROS-Examples/examples.html).
 
 ### Webpages
 
@@ -54,6 +55,12 @@ We are a small group of researchers, PhD students and post-docs who meet regular
 
 * [Richard McElreath's youtube channel](https://www.youtube.com/channel/UCNJK6_DZvcMqNSzQdEkzvzA)
 * [Stan youtube channel](https://www.youtube.com/channel/UCwgN5srGpBH4M-Zc2cAluOA)
+* [Good Bayesian by Baba Brinkman](https://www.youtube.com/watch?v=qV6Wc_f1Cgo)
+
+
+### Podcast
+
+* [Learning Bayesian Statistics podcast hosted by Alexandre Andorra](https://www.learnbayesstats.com/)
 
 ### Applications
 
