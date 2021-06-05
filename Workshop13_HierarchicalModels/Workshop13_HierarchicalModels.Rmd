@@ -1,7 +1,7 @@
 ---
 title: "Hierarchical Models"
 author: "Guillaume Ravel & Juliette Archambeau"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
+date: "17 June, 2021"
 output:
   html_document:
     toc: yes
@@ -75,24 +75,9 @@ library(kableExtra)
 theme_set(theme_bw(base_size = 16))
 ```
 
-<!-- Things to talk about during the skype: : 
-
-- change the model names to make it more informative
-
-- remove the y_rep and function block in model "MixModelCode_target"
-
-- I don't think we need to run both "MixModelCode_target" and "MixModelCode_targetGaussianMixture", one is enough. But show both model codes, so that we can understand both options.
-
-- compile the models in the rmarkdown (in the stan block)
-
-- add more comments in general
-
-- change the second title? (instead of "towards the target function", something like "incrementing our own likelihood")
-
--->
-
 
 The present workshop is based on the tutorial ["Modèle Hiérarchique avec Stan"](https://stateofther.github.io/post/rstan/WorkingWithStan_part2.html) of Matthieu Authier & Eric Parent.
+
 
 # The data
 
@@ -247,13 +232,6 @@ list.baseline.model = list(n_obs = nrow(dataSakura),
                  prior_scale_beta0 = 10)
 ```
 
-<!-- Are you ok to remove the chunk below? to compile directly in the rmarkdown -->
-
-```{r BaselineModelCompile,message=F,eval=F,echo=F}
-# Compilation:
-baseline.model <- stan_model("BaselineModelCode.stan")
-```
-
 Sampling:
 
 ```{r RunBaselineModel}
@@ -274,35 +252,47 @@ loo.baseline.model <- loo::loo(fit.baseline.model) # to compare model predictive
 
 ## Model outputs
 
-Checking parameter convergence:
+### Checking parameter convergence
 
 ```{r CheckingConvergence, fig.height=4,fig.height=4,message=F}
 stan_rhat(fit.baseline.model)
 ```
 
-Parameter estimations and importance of each factor (age, site, others) in the total variance:
+That's ok!
 
-```{r BaselineModelIntervals, fig.height=4,fig.height=4}
+It would be better to check also the chain convergence, the effective sammple size and the autocorrelation, but we will skip these steps here! More details here: https://mc-stan.org/bayesplot/articles/visual-mcmc-diagnostics.html.
+
+### Parameter estimates
+
+Let's look at the parameter estimates of the standard deviation for the sites ($\sigma_{site}$), the age ($\sigma_{age}$), the residuals ($\sigma$), the total standard deviation ($\sigma_{tot}$) and the relative importance of each variance component (i.e. proportion of the total variance explained by each component, i.e. site, age and residuals).
+
+Here is the coefficients table:
+
+```{r BaselineModelTable}
 print(fit.baseline.model, digits = 3, pars = c("beta0", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi"))
+```
 
+**Plotting the credible intervals of the parameters of interest**
+
+First, the relative importance of each variance component: $\pi_1$ for the residuals, $\pi_2$ for the age and $\pi_3$ for the sites.
+
+```{r BaselineModelIntervalsPi, fig.height=4,fig.height=3}
 fit.baseline.model %>%  mcmc_intervals(regex_pars = "^pi",
                     prob=0.95,
                     prob_outer=0.99,
                     point_est = "median") +  theme_bw() +
   theme(axis.text = element_text(size=16))
+```
 
-fit.baseline.model %>%  mcmc_intervals(regex_pars = "^sigma",
-                    prob=0.95,
-                    prob_outer=0.99,
-                    point_est = "median") +  theme_bw() +
-  theme(axis.text = element_text(size=16))
+The standard deviations:
 
+```{r BaselineModelIntervalsSD, fig.height=4,fig.height=4}
 lower <- function(x, alpha = 0.8) { coda::HPDinterval(coda::as.mcmc(x), prob = alpha)[1] }
 upper <- function(x, alpha = 0.8) { coda::HPDinterval(coda::as.mcmc(x), prob = alpha)[2] }
 get_summary <- function(x, alpha = 0.8) { c(mean(x), sd(x), coda::HPDinterval(coda::as.mcmc(x), prob = alpha)) }
 
 summary_anova <- as.data.frame(
-  do.call('rbind', lapply(c("sigma", "sigma_age", "sigma_site"),
+  do.call('rbind', lapply(c("sigma", "sigma_age", "sigma_site","sigma_tot"),
                           function(param) {
                             get_summary(as.numeric(rstan::extract(fit.baseline.model, param)[[1]]))
                             }
@@ -311,16 +301,23 @@ summary_anova <- as.data.frame(
 )
 
 names(summary_anova) <- c("mean", "se", "lower", "upper")
-summary_anova$component <- c("residual", "age", "site")
+summary_anova$component <- c("residual", "age", "site","total")
 
 summary_anova %>% 
-  mutate(component = factor(component, levels = c("residual", "age", "site")[order(mean)])) %>% 
+  mutate(component = factor(component, levels = c("residual", "age", "site","total")[order(mean)])) %>% 
   ggplot(aes(x = component, y = mean)) +
   geom_linerange(aes(x = component, ymin = lower, ymax = upper)) +
   geom_point(size = 2) +
   ylab("Estimate") + xlab("Source of variation") +
   coord_flip() +
   theme_bw()
+
+# For the graph, we could also have used:
+# fit.baseline.model %>%  mcmc_intervals(regex_pars = "^sigma",
+#                     prob=0.95,
+#                     prob_outer=0.99,
+#                     point_est = "median") +  theme_bw() +
+#   theme(axis.text = element_text(size=16))
 ```
 
 As sites seem to considerably impact the total variance, we can display the parameters $\delta_k$:
@@ -356,7 +353,7 @@ post_site %>%
   theme_bw()
 ```
 
-Posterior predictive checks:
+### Posterior predictive checks
 
 ```{r PPCBaselineModel, fig.height=4,fig.height=4}
 ppc_dens_overlay(y = dataSakura$Flowering,
@@ -366,15 +363,19 @@ ppc_dens_overlay(y = dataSakura$Flowering,
         axis.text = element_text(size=18), legend.position = c(0.8,0.6))
 ```
 
-# The mix model (towards the target function)
+#  Writing our own likelihood function
 
-<!-- changing the title? -->
+To write our own likelihood function, we will use the `target +=` function, which allows to directly increments the log density of the posterior up to an additive constant. 
+
+From [Bob Carpenter's comment in Stackoverflow](https://stackoverflow.com/questions/40289457/stan-using-target-syntax): `target += u` adds `u` to the target log density. The target density is the density from which the sampler samples and it needs to be equal to the joint density of all the parameters given the data up to a constant.
+
+But first, we have to mathematically write our own likelihood!
+
 
 ## Model equation
 
-<!-- Maybe give more details here -->
+Let's assume there are two genetically distinct types of individuals that can be differentiated based on their flowering date : early or late flowering. We want to identify individuals with the genetic potential of flowering earlier.
 
-Let's assume there are two types of cultivars depending on the flowering date : either early or late flowering. 
 Let's $p$ be the probability of a late individual $i$ and $1-p$ the probability of an early individual. 
 
 Then, the model becomes:
@@ -401,18 +402,92 @@ l(y_{ijk}) = \log{[(1-p) \times \mathcal{N}(\beta_1 + \alpha_j + \delta_k, \sigm
 
 ## Stan code
 
-Due to the presence of a discrete variable $z_{ijk}$, the likelihood is then implemented using the \textit{target} function instead of $\sim$. 
-Note custom-functions can be implemented by using the \textit{function} block:
+Due to the presence of a discrete variable $z_{ijk}$, the likelihood is then implemented using the `target` function instead of $\sim$. 
 
-```{stan output.var='mixTarget.code',eval=F}
+First way of doing it, we can directly write the likelihood function in the model block:
+
+```{stan output.var='FirstmixTarget.code',eval=F}
+/*----------------------- Data --------------------------*/
+data {
+  int<lower = 1> n_obs;                                              // Total number of observations
+  int<lower = 1> n_age;                                              // Number of different age classes
+  int<lower = 1> n_site;                                             // Number of different sites
+  vector[n_obs] FLOWERING;                                           // Response variable (flowering dates)
+  int<lower = 1, upper = n_age> AGE[n_obs];                          // Age variable
+  int<lower = 1, upper = n_site> SITE[n_obs];                        // Site variable
+  real prior_location_beta0;
+  real<lower = 0.0> prior_scale_beta0;
+  real prior_location_diff;
+  real<lower = 0.0> prior_scale_diff;
+}
+
+/*----------------------- Parameters --------------------------*/
+parameters {
+  real<lower = 0.0, upper = 1.0> p;				     // proba (early or late flowering)
+  simplex[3] pi;                                                     // unit complex specifying that the sum of its elements equal to one. 
+  real beta0;                                                        // global intercept
+  real<lower = 0.0> sigma_tot;                                       // Total standard deviation
+  vector[n_age] alpha;                                               // Age intercepts
+  vector[n_site] delta;                                              // Site intercepts
+  real<lower = 0> difference;                                        // difference between beta_1 and beta_2
+}
+
+
+/*------------------- Transformed Parameters --------------------*/
+transformed parameters {
+  real sigma;                                                        // Residual standard deviation
+  real sigma_age;                                                    // Standard deviation of the age intercepts
+  real sigma_site;                                                   // Standard deviation of the site intercepts
+  vector[n_obs] mu[2];                                               // linear predictor
+  vector[2] beta;
+  beta[1] = prior_location_beta0 + beta0 * prior_scale_beta0;
+  beta[2] = beta[1] + difference;
+  sigma = sqrt(pi[1]) * sigma_tot;
+  sigma_age = sqrt(pi[2]) * sigma_tot;
+  sigma_site = sqrt(pi[3]) * sigma_tot;
+  mu[1] = rep_vector(beta[1], n_obs) + alpha[AGE] + delta[SITE];
+  mu[2] = rep_vector(beta[2], n_obs) + alpha[AGE] + delta[SITE];
+}
+
+/*----------------------- Model --------------------------*/
+model {
+  // Priors
+  beta0 ~ normal(0.0, 1.0);
+  difference ~ normal(prior_location_diff, prior_scale_diff);
+  sigma_tot ~ student_t(3, 0.0, 1.0);                                // Prior of the total standard deviation
+  alpha ~ normal(0.0, sigma_age);                                    // Prior of the age intercepts
+  delta ~ normal(0.0, sigma_site);                                   // Prior of the site intercepts
+  
+  // Our own likelihood
+  for(i in 1:n_obs) {
+    target += log_sum_exp(log1m(p) + normal_lpdf(FLOWERING[i] | mu[1, i], sigma), log(p) + normal_lpdf(FLOWERING[i] | mu[2, i], sigma));
+  }
+}
+
+/*----------------------- Extracting the log-likelihood  --------------------------*/
+generated quantities {
+  vector[n_obs] log_lik;                                             // Log-likelihood
+
+  for(i in 1:n_obs) {
+    log_lik[i] = log_sum_exp(log1m(p) + normal_lpdf(FLOWERING[i] | mu[1, i], sigma), log(p) + normal_lpdf(FLOWERING[i] | mu[2, i], sigma));
+  }
+}
+```
+
+Second way of doing it, custom-functions can be implemented by using the `function` block:
+
+```{stan output.var='mixTarget.code'}
 /*--------------------- Functions ------------------------*/
 functions {
+  // for the estimating the log probability density function (lpdf)
   real TwoGaussianMixture_lpdf(real y, real prob, vector location, real scale) {
     real log_pdf[2];
     log_pdf[1] = log1m(prob) + normal_lpdf(y| location[1], scale);
     log_pdf[2] = log(prob) + normal_lpdf(y| location[2], scale);
     return log_sum_exp(log_pdf);
   }
+  
+  // for the generated quantities (prediction)
   real TwoGaussianMixture_rng(real prob, vector location, real scale) {
     int z;
     z = bernoulli_rng(prob);
@@ -432,6 +507,7 @@ data {
   real prior_location_diff;
   real<lower = 0.0> prior_scale_diff;
 }
+
 /*----------------------- Parameters --------------------------*/
 parameters {
   real<lower = 0.0, upper = 1.0> p;                                  // proba (early or late flowering)
@@ -442,6 +518,7 @@ parameters {
   vector[n_site] delta;                                              // Site intercepts
   real<lower = 0> difference;                                        // difference between beta_1 and beta_2
 }
+
 /*------------------- Transformed Parameters --------------------*/
 transformed parameters {
   real sigma;                                                        // Residual standard deviation
@@ -456,11 +533,8 @@ transformed parameters {
   sigma_site = sqrt(pi[3]) * sigma_tot;
   mu[1] = rep_vector(beta[1], n_obs) + alpha[AGE] + delta[SITE];
   mu[2] = rep_vector(beta[2], n_obs) + alpha[AGE] + delta[SITE];
-  //for (i in 1:n_obs) {
-  // mu[1, i] = beta[1] + alpha[AGE[i]] + delta[ZONE[i]];
-  // mu[2, i] = beta[2] + alpha[AGE[i]] + delta[ZONE[i]];
-  //}
 }
+
 /*----------------------- Model --------------------------*/
 model {
   // Priors
@@ -470,13 +544,12 @@ model {
   alpha ~ normal(0.0, sigma_age);                                    // Prior of the age intercepts
   delta ~ normal(0.0, sigma_site);                                   // Prior of the site intercepts
 
-  // Likelihood
+  // Our own likelihood
   for(i in 1:n_obs) {
-   //target += log_sum_exp(log1m(p) + normal_lpdf(FLOWERING[i] | mu[1, i], sigma), log(p) + normal_lpdf(FLOWERING[i] | mu[2, i], sigma));
-   //target += TwoGaussianMixture_lpdf(FLOWERING[i]| p, to_vector(mu[1:2, i]), sigma);
    FLOWERING[i] ~ TwoGaussianMixture(p, to_vector(mu[1:2, i]), sigma);
   }
 }
+
 /*----------------- Generated Quantities ------------------*/
 generated quantities {
   vector[n_obs] log_lik;                                             // Log-likelihood
@@ -507,14 +580,6 @@ listMix.stan = list(n_obs = nrow(dataSakura),
                  prior_scale_diff = 3)
 ```
 
-<!-- Maybe in the model below, it would be better not to use the function block, and not calculate the y_rep. So that in this model, we introduce the calculation of the loglikelihood with the function target, and then in the second model, we introduce the use of the function block, to discuss :)  -->
-
-Compilation:
-
-```{r mixTargetModelCompile,message=F,eval=T,echo=T}
-mixTarget.code <- stan_model("MixModelCode_target.stan")
-```
-
 Sampling:
 
 ```{r RunMixTargetModel}
@@ -530,49 +595,24 @@ fit.mixTarget.model <- sampling(mixTarget.code,
                                thin=1)
 ```
 
-Compilation (with the function block):
-
-```{r mixTargetGaussianModelCompile,message=F}
-mixTargetGaussianMixture.code <- stan_model("MixModelCode_targetGaussianMixture.stan")
-```
-
-Sampling (with the fuctin block):
-
-```{r RunMixTargetGaussianModel}
-fit.mixTargetGaussianMixture.model <- sampling(mixTargetGaussianMixture.code, 
-                               data = listMix.stan, 
-                               pars = c("p", "beta", "alpha", "delta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "difference", "y_rep", "log_lik"),
-                               save_warmup = F, 
-                               iter = 2000, 
-                               chains = 4, 
-                               cores = 4,
-                               thin=1)
-```
-
-
 
 ## Model outputs
 
 Checking parameter convergence:
 
-```{r CheckingConvergence2, fig.height=4,fig.width=10,message=F}
-plot_grid(stan_rhat(fit.mixTarget.model),
-          stan_rhat(fit.mixTargetGaussianMixture.model),
-          labels=c("fit.mixTarget.model","fit.mixTargetGaussianMixture.model"))
+```{r CheckingConvergence2, fig.height=4,fig.width=4,message=F}
+stan_rhat(fit.mixTarget.model)
 ```
-
 
 Parameter estimations:
 
 ```{r mixTargetModelIntervals}
 print(fit.mixTarget.model, digits = 3, pars = c("p", "beta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "difference"))
-
-print(fit.mixTargetGaussianMixture.model, digits = 3, pars = c("p", "beta", "sigma", "sigma_age", "sigma_site", "sigma_tot", "pi", "difference"))
 ```
 
 Comparison of the estimation of the log-likelihood between the baseline and the mix models (using WAIC):
 
-```{r comparison}
+```{r ModelComparison}
 # WAIC
 loo::loo_compare(loo::waic(rstan::extract(fit.baseline.model, "log_lik")$log_lik),
                  loo::waic(rstan::extract(fit.mixTarget.model, "log_lik")$log_lik))
@@ -584,9 +624,9 @@ loo::loo_compare(loo.baseline.model,loo.mixTarget.model)
 
 Importance of each factor (age, site, others) in the total variance:
 
-```{r sigma}
+```{r PosteriorDistributionSD}
 summary_anova <- as.data.frame(
-  do.call('rbind', lapply(c("sigma", "sigma_age", "sigma_site"),
+  do.call('rbind', lapply(c("sigma", "sigma_age", "sigma_site","sigma_tot"),
                           function(param) {
                             get_summary(as.numeric(rstan::extract(fit.mixTarget.model, param)[[1]]))
                             }
@@ -595,10 +635,10 @@ summary_anova <- as.data.frame(
 )
 
 names(summary_anova) <- c("mean", "se", "lower", "upper")
-summary_anova$component <- c("residual", "age", "site")
+summary_anova$component <- c("residual", "age", "site","total")
 
 summary_anova %>% 
-  mutate(component = factor(component, levels = c("residual", "age", "site")[order(mean)])) %>% 
+  mutate(component = factor(component, levels = c("residual", "age", "site","total")[order(mean)])) %>% 
   ggplot(aes(x = component, y = mean)) +
   geom_linerange(aes(x = component, ymin = lower, ymax = upper)) +
   geom_point(size = 2) +
@@ -607,13 +647,14 @@ summary_anova %>%
   theme_bw()
 ```
 
-# Cultivar and flowering (inclusion of covariables)
 
-Cultivars are now considered as predictor variables for estimating the latent state $z_{ijk}$.
+# Including covariates
+
+We are going to include the **cultivars** (`r dataSakura %>% distinct(Cultivar) %>% nrow()` cultivars) as **predictors** for estimating the latent state $z_{ijk}$.
 
 ## Model equation
 
-Now, the latent discrete variable $z_{ijk}$ is recovered by using predictors such as the different cultivars (~190). The logistic regression can be written as:
+We state that the **latent discrete variable** $z_{ijk}$ follows a logistic regression, which can be written as:
 \begin{align}
 z_{ijk} &\sim \mathcal{B}(p_i) \\
 logit(p_i) &= \eta_0 + \eta_{Cultivar}
@@ -621,7 +662,7 @@ logit(p_i) &= \eta_0 + \eta_{Cultivar}
 \end{align}
 
 
-## Running the model
+## Stan code
 
 ```{stan output.var='mixCultivar.code'}
 /*--------------------- Functions ------------------------*/
@@ -715,6 +756,9 @@ generated quantities {
 }
 ```
 
+
+## Running the model
+
 Input data:
 
 ```{r ListMixCultivarStan}
@@ -732,13 +776,6 @@ listMixCultivar.stan = list(n_obs = nrow(dataSakura),
                  prior_scale_diff = 3,
                  prior_location_eta0 = 0.0,
                  prior_scale_eta0 = 1.5)
-```
-
-
-
-```{r mixModelCultivarCompile,message=F,eval=F, echo=F}
-# Compilation: (I think we can skip this chunk and compile directly in the rmarkdown)
-mixCultivar.code <- stan_model("MixModelCultivarCode.stan")
 ```
 
 Sampling:
@@ -774,11 +811,7 @@ print(fit.mixCultivar.model, digits = 3, pars = c("eta0", "sigma_cultivar", "bet
 
 Comparison of the estimation of the log-likelihood between the two mix models (w or w/o cultivar variables):
 
-```{r comparison2}
-# WAIC
-loo::loo_compare(loo::waic(rstan::extract(fit.mixTarget.model, "log_lik")$log_lik),
-             loo::waic(rstan::extract(fit.mixCultivar.model, "log_lik")$log_lik)
-             )
+```{r ModelComparison2}
 # LOO-CV
 loo.mixCultivar.model <- loo(fit.mixCultivar.model)
 loo::loo_compare(x=list(loo.baseline.model,loo.mixTarget.model,loo.mixCultivar.model))
@@ -786,7 +819,7 @@ loo::loo_compare(x=list(loo.baseline.model,loo.mixTarget.model,loo.mixCultivar.m
 
 Finally, we can display the correlation between cultivars and the probability of late flowering:
 
-```{r cultivars}
+```{r cultivars,fig.height=16,fig.width=12}
 proba_late <- plogis(matrix(rep(rstan::extract(fit.mixCultivar.model, "eta0")$eta0, each = length(unique(dataSakura$Cultivar))), byrow = FALSE, ncol = length(unique(dataSakura$Cultivar))) + rstan::extract(fit.mixCultivar.model, "eta")$eta)
 
 data.frame(id = unique(dataSakura$Cultivar),
@@ -802,6 +835,7 @@ data.frame(id = unique(dataSakura$Cultivar),
   coord_flip() +
   theme(axis.text.y = element_text(size = 6))
 ```
+
 
 # Baseline model without the simplex
 
@@ -919,3 +953,6 @@ mcmc_pairs(as.array(fit.baseline.model.nosimplex),
 ```
 
 # References
+
+
+`r knitr::opts_chunk$set(eval = F)`
