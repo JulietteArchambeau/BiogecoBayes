@@ -38,6 +38,7 @@ We are a small group of researchers, PhD students and post-docs who meet regular
 ### Blogs
 
 * [Michael Clark's blog]( http://m-clark.github.io/workshops/bayesian/index.html#home)
+* [Richard Mc Elreath's blog](https://elevanth.org/blog/)
 
 ### Books
 
