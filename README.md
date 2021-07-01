@@ -22,7 +22,7 @@ We are a small group of researchers, PhD students and post-docs who meet regular
 * [Workshop11 - Neighbourhood and Segmentation](https://juliettearchambeau.github.io/BiogecoBayes/Workshop11_Neighbourhood.html#/)
 * [Workshop12 - Occupancy models](https://juliettearchambeau.github.io/BiogecoBayes/Workshop12_Occupancy.html#/)
 * [Workshop13 - Hierarchical models](https://juliettearchambeau.github.io/BiogecoBayes/Workshop13_HierarchicalModels.html#/)
-* [Workshop14 - Ensuring Identifiability](https://juliettearchambeau.github.io/BiogecoBayes/Workshop14_EnsuringIdentifiability.htmll#/)
+* [Workshop14 - Ensuring Identifiability](https://juliettearchambeau.github.io/BiogecoBayes/Workshop14_EnsuringIdentifiability.html#/)
 
 ### Course materials
 
